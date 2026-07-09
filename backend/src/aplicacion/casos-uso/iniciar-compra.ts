@@ -24,11 +24,14 @@ export class IniciarCompraUseCase {
       throw new Error('El carrito está vacío.');
     }
 
+    // Deduplicar productos para evitar comprar el mismo libro digital dos veces
+    const idsUnicos = Array.from(new Set(solicitud.productoIds));
+
     let total = 0;
     const productosValidos: Producto[] = [];
 
     // Validar que todos los productos existan y sumar sus precios
-    for (const id of solicitud.productoIds) {
+    for (const id of idsUnicos) {
       const producto = await this.repositorioProductos.obtenerPorId(id);
       if (!producto) {
         throw new Error(`El producto con id ${id} no existe.`);
@@ -39,7 +42,7 @@ export class IniciarCompraUseCase {
 
     const nuevaOrden = await this.repositorioOrdenes.crear({
       emailCliente: solicitud.emailCliente,
-      productoIds: solicitud.productoIds,
+      productoIds: idsUnicos,
       total,
       estado: 'PENDIENTE',
     });
