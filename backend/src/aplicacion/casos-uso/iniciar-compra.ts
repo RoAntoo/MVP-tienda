@@ -27,18 +27,18 @@ export class IniciarCompraUseCase {
     // Deduplicar productos para evitar comprar el mismo libro digital dos veces
     const idsUnicos = Array.from(new Set(solicitud.productoIds));
 
-    let total = 0;
-    const productosValidos: Producto[] = [];
+    // Obtener todos los productos en una sola consulta (batch)
+    const productosValidos = await this.repositorioProductos.obtenerPorIds(idsUnicos);
 
-    // Validar que todos los productos existan y sumar sus precios
-    for (const id of idsUnicos) {
-      const producto = await this.repositorioProductos.obtenerPorId(id);
-      if (!producto) {
-        throw new Error(`El producto con id ${id} no existe.`);
-      }
-      total += producto.precio;
-      productosValidos.push(producto);
+    // Validar que todos los IDs solicitados existen
+    if (productosValidos.length !== idsUnicos.length) {
+      const idsEncontrados = productosValidos.map(p => p.id);
+      const idFaltante = idsUnicos.find(id => !idsEncontrados.includes(id));
+      throw new Error(`El producto con id ${idFaltante} no existe.`);
     }
+
+    // Calcular el total
+    const total = productosValidos.reduce((acc, p) => acc + Number(p.precio), 0);
 
     const nuevaOrden = await this.repositorioOrdenes.crear({
       emailCliente: solicitud.emailCliente,

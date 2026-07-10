@@ -17,8 +17,21 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     return {
       id: productoDb.id,
       titulo: productoDb.titulo,
-      precio: Number(productoDb.precio), // Convertimos Decimal a number
+      precio: productoDb.precio,
       driveUrl: productoDb.driveUrl,
     };
+  }
+
+  async obtenerPorIds(ids: string[]): Promise<Producto[]> {
+    const productosDb = await this.prisma.producto.findMany({
+      where: { id: { in: ids } },
+    });
+
+    return productosDb.map(p => ({
+      id: p.id,
+      titulo: p.titulo,
+      precio: p.precio,
+      driveUrl: p.driveUrl,
+    }));
   }
 }

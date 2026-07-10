@@ -5,6 +5,21 @@ import { RepositorioOrdenes } from '../../dominio/repositorios/repositorio-orden
 export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
   constructor(private prisma: PrismaClient) {}
 
+  private _mapearOrden(ordenDb: any): Orden {
+    return {
+      id: ordenDb.id,
+      emailCliente: ordenDb.emailCliente,
+      total: ordenDb.total, // Usamos Decimal directamente
+      estado: ordenDb.estado as EstadoOrden,
+      productos: ordenDb.productos ? ordenDb.productos.map((p: any) => ({
+        id: p.id,
+        titulo: p.titulo,
+        precio: p.precio, // Decimal
+        driveUrl: p.driveUrl,
+      })) : [],
+    };
+  }
+
   async crear(orden: Omit<Orden, 'id' | 'productos'> & { productoIds: string[] }): Promise<Orden> {
     const ordenDb = await this.prisma.orden.create({
       data: {
@@ -20,18 +35,7 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
       },
     });
 
-    return {
-      id: ordenDb.id,
-      emailCliente: ordenDb.emailCliente,
-      total: Number(ordenDb.total),
-      estado: ordenDb.estado as EstadoOrden,
-      productos: ordenDb.productos.map((p) => ({
-        id: p.id,
-        titulo: p.titulo,
-        precio: Number(p.precio),
-        driveUrl: p.driveUrl,
-      })),
-    };
+    return this._mapearOrden(ordenDb);
   }
 
   async obtenerPorId(id: string): Promise<Orden | null> {
@@ -44,38 +48,26 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
       return null;
     }
 
-    return {
-      id: ordenDb.id,
-      emailCliente: ordenDb.emailCliente,
-      total: Number(ordenDb.total),
-      estado: ordenDb.estado as EstadoOrden,
-      productos: ordenDb.productos.map((p) => ({
-        id: p.id,
-        titulo: p.titulo,
-        precio: Number(p.precio),
-        driveUrl: p.driveUrl,
-      })),
-    };
+    return this._mapearOrden(ordenDb);
   }
 
-  async actualizarEstado(id: string, estado: 'PENDIENTE' | 'APROBADO'): Promise<Orden> {
-    const ordenDb = await this.prisma.orden.update({
-      where: { id },
+  async actualizarEstado(id: string, estado: EstadoOrden): Promise<{ orden: Orden; modificada: boolean } | null> {
+    // Operación atómica: solo actualiza si el estado es diferente
+    const { count } = await this.prisma.orden.updateMany({
+      where: { id, estado: { not: estado } },
       data: { estado },
+    });
+
+    const ordenDb = await this.prisma.orden.findUnique({
+      where: { id },
       include: { productos: true },
     });
 
+    if (!ordenDb) return null;
+
     return {
-      id: ordenDb.id,
-      emailCliente: ordenDb.emailCliente,
-      total: Number(ordenDb.total),
-      estado: ordenDb.estado as EstadoOrden,
-      productos: ordenDb.productos.map((p) => ({
-        id: p.id,
-        titulo: p.titulo,
-        precio: Number(p.precio),
-        driveUrl: p.driveUrl,
-      })),
+      orden: this._mapearOrden(ordenDb),
+      modificada: count > 0,
     };
   }
 }

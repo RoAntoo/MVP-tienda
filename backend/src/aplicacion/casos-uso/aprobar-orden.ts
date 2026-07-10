@@ -8,19 +8,17 @@ export interface SolicitudAprobarOrden {
 export class AprobarOrdenUseCase {
   constructor(private repositorioOrdenes: RepositorioOrdenes) { }
 
-  async ejecutar(solicitud: SolicitudAprobarOrden): Promise<Orden> {
-    const orden = await this.repositorioOrdenes.obtenerPorId(solicitud.ordenId);
+  async ejecutar(solicitud: SolicitudAprobarOrden): Promise<{ orden: Orden; yaAprobada: boolean }> {
+    // Intentar actualizar atómicamente la orden
+    const resultado = await this.repositorioOrdenes.actualizarEstado(solicitud.ordenId, 'APROBADO');
 
-    if (!orden) {
+    if (!resultado) {
       throw new Error(`La orden con id ${solicitud.ordenId} no existe.`);
     }
 
-    if (orden.estado === 'APROBADO') {
-      return orden;
-    }
-
-    const ordenActualizada = await this.repositorioOrdenes.actualizarEstado(solicitud.ordenId, 'APROBADO');
-
-    return ordenActualizada;
+    return {
+      orden: resultado.orden,
+      yaAprobada: !resultado.modificada, // Si no fue modificada, es porque ya estaba APROBADA (o despachada)
+    };
   }
 }

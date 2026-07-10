@@ -37,10 +37,13 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(201).send(resultado);
     } catch (error: any) {
       servidor.log.error(error);
-      if (error instanceof z.ZodError) {
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
         return respuesta.status(400).send({ error: error.issues });
       }
-      return respuesta.status(400).send({ error: error.message });
+      if (error.message.includes('no existe') || error.message.includes('vacío')) {
+        return respuesta.status(400).send({ error: error.message });
+      }
+      return respuesta.status(500).send({ error: 'Ocurrió un error interno en el servidor.' });
     }
   });
 
@@ -63,18 +66,26 @@ export async function rutas(servidor: FastifyInstance) {
       const cuerpo = EsquemaAprobarOrden.parse(peticion.body);
 
       // Procesamos el pago (aprobamos la orden)
-      const orden = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
+      const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
 
-      // Si se aprobó con éxito, despachamos el producto (enviamos correo con los links)
-      await despacharProductoUseCase.ejecutar({ ordenId: orden.id });
+      // Si se aprobó con éxito (y no estaba previamente aprobada), despachamos el producto
+      if (!resultadoAprobacion.yaAprobada) {
+        await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
+      }
 
-      return respuesta.status(200).send({ mensaje: 'Orden aprobada y productos despachados', orden });
+      return respuesta.status(200).send({ 
+        mensaje: resultadoAprobacion.yaAprobada ? 'Orden ya estaba aprobada' : 'Orden aprobada y productos despachados', 
+        orden: resultadoAprobacion.orden 
+      });
     } catch (error: any) {
       servidor.log.error(error);
-      if (error instanceof z.ZodError) {
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
         return respuesta.status(400).send({ error: error.issues });
       }
-      return respuesta.status(400).send({ error: error.message });
+      if (error.message.includes('no existe') || error.message.includes('vacío')) {
+        return respuesta.status(400).send({ error: error.message });
+      }
+      return respuesta.status(500).send({ error: 'Ocurrió un error interno en el servidor.' });
     }
   });
 }

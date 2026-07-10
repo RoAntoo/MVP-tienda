@@ -8,7 +8,7 @@ export const iniciarServidor = async () => {
 
   // Configurar CORS para permitir peticiones desde el Frontend
   await servidor.register(cors, {
-    origin: '*', // En producción, cambiar por la URL real del frontend
+    origin: process.env.FRONTEND_URL || '*',
   });
 
   servidor.get('/salud', async (peticion, respuesta) => {
@@ -19,8 +19,9 @@ export const iniciarServidor = async () => {
   servidor.register(rutas);
 
   try {
-    await servidor.listen({ port: 3000 });
-    console.log('Servidor escuchando en el puerto 3000');
+    const puerto = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    await servidor.listen({ port: puerto, host: '0.0.0.0' });
+    console.log(`Servidor escuchando en el puerto ${puerto}`);
   } catch (error) {
     servidor.log.error(error);
     process.exit(1);

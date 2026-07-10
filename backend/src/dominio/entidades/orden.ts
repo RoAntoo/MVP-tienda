@@ -1,9 +1,12 @@
-export type EstadoOrden = 'PENDIENTE' | 'APROBADO';
+import { Producto } from './producto.js';
+import { Prisma } from '@prisma/client';
+
+export type EstadoOrden = 'PENDIENTE' | 'APROBADO' | 'DESPACHADO';
 
 export interface Orden {
   id: string;
   emailCliente: string;
-  total: number;
+  total: Prisma.Decimal | number;
   estado: EstadoOrden;
-  productos?: { id: string; titulo: string; precio: number; driveUrl: string }[];
+  productos?: Producto[];
 }

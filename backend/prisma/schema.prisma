@@ -9,7 +9,7 @@ datasource db {
 model Producto {
   id        String   @id @default(uuid()) @db.Uuid
   titulo    String
-  precio    Decimal
+  precio    Decimal  @db.Decimal(10, 2)
   driveUrl  String   @map("drive_url")
   ordenes   Orden[]  @relation("OrdenProductos")
 
@@ -17,11 +17,17 @@ model Producto {
 }
 
 model Orden {
-  id            String     @id @default(uuid()) @db.Uuid
-  emailCliente  String     @map("customer_email")
-  total         Decimal
-  estado        String     // Valores: PENDIENTE o APROBADO
-  productos     Producto[] @relation("OrdenProductos")
+  id            String       @id @default(uuid()) @db.Uuid
+  emailCliente  String       @map("customer_email")
+  total         Decimal      @db.Decimal(10, 2)
+  estado        EstadoOrden
+  productos     Producto[]   @relation("OrdenProductos")
 
   @@map("ordenes")
+}
+
+enum EstadoOrden {
+  PENDIENTE
+  APROBADO
+  DESPACHADO
 }

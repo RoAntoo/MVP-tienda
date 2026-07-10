@@ -14,6 +14,10 @@ export class DespacharProductoUseCase {
       throw new Error(`La orden con id ${solicitud.ordenId} no existe.`);
     }
 
+    if (orden.estado === 'DESPACHADO') {
+      return; // Ya se despachó previamente, ignorar para evitar duplicados
+    }
+
     if (orden.estado !== 'APROBADO') {
       throw new Error(`No se puede despachar la orden ${solicitud.ordenId} porque su estado es ${orden.estado}.`);
     }
@@ -24,17 +28,22 @@ export class DespacharProductoUseCase {
       throw new Error(`La orden no tiene productos asociados.`);
     }
 
-    console.log(`========================================`);
-    console.log(`[SIMULACION - CORREO DE ENTREGA DE PRODUCTOS]`);
-    console.log(`Para: ${orden.emailCliente}`);
-    console.log(`Asunto: ¡Tu pago fue aprobado! Aquí están tus compras`);
-    console.log(`Mensaje: Hola! Confirmamos la recepción de tu pago. A continuación tienes los enlaces para descargar tus libros:`);
+    // Actualizar atómicamente a DESPACHADO
+    const resultadoActualizacion = await this.repositorioOrdenes.actualizarEstado(orden.id, 'DESPACHADO');
     
-    productos.forEach((p, index) => {
-      console.log(`${index + 1}. ${p.titulo} -> ${p.driveUrl}`);
-    });
-    
-    console.log(`¡Disfruta tu lectura!`);
-    console.log(`========================================`);
+    if (resultadoActualizacion?.modificada) {
+      console.log(`========================================`);
+      console.log(`[SIMULACION - CORREO DE ENTREGA DE PRODUCTOS]`);
+      console.log(`Para: ${orden.emailCliente}`);
+      console.log(`Asunto: ¡Tu pago fue aprobado! Aquí están tus compras`);
+      console.log(`Mensaje: Hola! Confirmamos la recepción de tu pago. A continuación tienes los enlaces para descargar tus libros:`);
+      
+      productos.forEach((p, index) => {
+        console.log(`${index + 1}. ${p.titulo} -> ${p.driveUrl}`);
+      });
+      
+      console.log(`¡Disfruta tu lectura!`);
+      console.log(`========================================`);
+    }
   }
 }
