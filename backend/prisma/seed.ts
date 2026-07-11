@@ -10,7 +10,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Producto de prueba creado! ID: ${producto.id}`);
+  console.log(`Producto de prueba creado! ID: ${producto.id}`);
 }
 
 main()
