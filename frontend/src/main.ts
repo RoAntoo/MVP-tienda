@@ -42,16 +42,43 @@ const checkoutForm = document.getElementById('checkoutForm');
 const cartCountElement = document.getElementById('cartCount');
 
 // Funciones del Modal
+let lastFocusedElement: HTMLElement | null = null;
+
 function toggleCart() {
   if (cartSidebar && cartOverlay) {
-    cartSidebar.classList.toggle('hidden');
-    cartOverlay.classList.toggle('hidden');
+    const isHidden = cartSidebar.classList.contains('hidden');
+    
+    if (isHidden) {
+      // Abrir carrito
+      lastFocusedElement = document.activeElement as HTMLElement;
+      cartSidebar.classList.remove('hidden');
+      cartOverlay.classList.remove('hidden');
+      closeCartBtn?.focus();
+    } else {
+      // Cerrar carrito
+      cartSidebar.classList.add('hidden');
+      cartOverlay.classList.add('hidden');
+      if (lastFocusedElement) {
+        lastFocusedElement.focus();
+      }
+    }
   }
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && cartSidebar && !cartSidebar.classList.contains('hidden')) {
+    toggleCart();
+  }
+});
 
 if (cartBtn) cartBtn.addEventListener('click', toggleCart);
 if (closeCartBtn) closeCartBtn.addEventListener('click', toggleCart);
 if (cartOverlay) cartOverlay.addEventListener('click', toggleCart);
+
+// Helper para cálculo de total
+function calculateTotal(): number {
+  return cartItems.reduce((sum, item) => sum + item.price, 0);
+}
 
 // Lógica del Carrito
 function renderCart() {
@@ -61,7 +88,7 @@ function renderCart() {
   cartCountElement.textContent = cartItems.length.toString();
 
   // Actualizar total
-  const total = cartItems.reduce((sum, item) => sum + item.price, 0);
+  const total = calculateTotal();
   cartTotalPrice.textContent = `$${total.toFixed(2)}`;
 
   // Limpiar lista
@@ -116,13 +143,13 @@ function renderCart() {
   });
 }
 
-function addToCart(productId: string) {
+function addToCart(productId: string): boolean {
   const product = PRODUCTS.find(p => p.id === productId);
-  if (!product) return;
+  if (!product) return false;
 
   // Evitar duplicados (es un producto digital)
   if (cartItems.find(item => item.id === productId)) {
-    return;
+    return false;
   }
 
   cartItems.push(product);
@@ -137,6 +164,8 @@ function addToCart(productId: string) {
       cartCountElement.style.transform = 'scale(1)';
     }, 200);
   }
+  
+  return true;
 }
 
 // Renderizar Productos en Home
@@ -172,19 +201,21 @@ function renderProducts() {
     
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
-      addToCart(product.id);
+      const added = addToCart(product.id);
       
-      // Feedback visual del boton
-      const originalText = target.innerText;
-      target.innerText = '[ ADDED ]';
-      target.style.background = 'var(--accent-pink)';
-      target.style.color = 'var(--bg-color)';
-      
-      setTimeout(() => {
-        target.innerText = originalText;
-        target.style.background = 'transparent';
-        target.style.color = 'var(--accent-pink)';
-      }, 1000);
+      if (added) {
+        // Feedback visual del boton
+        const originalText = target.innerText;
+        target.innerText = '[ ADDED ]';
+        target.style.background = 'var(--accent-pink)';
+        target.style.color = 'var(--bg-color)';
+        
+        setTimeout(() => {
+          target.innerText = originalText;
+          target.style.background = 'transparent';
+          target.style.color = 'var(--accent-pink)';
+        }, 1000);
+      }
     });
 
     infoDiv.appendChild(title);
@@ -210,7 +241,7 @@ if (checkoutForm) {
     alert(`[ SISTEMA ]
 Iniciando orden de compra...
 Email: ${email}
-Total: $${cartItems.reduce((acc, i) => acc + i.price, 0).toFixed(2)}
+Total: $${calculateTotal().toFixed(2)}
 ¡La API se conectará en la próxima fase!`);
     
     cartItems = [];
