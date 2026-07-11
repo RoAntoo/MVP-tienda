@@ -16,19 +16,14 @@ Solo necesitamos dos tablas principales con IDs seguros para evitar iteraciones 
 Tabla Products:
 * id: UUID (Primary Key)
 * title: String
-* price: Decimal
-* drive_url: String
-
-Tabla Orders:
-* id: UUID (Primary Key)
-* customer_email: String
-* product_id: UUID (Foreign Key a Products)
-* status: String (Valores: PENDIENTE o APROBADO)
+* Products: id, titulo, precio, driveUrl
+- Orders: id, emailCliente, total, estado ('PENDIENTE', 'APROBADO', 'DESPACHADO'), productoIds (Relación N:M con Productos)
 
 ## Flujo de Negocio y Casos de Uso
-1. Iniciar Compra: El frontend envia el email del comprador y el ID del producto. El backend crea la orden en estado PENDIENTE y devuelve la informacion necesaria para cobrar.
-2. Procesar Webhook: La pasarela de pagos envia la confirmacion del deposito. El backend procesa esta notificacion y cambia el estado de la orden a APROBADO.
-3. Despachar Producto: Al aprobarse la orden, el sistema recupera el drive_url del producto y dispara la logica para enviar un correo al customer_email. (La integracion real con la API de correos se hara luego, por ahora dejar un servicio falso o un console log).
+1. El usuario envía un POST a `/compras` con su email y `productoIds`.
+2. Se crea la orden con estado `'PENDIENTE'` y se responden los datos de transferencia.
+3. El administrador envía un POST a `/admin/ordenes/aprobar` (protegido por `ADMIN_API_KEY`).
+4. El backend cambia el estado de la orden a `'APROBADO'` y luego inmediatamente a `'DESPACHADO'` mientras envía un correo simulado con los links de drive al cliente., el sistema recupera el drive_url del producto y dispara la logica para enviar un correo al customer_email. (La integracion real con la API de correos se hara luego, por ahora dejar un servicio falso o un console log).
 
 ## Restricciones de Seguridad y Reglas Especiales
 * Sistema sin registro: No implementar autenticacion para compradores ni base de datos de usuarios.

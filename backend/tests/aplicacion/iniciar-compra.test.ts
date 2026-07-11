@@ -46,7 +46,7 @@ describe('IniciarCompraUseCase', () => {
     expect(mockRepoOrdenes.crear).toHaveBeenCalledWith(expect.objectContaining({
       emailCliente: 'cliente@test.com',
       productoIds: ['1', '2'],
-      total: 150,
+      total: new Prisma.Decimal(150),
       estado: 'PENDIENTE'
     }));
 

@@ -68,8 +68,8 @@ export async function rutas(servidor: FastifyInstance) {
       // Procesamos el pago (aprobamos la orden)
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
 
-      // Si se aprobó con éxito (y no estaba previamente aprobada), despachamos el producto
-      if (!resultadoAprobacion.yaAprobada) {
+      // Intentamos despachar el producto si la orden está aprobada (idempotente)
+      if (resultadoAprobacion.orden.estado === 'APROBADO') {
         await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
       }
 

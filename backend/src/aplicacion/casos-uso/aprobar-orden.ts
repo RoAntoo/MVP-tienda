@@ -9,8 +9,8 @@ export class AprobarOrdenUseCase {
   constructor(private repositorioOrdenes: RepositorioOrdenes) { }
 
   async ejecutar(solicitud: SolicitudAprobarOrden): Promise<{ orden: Orden; yaAprobada: boolean }> {
-    // Intentar actualizar atómicamente la orden
-    const resultado = await this.repositorioOrdenes.actualizarEstado(solicitud.ordenId, 'APROBADO');
+    // Intentar actualizar atómicamente la orden (de PENDIENTE a APROBADO)
+    const resultado = await this.repositorioOrdenes.actualizarEstado(solicitud.ordenId, 'PENDIENTE', 'APROBADO');
 
     if (!resultado) {
       throw new Error(`La orden con id ${solicitud.ordenId} no existe.`);

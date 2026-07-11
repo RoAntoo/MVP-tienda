@@ -51,11 +51,11 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
     return this._mapearOrden(ordenDb);
   }
 
-  async actualizarEstado(id: string, estado: EstadoOrden): Promise<{ orden: Orden; modificada: boolean } | null> {
-    // Operación atómica: solo actualiza si el estado es diferente
+  async actualizarEstado(id: string, estadoOrigen: EstadoOrden, nuevoEstado: EstadoOrden): Promise<{ orden: Orden; modificada: boolean } | null> {
+    // Operación atómica: solo actualiza si el estado actual coincide con estadoOrigen
     const { count } = await this.prisma.orden.updateMany({
-      where: { id, estado: { not: estado } },
-      data: { estado },
+      where: { id, estado: estadoOrigen },
+      data: { estado: nuevoEstado },
     });
 
     const ordenDb = await this.prisma.orden.findUnique({

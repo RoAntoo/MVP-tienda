@@ -60,6 +60,6 @@ describe('AprobarOrdenUseCase', () => {
     
     expect(resultado.yaAprobada).toBe(false);
     expect(resultado.orden.estado).toBe('APROBADO');
-    expect(mockRepoOrdenes.actualizarEstado).toHaveBeenCalledWith('1', 'APROBADO');
+    expect(mockRepoOrdenes.actualizarEstado).toHaveBeenCalledWith('1', 'PENDIENTE', 'APROBADO');
   });
 });

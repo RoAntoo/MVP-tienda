@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { RepositorioOrdenes } from '../../dominio/repositorios/repositorio-ordenes.js';
 import { RepositorioProductos } from '../../dominio/repositorios/repositorio-productos.js';
 import { Orden } from '../../dominio/entidades/orden.js';
@@ -37,8 +38,11 @@ export class IniciarCompraUseCase {
       throw new Error(`El producto con id ${idFaltante} no existe.`);
     }
 
-    // Calcular el total
-    const total = productosValidos.reduce((acc, p) => acc + Number(p.precio), 0);
+    // Calcular el total usando Decimal para evitar pérdida de precisión
+    const total = productosValidos.reduce(
+      (acc, p) => Prisma.Decimal.add(acc, p.precio as any), 
+      new Prisma.Decimal(0)
+    );
 
     const nuevaOrden = await this.repositorioOrdenes.crear({
       emailCliente: solicitud.emailCliente,
@@ -47,12 +51,15 @@ export class IniciarCompraUseCase {
       estado: 'PENDIENTE',
     });
 
+    const [nombre, dominio] = solicitud.emailCliente.split('@');
+    const emailOculto = `${nombre.charAt(0)}***@${dominio}`;
+
     // Simulación de correo con instrucciones de pago
     console.log(`========================================`);
     console.log(`[SIMULACION - CORREO DE INSTRUCCIONES DE PAGO]`);
-    console.log(`Para: ${solicitud.emailCliente}`);
+    console.log(`Para: ${emailOculto}`);
     console.log(`Asunto: Datos para pagar tu compra`);
-    console.log(`Mensaje: Hola! Has iniciado la compra de ${productosValidos.length} libro(s) por un total de $${total}.`);
+    console.log(`Mensaje: Hola! Has iniciado la compra de ${idsUnicos.length} libro(s) por un total de $${total.toString()}.`);
     console.log(`Por favor, deposita o transfiere a esta cuenta bancaria:`);
     console.log(`CBU: 1234567890123456789012`);
     console.log(`Alias: MI.TIENDA.LIBROS`);

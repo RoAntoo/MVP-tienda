@@ -28,21 +28,18 @@ export class DespacharProductoUseCase {
       throw new Error(`La orden no tiene productos asociados.`);
     }
 
-    // Actualizar atómicamente a DESPACHADO
-    const resultadoActualizacion = await this.repositorioOrdenes.actualizarEstado(orden.id, 'DESPACHADO');
+    // Actualizar atómicamente a DESPACHADO (desde APROBADO)
+    const resultadoActualizacion = await this.repositorioOrdenes.actualizarEstado(orden.id, 'APROBADO', 'DESPACHADO');
     
     if (resultadoActualizacion?.modificada) {
+      const [nombre, dominio] = orden.emailCliente.split('@');
+      const emailOculto = `${nombre.charAt(0)}***@${dominio}`;
+
       console.log(`========================================`);
-      console.log(`[SIMULACION - CORREO DE ENTREGA DE PRODUCTOS]`);
-      console.log(`Para: ${orden.emailCliente}`);
-      console.log(`Asunto: ¡Tu pago fue aprobado! Aquí están tus compras`);
-      console.log(`Mensaje: Hola! Confirmamos la recepción de tu pago. A continuación tienes los enlaces para descargar tus libros:`);
-      
-      productos.forEach((p, index) => {
-        console.log(`${index + 1}. ${p.titulo} -> ${p.driveUrl}`);
-      });
-      
-      console.log(`¡Disfruta tu lectura!`);
+      console.log(`[SIMULACION - SERVICIO DE NOTIFICACIONES]`);
+      console.log(`Email de entrega enviado a: ${emailOculto}`);
+      console.log(`Orden ID: ${orden.id}`);
+      console.log(`Cantidad de productos despachados: ${productos.length}`);
       console.log(`========================================`);
     }
   }

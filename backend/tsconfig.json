@@ -9,5 +9,5 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist"
   },
-  "include": ["src/**/*", "prisma.config.ts", "prisma/seed.ts"]
+  "include": ["src/**/*", "prisma.config.ts", "prisma/seed.ts", "tests/**/*"]
 }

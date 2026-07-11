@@ -81,7 +81,7 @@ describe('DespacharProductoUseCase', () => {
 
     await useCase.ejecutar({ ordenId: '1' });
     
-    expect(mockRepoOrdenes.actualizarEstado).toHaveBeenCalledWith('1', 'DESPACHADO');
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('SIMULACION - CORREO'));
+    expect(mockRepoOrdenes.actualizarEstado).toHaveBeenCalledWith('1', 'APROBADO', 'DESPACHADO');
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('SIMULACION - SERVICIO DE NOTIFICACIONES'));
   });
 });
