@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyber Reads | Digital Manga & Books</title>
+    <!-- Modern and Retro Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Navbar -->
+      <nav class="navbar">
+        <div class="logo">
+          <span class="glitch" data-text="CYBER_READS">CYBER_READS</span>
+        </div>
+        <button id="cartBtn" class="cyber-btn">
+          <span>🛒 Carrito (<span id="cartCount">0</span>)</span>
+        </button>
+      </nav>
+
+      <!-- Hero Section -->
+      <header class="hero">
+        <div class="grid-overlay"></div>
+        <div class="hero-content">
+          <h1>DOWNLOAD. READ. <span class="highlight">HACK THE PLANET.</span></h1>
+          <p>Tu librería digital de mangas y libros técnicos de alta calidad. Sin DRM, sin complicaciones. Acceso instantáneo.</p>
+        </div>
+      </header>
+
+      <!-- Products Grid -->
+      <main class="products-section">
+        <h2 class="section-title">&gt; RECIENTEMENTE_AÑADIDOS <span class="blink">_</span></h2>
+        <div id="productsGrid" class="products-grid">
+          <!-- Products injected here by TS -->
+        </div>
+      </main>
+
+      <!-- Product Detail View (Hidden by default) -->
+      <section id="productDetailView" class="product-detail-view hidden">
+        <div class="product-detail-container">
+          <button id="backToCatalogBtn" class="cyber-btn cyber-btn-cyan back-btn">
+            [ &lt; VOLVER_AL_CATALOGO ]
+          </button>
+          
+          <div class="detail-content">
+            <div class="detail-image-wrapper">
+              <img id="detailImage" src="https://placehold.co/400x500/14141e/ff2a85?text=LOADING" alt="Portada del Libro" class="detail-image">
+            </div>
+            
+            <div class="detail-info">
+              <h2 id="detailTitle" class="detail-title">Cargando...</h2>
+              <div id="detailPrice" class="detail-price highlight">$0.00</div>
+              <div class="detail-divider"></div>
+              
+              <div class="detail-description">
+                <h3>&gt; _DESCRIPCION_DEL_ARCHIVO</h3>
+                <p id="detailDesc">...</p>
+              </div>
+              
+              <div class="detail-actions">
+                <button id="detailAddToCartBtn" class="cyber-btn cyber-btn-pink w-100 detail-buy-btn">
+                  [ AÑADIR_AL_CARRITO ]
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer>
+        <p>© 2026 CYBER_READS | ALL RIGHTS RESERVED.</p>
+      </footer>
+    </div>
+
+    <!-- Cart Overlay & Sidebar Modal -->
+    <div id="cartOverlay" class="cart-overlay hidden"></div>
+    <aside id="cartSidebar" class="cart-sidebar hidden">
+      <div class="cart-header">
+        <h2>&gt; SISTEMA_CARRITO</h2>
+        <button id="closeCartBtn" class="cyber-btn">[ X ]</button>
+      </div>
+      
+      <div id="cartItemsContainer" class="cart-items">
+        <!-- Inyectado por TS -->
+      </div>
+      
+      <div class="cart-footer">
+        <div class="cart-total">
+          <span>TOTAL:</span>
+          <span id="cartTotalPrice" class="highlight">$0.00</span>
+        </div>
+        
+        <form id="checkoutForm" class="checkout-form">
+          <label for="emailInput">_INSERTE_EMAIL_DE_DESCARGA:</label>
+          <input type="email" id="emailInput" placeholder="hacker@matrix.com" required>
+          <button type="submit" class="cyber-btn cyber-btn-pink w-100">
+            [ INICIAR_COMPRA ]
+          </button>
+        </form>
+      </div>
+    </aside>
+    
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
