@@ -1,4 +1,5 @@
 import { RepositorioOrdenes } from '../../dominio/repositorios/repositorio-ordenes.js';
+import { Orden } from '../../dominio/entidades/orden.js';
 
 export interface SolicitudDespacharProducto {
   ordenId: string;
@@ -7,7 +8,7 @@ export interface SolicitudDespacharProducto {
 export class DespacharProductoUseCase {
   constructor(private repositorioOrdenes: RepositorioOrdenes) {}
 
-  async ejecutar(solicitud: SolicitudDespacharProducto): Promise<void> {
+  async ejecutar(solicitud: SolicitudDespacharProducto): Promise<{ orden: Orden }> {
     const orden = await this.repositorioOrdenes.obtenerPorId(solicitud.ordenId);
 
     if (!orden) {
@@ -15,7 +16,7 @@ export class DespacharProductoUseCase {
     }
 
     if (orden.estado === 'DESPACHADO') {
-      return; // Ya se despachó previamente, ignorar para evitar duplicados
+      return { orden }; // Ya se despachó previamente, ignorar para evitar duplicados
     }
 
     if (orden.estado !== 'APROBADO') {
@@ -42,5 +43,8 @@ export class DespacharProductoUseCase {
       console.log(`Cantidad de productos despachados: ${productos.length}`);
       console.log(`========================================`);
     }
+
+    orden.estado = 'DESPACHADO';
+    return { orden };
   }
 }
