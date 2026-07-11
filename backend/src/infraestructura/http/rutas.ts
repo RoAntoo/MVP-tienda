@@ -69,13 +69,15 @@ export async function rutas(servidor: FastifyInstance) {
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
 
       // Intentamos despachar el producto si la orden está aprobada (idempotente)
+      let ordenFinal = resultadoAprobacion.orden;
       if (resultadoAprobacion.orden.estado === 'APROBADO') {
-        await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
+        const resultadoDespacho = await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
+        ordenFinal = resultadoDespacho.orden;
       }
 
       return respuesta.status(200).send({ 
         mensaje: resultadoAprobacion.yaAprobada ? 'Orden ya estaba aprobada' : 'Orden aprobada y productos despachados', 
-        orden: resultadoAprobacion.orden 
+        orden: ordenFinal 
       });
     } catch (error: any) {
       servidor.log.error(error);
