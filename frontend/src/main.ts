@@ -54,25 +54,30 @@ function renderProducts() {
     const card = document.createElement('div');
     card.className = 'product-card';
     
-    card.innerHTML = `
-      <img src="${product.imageUrl}" alt="${product.title}" class="product-image" onerror="this.src='https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE+FOUND'">
-      <div class="product-info">
-        <h3 class="product-title">${product.title}</h3>
-        <p class="product-price">$${product.price}</p>
-        <button class="cyber-btn cyber-btn-pink add-to-cart-btn" data-id="${product.id}">
-          [ ADD_TO_CART ]
-        </button>
-      </div>
-    `;
-
-    grid.appendChild(card);
-  });
-
-  // Attach events
-  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    const img = document.createElement('img');
+    img.src = product.imageUrl;
+    img.alt = product.title;
+    img.className = 'product-image';
+    img.onerror = () => { img.src = 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE+FOUND'; };
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'product-info';
+    
+    const title = document.createElement('h3');
+    title.className = 'product-title';
+    title.textContent = product.title;
+    
+    const price = document.createElement('p');
+    price.className = 'product-price';
+    price.textContent = `$${product.price.toFixed(2)}`;
+    
+    const btn = document.createElement('button');
+    btn.className = 'cyber-btn cyber-btn-pink add-to-cart-btn';
+    btn.setAttribute('data-id', product.id);
+    btn.textContent = '[ ADD_TO_CART ]';
+    
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
-      // const id = target.getAttribute('data-id');
       updateCart(1);
       
       // Feedback visual del boton
@@ -87,6 +92,15 @@ function renderProducts() {
         target.style.color = 'var(--accent-pink)';
       }, 1000);
     });
+
+    infoDiv.appendChild(title);
+    infoDiv.appendChild(price);
+    infoDiv.appendChild(btn);
+    
+    card.appendChild(img);
+    card.appendChild(infoDiv);
+
+    grid.appendChild(card);
   });
 }
 
