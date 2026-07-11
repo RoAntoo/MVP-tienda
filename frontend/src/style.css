@@ -24,6 +24,10 @@ body {
   overflow-x: hidden;
 }
 
+.hidden {
+  display: none !important;
+}
+
 /* --- NAVBAR --- */
 .navbar {
   display: flex;
@@ -209,6 +213,107 @@ body {
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
   margin-top: auto;
+}
+
+/* --- PRODUCT DETAIL VIEW --- */
+.product-detail-view {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  min-height: 80vh;
+  animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.product-detail-view.hidden {
+  display: none;
+}
+
+.back-btn {
+  margin-bottom: 2rem;
+}
+
+.detail-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-glass);
+  padding: 3rem;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+}
+
+.detail-image-wrapper {
+  position: relative;
+}
+
+.detail-image {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.15);
+}
+
+.detail-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-title {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  font-family: var(--font-retro);
+}
+
+.detail-price {
+  font-family: var(--font-retro);
+  font-size: 2rem;
+  color: var(--accent-pink);
+  margin-bottom: 2rem;
+}
+
+.detail-divider {
+  height: 1px;
+  background: var(--border-glass);
+  margin-bottom: 2rem;
+}
+
+.detail-description h3 {
+  font-family: var(--font-retro);
+  color: var(--accent-cyan);
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.detail-description p {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 3rem;
+}
+
+.detail-actions {
+  margin-top: auto;
+}
+
+.detail-buy-btn {
+  font-size: 1.2rem;
+  padding: 1rem;
+}
+
+@media (max-width: 900px) {
+  .detail-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 1.5rem;
+  }
 }
 
 /* Footer */
