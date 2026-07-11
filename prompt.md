@@ -22,8 +22,9 @@ Tabla Products:
 ## Flujo de Negocio y Casos de Uso
 1. El usuario envía un POST a `/compras` con su email y `productoIds`.
 2. Se crea la orden con estado `'PENDIENTE'` y se responden los datos de transferencia.
-3. El administrador envía un POST a `/admin/ordenes/aprobar` (protegido por `ADMIN_API_KEY`).
-4. El backend cambia el estado de la orden a `'APROBADO'` y luego inmediatamente a `'DESPACHADO'` mientras envía un correo simulado con los links de drive al cliente., el sistema recupera el drive_url del producto y dispara la logica para enviar un correo al customer_email. (La integracion real con la API de correos se hara luego, por ahora dejar un servicio falso o un console log).
+3. El administrador envía un POST a `/admin/ordenes/aprobar` (protegido por `ADMIN_API_KEY`). Este paso ejecuta dos casos de uso de manera independiente e idempotente:
+   - **Aprobar Orden:** Realiza la transición atómica de la orden de `'PENDIENTE'` a `'APROBADO'`.
+   - **Despachar Producto:** Como paso posterior, envía un correo simulado con los links de drive al cliente y realiza la transición de `'APROBADO'` a `'DESPACHADO'`.
 
 ## Restricciones de Seguridad y Reglas Especiales
 * Sistema sin registro: No implementar autenticacion para compradores ni base de datos de usuarios.
