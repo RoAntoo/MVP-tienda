@@ -1,7 +1,7 @@
 # Prompt de Arquitectura Backend - Tienda de Productos Digitales
 
 ## Contexto del Proyecto
-Necesito desarrollar el backend para un MVP de una tienda de productos digitales (enfocada en libros y mangas). El sistema debe ser simple, automatizado y no requiere registro de usuarios ni login. La entrega del producto final (un link directo de almacenamiento) se hara exclusivamente a traves de correo electronico una vez que el pago se apruebe de forma automatica.
+Necesito desarrollar el backend para un MVP de una tienda de productos digitales (enfocada en libros y mangas). El sistema debe ser simple, automatizado y no requiere registro de usuarios ni login. La entrega del producto final (un link directo de almacenamiento) se hara exclusivamente a traves de correo electronico una vez que el pago sea verificado y aprobado manualmente por un administrador.
 
 ## Stack Tecnologico
 * Entorno: Node.js con TypeScript
