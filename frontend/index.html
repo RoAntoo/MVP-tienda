@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyber Reads | Digital Manga & Books</title>
+    <!-- Modern and Retro Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Navbar -->
+      <nav class="navbar">
+        <div class="logo">
+          <span class="glitch" data-text="CYBER_READS">CYBER_READS</span>
+        </div>
+        <button id="cartBtn" class="cyber-btn">
+          <span>🛒 Carrito (<span id="cartCount">0</span>)</span>
+        </button>
+      </nav>
+
+      <!-- Hero Section -->
+      <header class="hero">
+        <div class="grid-overlay"></div>
+        <div class="hero-content">
+          <h1>DOWNLOAD. READ. <span class="highlight">HACK THE PLANET.</span></h1>
+          <p>Tu librería digital de mangas y libros técnicos de alta calidad. Sin DRM, sin complicaciones. Acceso instantáneo.</p>
+        </div>
+      </header>
+
+      <!-- Products Grid -->
+      <main class="products-section">
+        <h2 class="section-title">&gt; RECIENTEMENTE_AÑADIDOS <span class="blink">_</span></h2>
+        <div id="productsGrid" class="products-grid">
+          <!-- Products injected here by TS -->
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <footer>
+        <p>© 2026 CYBER_READS | ALL RIGHTS RESERVED.</p>
+      </footer>
+    </div>
+
+    <!-- Cart Overlay & Sidebar Modal -->
+    <div id="cartOverlay" class="cart-overlay hidden"></div>
+    <aside id="cartSidebar" class="cart-sidebar hidden">
+      <div class="cart-header">
+        <h2>&gt; SISTEMA_CARRITO</h2>
+        <button id="closeCartBtn" class="cyber-btn">[ X ]</button>
+      </div>
+      
+      <div id="cartItemsContainer" class="cart-items">
+        <!-- Inyectado por TS -->
+      </div>
+      
+      <div class="cart-footer">
+        <div class="cart-total">
+          <span>TOTAL:</span>
+          <span id="cartTotalPrice" class="highlight">$0.00</span>
+        </div>
+        
+        <form id="checkoutForm" class="checkout-form">
+          <label for="emailInput">_INSERTE_EMAIL_DE_DESCARGA:</label>
+          <input type="email" id="emailInput" placeholder="hacker@matrix.com" required>
+          <button type="submit" class="cyber-btn cyber-btn-pink w-100">
+            [ INICIAR_COMPRA ]
+          </button>
+        </form>
+      </div>
+    </aside>
+    
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
