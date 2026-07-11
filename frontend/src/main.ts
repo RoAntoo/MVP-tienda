@@ -50,6 +50,21 @@ function updateCart(count: number) {
   }
 }
 
+function showAddedFeedback(button: HTMLButtonElement) {
+  const originalText = button.innerText;
+  button.innerText = '[ ADDED ]';
+  button.style.background = 'var(--accent-pink)';
+  button.style.color = 'var(--bg-color)';
+  
+  setTimeout(() => {
+    button.innerText = originalText;
+    button.style.background = 'transparent';
+    button.style.color = 'var(--accent-pink)';
+  }, 1000);
+}
+
+let lastFocusedFromCatalog: HTMLElement | null = null;
+
 // Vista de Detalles
 function openProductDetails(productId: string) {
   const product = PRODUCTS.find(p => p.id === productId);
@@ -60,6 +75,8 @@ function openProductDetails(productId: string) {
   const detailView = document.getElementById('productDetailView');
   
   if (!catalog || !detailView || !hero) return;
+
+  lastFocusedFromCatalog = document.activeElement as HTMLElement;
 
   // Inyectar datos
   const img = document.getElementById('detailImage') as HTMLImageElement;
@@ -79,6 +96,10 @@ function openProductDetails(productId: string) {
   catalog.classList.add('hidden');
   detailView.classList.remove('hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Focus
+  const backBtn = document.getElementById('backToCatalogBtn');
+  if (backBtn) backBtn.focus();
 }
 
 function closeProductDetails() {
@@ -91,6 +112,10 @@ function closeProductDetails() {
   detailView.classList.add('hidden');
   hero.classList.remove('hidden');
   catalog.classList.remove('hidden');
+
+  if (lastFocusedFromCatalog && typeof lastFocusedFromCatalog.focus === 'function') {
+    lastFocusedFromCatalog.focus();
+  }
 }
 
 function renderProducts() {
@@ -126,18 +151,7 @@ function renderProducts() {
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       updateCart(1);
-      
-      // Feedback visual del boton
-      const originalText = target.innerText;
-      target.innerText = '[ ADDED ]';
-      target.style.background = 'var(--accent-pink)';
-      target.style.color = 'var(--bg-color)';
-      
-      setTimeout(() => {
-        target.innerText = originalText;
-        target.style.background = 'transparent';
-        target.style.color = 'var(--accent-pink)';
-      }, 1000);
+      showAddedFeedback(target);
     });
 
     infoDiv.appendChild(title);
@@ -148,10 +162,20 @@ function renderProducts() {
     card.appendChild(infoDiv);
 
     card.style.cursor = 'pointer';
-    card.addEventListener('click', (e) => {
-      // Ignorar si el click fue en el boton de comprar
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+
+    const handleCardAction = (e: Event) => {
       if ((e.target as HTMLElement).closest('.add-to-cart-btn')) return;
       openProductDetails(product.id);
+    };
+
+    card.addEventListener('click', handleCardAction);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleCardAction(e);
+      }
     });
 
     grid.appendChild(card);
@@ -173,17 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     detailAddBtn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       updateCart(1);
-      
-      const originalText = target.innerText;
-      target.innerText = '[ ADDED ]';
-      target.style.background = 'var(--accent-pink)';
-      target.style.color = 'var(--bg-color)';
-      
-      setTimeout(() => {
-        target.innerText = originalText;
-        target.style.background = 'transparent';
-        target.style.color = 'var(--accent-pink)';
-      }, 1000);
+      showAddedFeedback(target);
     });
   }
 });
