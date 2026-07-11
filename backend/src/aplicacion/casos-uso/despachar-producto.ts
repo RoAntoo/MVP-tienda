@@ -44,7 +44,7 @@ export class DespacharProductoUseCase {
       console.log(`========================================`);
     }
 
-    const ordenActualizada = await this.repositorioOrdenes.obtenerPorId(solicitud.ordenId);
-    return { orden: ordenActualizada! };
+    orden.estado = 'DESPACHADO';
+    return { orden };
   }
 }

@@ -6,7 +6,11 @@ async function main() {
   
   const producto = await prisma.producto.upsert({
     where: { id: PRODUCTO_ID },
-    update: {},
+    update: {
+      titulo: 'Libro de Prueba MVP',
+      precio: 9.99,
+      driveUrl: 'https://drive.google.com/ejemplo-libro',
+    },
     create: {
       id: PRODUCTO_ID,
       titulo: 'Libro de Prueba MVP',
