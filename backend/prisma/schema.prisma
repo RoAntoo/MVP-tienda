@@ -8,11 +8,14 @@ datasource db {
 }
 
 model Producto {
-  id        String   @id @default(uuid())
-  titulo    String
-  precio    Decimal
-  driveUrl  String   @map("drive_url")
-  ordenes   Orden[]  @relation("OrdenProductos")
+  id          String   @id @default(uuid())
+  titulo      String
+  precio      Decimal
+  descripcion String
+  imagenUrl   String   @map("imagen_url")
+  driveUrl    String   @map("drive_url")
+  createdAt   DateTime @default(now())
+  ordenes     Orden[]  @relation("OrdenProductos")
 
   @@map("productos")
 }

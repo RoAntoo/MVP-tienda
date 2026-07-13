@@ -19,6 +19,14 @@ const EsquemaAprobarOrden = z.object({
   ordenId: z.string().uuid('ID de orden inválido'),
 });
 
+const EsquemaCrearProducto = z.object({
+  titulo: z.string().min(1, 'El título es requerido'),
+  precio: z.number().positive('El precio debe ser positivo'),
+  descripcion: z.string().min(1, 'La descripción es requerida'),
+  imagenUrl: z.string().url('Debe ser una URL válida'),
+  driveUrl: z.string().url('Debe ser una URL válida'),
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
@@ -48,6 +56,17 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(400).send({ error: error.message });
       }
       return respuesta.status(500).send({ error: 'Ocurrió un error interno en el servidor.' });
+    }
+  });
+
+  // Endpoint 1.5: Obtener Catálogo Público
+  servidor.get('/productos', async (peticion, respuesta) => {
+    try {
+      const productos = await repositorioProductos.obtenerTodos();
+      return respuesta.status(200).send(productos);
+    } catch (error) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener el catálogo.' });
     }
   });
 
@@ -130,9 +149,6 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Error al obtener los productos.' });
     }
   });
-<<<<<<< Updated upstream
-=======
-
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', async (peticion, respuesta) => {
     try {
@@ -156,7 +172,6 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Error al crear el producto.' });
     }
   });
-
   // Endpoint 6: Eliminar Producto (Admin)
   servidor.delete('/admin/productos/:id', async (peticion, respuesta) => {
     try {
@@ -188,5 +203,4 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Error al eliminar el producto.' });
     }
   });
->>>>>>> Stashed changes
 }

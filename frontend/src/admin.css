@@ -64,6 +64,31 @@ input[type="password"]:focus {
   box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
 }
 
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  color: var(--accent-cyan);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.form-group input, .form-group textarea {
+  width: 100%;
+  padding: 0.8rem;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  font-family: inherit;
+}
+
+.form-group input:focus, .form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
 /* --- BOTONES --- */
 .cyber-btn {
   background: transparent;
@@ -172,3 +197,27 @@ tr:hover td {
 .status-PENDIENTE { color: #ffd700; }
 .status-APROBADO { color: #00ff00; }
 .status-DESPACHADO { color: var(--accent-cyan); }
+
+/* --- REFACTORIZACIÓN --- */
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.catalog-header h2 {
+  color: var(--accent-pink);
+}
+
+.new-product-form-container {
+  background: rgba(0, 243, 255, 0.05);
+  border: 1px solid var(--accent-cyan);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.new-product-form-container h3 {
+  color: var(--accent-cyan);
+  margin-bottom: 1rem;
+}
