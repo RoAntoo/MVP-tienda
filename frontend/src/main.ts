@@ -414,22 +414,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!res.ok) throw new Error('Error al cargar catálogo');
     const productosDb = await res.json();
 
-    // Mapear al formato esperado por el frontend
-    PRODUCTS = productosDb.map((p: any) => {
+    // Mapear al formato esperado por el frontend omitiendo precios inválidos
+    PRODUCTS = productosDb.reduce((acc: Product[], p: any) => {
       let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
-      if (precioValidado == null || isNaN(precioValidado)) {
-        precioValidado = 0; // Fallback explícito
+      if (typeof precioValidado !== 'number' || isNaN(precioValidado)) {
+        console.warn(`Producto omitido por precio inválido: ${p.titulo}`);
+        return acc;
       }
 
-      return {
+      acc.push({
         id: p.id,
         title: p.titulo,
         price: precioValidado,
         description: p.descripcion,
-        categoria: p.categoria || 'General',
+        categoria: p.categoria,
         imageUrl: p.imagenUrl
-      };
-    });
+      });
+      return acc;
+    }, []);
 
     renderCategories();
     renderProducts();
