@@ -72,4 +72,10 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       driveUrl: p.driveUrl,
     };
   }
+
+  async eliminar(id: string): Promise<void> {
+    await this.prisma.producto.delete({
+      where: { id }
+    });
+  }
 }

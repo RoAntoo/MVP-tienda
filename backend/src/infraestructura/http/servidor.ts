@@ -9,6 +9,8 @@ export const iniciarServidor = async () => {
   // Configurar CORS para permitir peticiones desde el Frontend
   await servidor.register(cors, {
     origin: process.env.FRONTEND_URL || '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   });
 
   servidor.get('/salud', async (peticion, respuesta) => {
