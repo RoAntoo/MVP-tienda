@@ -23,11 +23,7 @@ const EsquemaCrearProducto = z.object({
   titulo: z.string().min(1, 'El título es requerido'),
   precio: z.number().positive('El precio debe ser positivo'),
   descripcion: z.string().min(1, 'La descripción es requerida'),
-<<<<<<< Updated upstream
   categoria: z.string().optional().transform(val => (!val || val.trim() === '') ? 'General' : val.trim()),
-=======
-  categoria: z.string().optional().default('General'),
->>>>>>> Stashed changes
   imagenUrl: z.string().url('Debe ser una URL válida'),
   driveUrl: z.string().url('Debe ser una URL válida'),
 });
