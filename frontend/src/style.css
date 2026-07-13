@@ -520,3 +520,36 @@ footer {
     animation: none;
   }
 }
+
+/* --- FILTROS DE CATEGORÍAS --- */
+.category-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.category-btn {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-glass);
+  padding: 0.5rem 1.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.category-btn:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+}
+
+.category-btn.active {
+  background: var(--accent-cyan);
+  color: var(--bg-color);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.5);
+}

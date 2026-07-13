@@ -6,10 +6,12 @@ interface Product {
   price: number;
   imageUrl: string;
   description: string;
+  categoria: string;
 }
 
 // Los productos ahora se cargan dinámicamente desde el backend
 let PRODUCTS: Product[] = [];
+let activeCategory: string | null = null;
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -220,12 +222,57 @@ function addToCart(productId: string): boolean {
   return true;
 }
 
+// Renderizar Categorías
+function renderCategories() {
+  const categories = [...new Set(PRODUCTS.map(p => p.categoria))];
+  const filtersContainer = document.getElementById('categoryFilters');
+  if (!filtersContainer) return;
+
+  filtersContainer.innerHTML = '';
+
+  // Botón Todos
+  const allBtn = document.createElement('button');
+  allBtn.className = `category-btn ${activeCategory === null ? 'active' : ''}`;
+  allBtn.textContent = 'Todos';
+  allBtn.addEventListener('click', () => {
+    activeCategory = null;
+    renderCategories();
+    renderProducts();
+  });
+  filtersContainer.appendChild(allBtn);
+
+  // Botones por categoría
+  categories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = `category-btn ${activeCategory === cat ? 'active' : ''}`;
+    btn.dataset.category = cat;
+    btn.textContent = cat;
+    btn.addEventListener('click', () => {
+      activeCategory = cat;
+      renderCategories();
+      renderProducts();
+    });
+    filtersContainer.appendChild(btn);
+  });
+}
+
 // Renderizar Productos en Home
 function renderProducts() {
   const grid = document.getElementById('productsGrid');
   if (!grid) return;
 
-  PRODUCTS.forEach(product => {
+  const productosFiltrados = activeCategory === null 
+    ? PRODUCTS 
+    : PRODUCTS.filter(p => p.categoria === activeCategory);
+
+  grid.innerHTML = '';
+  
+  if (productosFiltrados.length === 0) {
+    grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;width:100%;grid-column:1/-1;">[ NO_HAY_DATOS_EN_ESTE_SECTOR ]</p>';
+    return;
+  }
+
+  productosFiltrados.forEach(product => {
     const card = document.createElement('div');
     card.className = 'product-card';
     
@@ -367,10 +414,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         title: p.titulo,
         price: precioValidado,
         description: p.descripcion,
+        categoria: p.categoria || 'General',
         imageUrl: p.imagenUrl
       };
     });
     
+    renderCategories();
     renderProducts();
   } catch (error) {
     console.error('No se pudo cargar el catálogo:', error);

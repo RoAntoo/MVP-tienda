@@ -9,6 +9,7 @@ describe('CrearProductoUseCase', () => {
       titulo: 'Nuevo Libro',
       precio: new Prisma.Decimal(100),
       descripcion: 'Desc',
+      categoria: 'General',
       imagenUrl: 'http://img.com/1.png',
       driveUrl: 'http://drive.com/1'
     };

@@ -94,6 +94,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
   const payload = {
     titulo: (document.getElementById('prodTitulo') as HTMLInputElement).value,
     precio: parseInt((document.getElementById('prodPrecio') as HTMLInputElement).value, 10),
+    categoria: (document.getElementById('prodCategoria') as HTMLInputElement).value,
     imagenUrl: (document.getElementById('prodImagen') as HTMLInputElement).value,
     driveUrl: (document.getElementById('prodDrive') as HTMLInputElement).value,
     descripcion: (document.getElementById('prodDesc') as HTMLTextAreaElement).value,
@@ -175,6 +176,7 @@ async function cargarProductos() {
     if (!res.ok) throw new Error('Error al cargar productos');
 
     const productos = await res.json();
+    actualizarDatalistCategorias(productos);
     dibujarProductos(productos);
   } catch (err: any) {
     productosBody.innerHTML = `<tr><td colspan="4" style="color:red">${err.message}</td></tr>`;
@@ -184,6 +186,19 @@ async function cargarProductos() {
 function logoutError() {
   logoutBtn.click();
   loginError.classList.remove('hidden');
+}
+
+function actualizarDatalistCategorias(productos: any[]) {
+  const categoriasUnicas = [...new Set(productos.map(p => p.categoria).filter(Boolean))];
+  const datalist = document.getElementById('listaCategorias');
+  if (datalist) {
+    datalist.innerHTML = '';
+    categoriasUnicas.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = String(cat);
+      datalist.appendChild(option);
+    });
+  }
 }
 
 // --- RENDER ---

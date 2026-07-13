@@ -5,6 +5,7 @@ export interface Producto {
   titulo: string;
   precio: Prisma.Decimal | number;
   descripcion: string;
+  categoria: string;
   imagenUrl: string;
   driveUrl: string;
 }
