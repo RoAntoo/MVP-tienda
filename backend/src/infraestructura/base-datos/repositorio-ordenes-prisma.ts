@@ -51,6 +51,14 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
     return this._mapearOrden(ordenDb);
   }
 
+  async obtenerTodas(): Promise<Orden[]> {
+    const ordenesDb = await this.prisma.orden.findMany({
+      include: { productos: true },
+      orderBy: { id: 'desc' }, // En MVP simple ordenamos por id o no aplicamos fechas aun
+    });
+    return ordenesDb.map(ordenDb => this._mapearOrden(ordenDb));
+  }
+
   async actualizarEstado(id: string, estadoOrigen: EstadoOrden, nuevoEstado: EstadoOrden): Promise<{ orden: Orden; modificada: boolean } | null> {
     // Operación atómica: solo actualiza si el estado actual coincide con estadoOrigen
     const { count } = await this.prisma.orden.updateMany({

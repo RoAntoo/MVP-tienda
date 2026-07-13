@@ -34,4 +34,14 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       driveUrl: p.driveUrl,
     }));
   }
+
+  async obtenerTodos(): Promise<Producto[]> {
+    const productosDb = await this.prisma.producto.findMany();
+    return productosDb.map(p => ({
+      id: p.id,
+      titulo: p.titulo,
+      precio: p.precio,
+      driveUrl: p.driveUrl,
+    }));
+  }
 }

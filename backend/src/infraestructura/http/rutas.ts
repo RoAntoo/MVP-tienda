@@ -88,4 +88,39 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Ocurrió un error interno en el servidor.' });
     }
   });
+  // Endpoint 3: Obtener Todas las Órdenes (Admin)
+  servidor.get('/admin/ordenes', async (peticion, respuesta) => {
+    try {
+      const apiKey = peticion.headers['x-api-key'];
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+      }
+
+      const ordenes = await repositorioOrdenes.obtenerTodas();
+      return respuesta.status(200).send(ordenes);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener las órdenes.' });
+    }
+  });
+
+  // Endpoint 4: Obtener Todos los Productos (Admin)
+  servidor.get('/admin/productos', async (peticion, respuesta) => {
+    try {
+      const apiKey = peticion.headers['x-api-key'];
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+      }
+
+      const productos = await repositorioProductos.obtenerTodos();
+      return respuesta.status(200).send(productos);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener los productos.' });
+    }
+  });
 }
