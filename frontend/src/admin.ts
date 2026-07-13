@@ -166,7 +166,7 @@ async function cargarOrdenes() {
 }
 
 async function cargarProductos() {
-  productosBody.innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+  productosBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/productos`, {
       headers: { 'x-api-key': apiKey }
@@ -177,7 +177,7 @@ async function cargarProductos() {
     const productos = await res.json();
     dibujarProductos(productos);
   } catch (err: any) {
-    productosBody.innerHTML = `<tr><td colspan="3" style="color:red">${err.message}</td></tr>`;
+    productosBody.innerHTML = `<tr><td colspan="4" style="color:red">${err.message}</td></tr>`;
   }
 }
 
