@@ -11,7 +11,7 @@ interface Product {
 
 // Los productos ahora se cargan dinámicamente desde el backend
 let PRODUCTS: Product[] = [];
-let activeCategory = 'Todos';
+let activeCategory: string | null = null;
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -224,23 +224,35 @@ function addToCart(productId: string): boolean {
 
 // Renderizar Categorías
 function renderCategories() {
-  const categories = ['Todos', ...new Set(PRODUCTS.map(p => p.categoria))];
+  const categories = [...new Set(PRODUCTS.map(p => p.categoria))];
   const filtersContainer = document.getElementById('categoryFilters');
   if (!filtersContainer) return;
 
-  filtersContainer.innerHTML = categories.map(cat => `
-    <button class="category-btn ${activeCategory === cat ? 'active' : ''}" data-category="${cat}">
-      ${cat}
-    </button>
-  `).join('');
+  filtersContainer.innerHTML = '';
 
-  document.querySelectorAll('.category-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      activeCategory = target.getAttribute('data-category') || 'Todos';
+  // Botón Todos
+  const allBtn = document.createElement('button');
+  allBtn.className = `category-btn ${activeCategory === null ? 'active' : ''}`;
+  allBtn.textContent = 'Todos';
+  allBtn.addEventListener('click', () => {
+    activeCategory = null;
+    renderCategories();
+    renderProducts();
+  });
+  filtersContainer.appendChild(allBtn);
+
+  // Botones por categoría
+  categories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = `category-btn ${activeCategory === cat ? 'active' : ''}`;
+    btn.dataset.category = cat;
+    btn.textContent = cat;
+    btn.addEventListener('click', () => {
+      activeCategory = cat;
       renderCategories();
       renderProducts();
     });
+    filtersContainer.appendChild(btn);
   });
 }
 
@@ -249,7 +261,7 @@ function renderProducts() {
   const grid = document.getElementById('productsGrid');
   if (!grid) return;
 
-  const productosFiltrados = activeCategory === 'Todos' 
+  const productosFiltrados = activeCategory === null 
     ? PRODUCTS 
     : PRODUCTS.filter(p => p.categoria === activeCategory);
 

@@ -192,7 +192,12 @@ function actualizarDatalistCategorias(productos: any[]) {
   const categoriasUnicas = [...new Set(productos.map(p => p.categoria).filter(Boolean))];
   const datalist = document.getElementById('listaCategorias');
   if (datalist) {
-    datalist.innerHTML = categoriasUnicas.map(cat => `<option value="${cat}"></option>`).join('');
+    datalist.innerHTML = '';
+    categoriasUnicas.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = String(cat);
+      datalist.appendChild(option);
+    });
   }
 }
 
