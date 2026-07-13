@@ -15,6 +15,12 @@ const productosTab = document.getElementById('productosTab')!;
 const ordenesBody = document.getElementById('ordenesBody')!;
 const productosBody = document.getElementById('productosBody')!;
 
+// Elementos Formulario Producto
+const mostrarFormBtn = document.getElementById('mostrarFormBtn')!;
+const cancelarFormBtn = document.getElementById('cancelarFormBtn')!;
+const nuevoProductoFormContainer = document.getElementById('nuevoProductoFormContainer')!;
+const nuevoProductoForm = document.getElementById('nuevoProductoForm') as HTMLFormElement;
+
 // Estado
 let apiKey = localStorage.getItem('adminApiKey') || '';
 
@@ -63,6 +69,69 @@ tabBtns.forEach(btn => {
       cargarProductos();
     }
   });
+});
+
+// --- LÓGICA DE NUEVO PRODUCTO ---
+mostrarFormBtn.addEventListener('click', () => {
+  nuevoProductoFormContainer.classList.remove('hidden');
+  mostrarFormBtn.classList.add('hidden');
+});
+
+cancelarFormBtn.addEventListener('click', () => {
+  nuevoProductoFormContainer.classList.add('hidden');
+  mostrarFormBtn.classList.remove('hidden');
+  nuevoProductoForm.reset();
+});
+
+nuevoProductoForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const submitBtn = nuevoProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const originalText = submitBtn.innerText;
+  submitBtn.innerText = 'GUARDANDO...';
+  submitBtn.disabled = true;
+
+  const payload = {
+    titulo: (document.getElementById('prodTitulo') as HTMLInputElement).value,
+    precio: parseInt((document.getElementById('prodPrecio') as HTMLInputElement).value, 10),
+    imagenUrl: (document.getElementById('prodImagen') as HTMLInputElement).value,
+    driveUrl: (document.getElementById('prodDrive') as HTMLInputElement).value,
+    descripcion: (document.getElementById('prodDesc') as HTMLTextAreaElement).value,
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/admin/productos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      let errorMsg = `Error ${res.status}`;
+      try {
+        const errorData = await res.json();
+        if (errorData && errorData.error) {
+          errorMsg = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+        }
+      } catch (e) {
+        // Ignorar error de parseo JSON (cuerpo vacío o texto plano)
+      }
+      throw new Error(errorMsg);
+    }
+
+    nuevoProductoForm.reset();
+    nuevoProductoFormContainer.classList.add('hidden');
+    mostrarFormBtn.classList.remove('hidden');
+    cargarProductos(); // Recargar tabla
+  } catch (err: any) {
+    alert(`Error: ${err.message}`);
+  } finally {
+    submitBtn.innerText = originalText;
+    submitBtn.disabled = false;
+  }
 });
 
 // --- FUNCIONES CORE ---
@@ -128,7 +197,7 @@ function dibujarOrdenes(ordenes: any[]) {
     <tr>
       <td>${orden.id.substring(0, 8)}</td>
       <td>${orden.emailCliente}</td>
-      <td>$${orden.total}</td>
+      <td>$${Number(orden.total).toLocaleString('es-AR')}</td>
       <td><span class="status-badge status-${orden.estado}">${orden.estado}</span></td>
       <td>
         ${orden.estado === 'PENDIENTE' 
@@ -156,7 +225,7 @@ function dibujarProductos(productos: any[]) {
   productosBody.innerHTML = productos.map(prod => `
     <tr>
       <td>${prod.titulo}</td>
-      <td>$${prod.precio}</td>
+      <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
     </tr>
   `).join('');

@@ -8,29 +8,8 @@ interface Product {
   description: string;
 }
 
-const PRODUCTS: Product[] = [
-  {
-    id: '00000000-0000-0000-0000-000000000001',
-    title: 'Cyberpunk Manga: The Awakening',
-    price: 9.99,
-    imageUrl: 'cover1.png',
-    description: 'Adéntrate en una metrópolis de neón donde la humanidad y la tecnología se han fusionado. Este manga hiperdetallado te llevará por los suburbios de Neo-Tokio siguiendo la historia de un hacker renegado que descubre un secreto corporativo letal. Incluye 150 páginas a todo color y material conceptual exclusivo.',
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000002',
-    title: 'Advanced Web Hacking Guide',
-    price: 14.99,
-    imageUrl: 'cover2.png',
-    description: 'La guía definitiva para entender las vulnerabilidades web modernas. Desde XSS y CSRF hasta inyecciones NoSQL y desbordamientos de buffer en WebAssembly. Escrito por expertos en ciberseguridad, este libro digital incluye ejercicios prácticos, scripts de prueba en Python y casos de estudio reales desclasificados.',
-  },
-  {
-    id: '00000000-0000-0000-0000-000000000003',
-    title: 'Neon Nights (Artbook Digital)',
-    price: 19.99,
-    imageUrl: 'cover3.png',
-    description: 'Una asombrosa colección de arte digital curada por artistas de la subcultura Synthwave y Cyberpunk. Más de 200 ilustraciones en resolución 4K ideales para fondos de pantalla o estudio de diseño de interfaces futuristas. Archivo descargable sin DRM en formato PDF interactivo.',
-  }
-];
+// Los productos ahora se cargan dinámicamente desde el backend
+let PRODUCTS: Product[] = [];
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -108,7 +87,7 @@ function openProductDetails(productId: string) {
 
   if (img) img.src = product.imageUrl;
   if (title) title.textContent = product.title;
-  if (price) price.textContent = `$${product.price.toFixed(2)}`;
+  if (price) price.textContent = `$${product.price.toLocaleString('es-AR')}`;
   if (desc) desc.textContent = product.description;
   if (btn) btn.setAttribute('data-id', product.id);
 
@@ -162,7 +141,7 @@ function renderCart() {
 
   // Actualizar total
   const total = calculateTotal();
-  cartTotalPrice.textContent = `$${total.toFixed(2)}`;
+  cartTotalPrice.textContent = `$${total.toLocaleString('es-AR')}`;
 
   // Limpiar lista
   cartItemsContainer.innerHTML = '';
@@ -195,7 +174,7 @@ function renderCart() {
     
     const price = document.createElement('div');
     price.className = 'cart-item-price';
-    price.textContent = `$${item.price.toFixed(2)}`;
+    price.textContent = `$${item.price.toLocaleString('es-AR')}`;
     
     info.appendChild(title);
     info.appendChild(price);
@@ -265,7 +244,7 @@ function renderProducts() {
     
     const price = document.createElement('p');
     price.className = 'product-price';
-    price.textContent = `$${product.price.toFixed(2)}`;
+    price.textContent = `$${product.price.toLocaleString('es-AR')}`;
     
     const btn = document.createElement('button');
     btn.className = 'cyber-btn cyber-btn-pink add-to-cart-btn';
@@ -365,8 +344,39 @@ if (checkoutForm) {
 }
 
 // Inicializar la App
-document.addEventListener('DOMContentLoaded', () => {
-  renderProducts();
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+
+    const res = await fetch(`${API_URL}/productos`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error('Error al cargar catálogo');
+    const productosDb = await res.json();
+    
+    // Mapear al formato esperado por el frontend
+    PRODUCTS = productosDb.map((p: any) => {
+      let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
+      if (precioValidado == null || isNaN(precioValidado)) {
+        precioValidado = 0; // Fallback explícito
+      }
+      
+      return {
+        id: p.id,
+        title: p.titulo,
+        price: precioValidado,
+        description: p.descripcion,
+        imageUrl: p.imagenUrl
+      };
+    });
+    
+    renderProducts();
+  } catch (error) {
+    console.error('No se pudo cargar el catálogo:', error);
+    const grid = document.getElementById('productsGrid');
+    if (grid) grid.innerHTML = '<p style="color:red;text-align:center;width:100%">[ ERROR_CONEXIÓN_CATÁLOGO ]</p>';
+  }
 
   // Eventos de la Vista de Detalles
   const backBtn = document.getElementById('backToCatalogBtn');
