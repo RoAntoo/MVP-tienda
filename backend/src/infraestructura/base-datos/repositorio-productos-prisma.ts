@@ -41,7 +41,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
 
   async obtenerTodos(): Promise<Producto[]> {
     const productosDb = await this.prisma.producto.findMany({
-      orderBy: { id: 'desc' }
+      orderBy: { createdAt: 'desc' }
     });
     return productosDb.map(p => ({
       id: p.id,

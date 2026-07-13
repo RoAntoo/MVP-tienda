@@ -197,3 +197,27 @@ tr:hover td {
 .status-PENDIENTE { color: #ffd700; }
 .status-APROBADO { color: #00ff00; }
 .status-DESPACHADO { color: var(--accent-cyan); }
+
+/* --- REFACTORIZACIÓN --- */
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.catalog-header h2 {
+  color: var(--accent-pink);
+}
+
+.new-product-form-container {
+  background: rgba(0, 243, 255, 0.05);
+  border: 1px solid var(--accent-cyan);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.new-product-form-container h3 {
+  color: var(--accent-cyan);
+  margin-bottom: 1rem;
+}

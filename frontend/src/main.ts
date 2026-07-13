@@ -346,18 +346,30 @@ if (checkoutForm) {
 // Inicializar la App
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    const res = await fetch(`${API_URL}/productos`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+
+    const res = await fetch(`${API_URL}/productos`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!res.ok) throw new Error('Error al cargar catálogo');
     const productosDb = await res.json();
     
     // Mapear al formato esperado por el frontend
-    PRODUCTS = productosDb.map((p: any) => ({
-      id: p.id,
-      title: p.titulo,
-      price: typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio,
-      description: p.descripcion,
-      imageUrl: p.imagenUrl
-    }));
+    PRODUCTS = productosDb.map((p: any) => {
+      let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
+      if (precioValidado == null || isNaN(precioValidado)) {
+        precioValidado = 0; // Fallback explícito
+      }
+      
+      return {
+        id: p.id,
+        title: p.titulo,
+        price: precioValidado,
+        description: p.descripcion,
+        imageUrl: p.imagenUrl
+      };
+    });
     
     renderProducts();
   } catch (error) {

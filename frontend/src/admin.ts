@@ -110,8 +110,16 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
     });
 
     if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(JSON.stringify(errorData.error) || 'Error al crear');
+      let errorMsg = `Error ${res.status}`;
+      try {
+        const errorData = await res.json();
+        if (errorData && errorData.error) {
+          errorMsg = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+        }
+      } catch (e) {
+        // Ignorar error de parseo JSON (cuerpo vacío o texto plano)
+      }
+      throw new Error(errorMsg);
     }
 
     nuevoProductoForm.reset();
