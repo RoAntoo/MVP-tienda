@@ -33,7 +33,7 @@ const EsquemaActualizarProducto = z.object({
   titulo: z.string().min(1, 'El título no puede estar vacío').optional(),
   precio: z.number().positive('El precio debe ser positivo').optional(),
   descripcion: z.string().min(1, 'La descripción no puede estar vacía').optional(),
-  categoria: z.string().optional().transform(val => (!val || val.trim() === '') ? 'General' : val.trim()),
+  categoria: z.string().optional().transform(val => val === undefined ? undefined : (val.trim() === '' ? 'General' : val.trim())),
   imagenUrl: z.string().url('Debe ser una URL válida').optional(),
   driveUrl: z.string().url('Debe ser una URL válida').optional(),
 });
@@ -263,8 +263,8 @@ export async function rutas(servidor: FastifyInstance) {
       if (error.name === 'ZodError' || error instanceof z.ZodError) {
         return respuesta.status(400).send({ error: error.issues });
       }
-      if (error.message === 'Producto no encontrado') {
-        return respuesta.status(404).send({ error: error.message });
+      if (error.message === 'Producto no encontrado' || error.code === 'P2025') {
+        return respuesta.status(404).send({ error: 'Producto no encontrado' });
       }
       return respuesta.status(500).send({ error: 'Error al actualizar el producto.' });
     }

@@ -27,16 +27,11 @@ const editarProductoForm = document.getElementById('editarProductoForm') as HTML
 const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButtonElement;
 
 // Estado
-let apiKey = localStorage.getItem('adminApiKey') || '';
+let apiKey = '';
 let categoriasDisponibles: string[] = [];
 
 // --- INICIALIZACIÓN ---
-if (apiKey) {
-  loginSection.classList.add('hidden');
-  validarYEntrar(apiKey).then((valido) => {
-    if (!valido) loginSection.classList.remove('hidden');
-  });
-}
+// (Eliminado el auto-login con localStorage por seguridad)
 
 loginBtn.addEventListener('click', async () => {
   const key = apiKeyInput.value.trim();
@@ -60,7 +55,6 @@ apiKeyInput.addEventListener('keydown', (e) => {
 
 logoutBtn.addEventListener('click', () => {
   apiKey = '';
-  localStorage.removeItem('adminApiKey');
   dashboardSection.classList.add('hidden');
   loginSection.classList.remove('hidden');
   apiKeyInput.value = '';
@@ -164,7 +158,6 @@ async function validarYEntrar(key: string): Promise<boolean> {
 
     // Autenticación exitosa
     apiKey = key;
-    localStorage.setItem('adminApiKey', apiKey);
     
     loginSection.classList.add('hidden');
     loginError.classList.add('hidden');
@@ -175,7 +168,6 @@ async function validarYEntrar(key: string): Promise<boolean> {
     return true;
   } catch(err: any) {
     apiKey = '';
-    localStorage.removeItem('adminApiKey');
     loginError.classList.remove('hidden');
     loginError.textContent = 'Acceso Denegado';
     return false;
@@ -292,25 +284,29 @@ async function manejarEdicionProducto(e: Event) {
   e.preventDefault();
   
   const id = (document.getElementById('editProdId') as HTMLInputElement).value;
-  const payload = {
-    titulo: (document.getElementById('editProdTitulo') as HTMLInputElement).value,
-    precio: parseInt((document.getElementById('editProdPrecio') as HTMLInputElement).value, 10),
-    categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value,
-    imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value,
-    driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value,
-    descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value,
-  };
+    const productoEditado = {
+      titulo: (document.getElementById('editProdTitulo') as HTMLInputElement).value.trim(),
+      precio: Number((document.getElementById('editProdPrecio') as HTMLInputElement).value),
+      categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value.trim(),
+      imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value.trim(),
+      driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value.trim(),
+      descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim()
+    };
 
-  const apiKey = apiKeyInput.value;
-  try {
-    const res = await fetch(`http://localhost:3000/admin/productos/${id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey 
-      },
-      body: JSON.stringify(payload)
-    });
+    const submitBtn = modalEdicionForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const textOriginal = submitBtn.innerText;
+    submitBtn.innerText = 'GUARDANDO...';
+    submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_URL}/admin/productos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey
+        },
+        body: JSON.stringify(productoEditado)
+      });
 
     if (!res.ok) {
       const errorText = await res.text();

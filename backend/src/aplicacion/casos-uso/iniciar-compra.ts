@@ -40,8 +40,8 @@ export class IniciarCompraUseCase {
 
     // Calcular el total
     const total = productosValidos.reduce(
-      (acc, p) => acc + Number(p.precio), 
-      0
+      (acc, p) => acc.add(new Prisma.Decimal(p.precio as any)), 
+      new Prisma.Decimal(0)
     );
 
     const nuevaOrden = await this.repositorioOrdenes.crear({

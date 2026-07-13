@@ -20,6 +20,7 @@ describe('IniciarCompraUseCase', () => {
     const mockRepoProductos: RepositorioProductos = {
       obtenerPorId: vi.fn(),
       crear: vi.fn(),
+      actualizar: vi.fn(),
       eliminar: vi.fn(),
       obtenerTodos: vi.fn(),
       obtenerPorIds: vi.fn().mockResolvedValue([
@@ -32,6 +33,7 @@ describe('IniciarCompraUseCase', () => {
       crear: vi.fn().mockImplementation((orden) => Promise.resolve({ id: 'orden-1', ...orden })),
       obtenerPorId: vi.fn(),
       actualizarEstado: vi.fn(),
+      obtenerTodos: vi.fn(),
     };
 
     const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos);
@@ -49,7 +51,7 @@ describe('IniciarCompraUseCase', () => {
     expect(mockRepoOrdenes.crear).toHaveBeenCalledWith(expect.objectContaining({
       emailCliente: 'cliente@test.com',
       productoIds: ['1', '2'],
-      total: 150,
+      total: new Prisma.Decimal('150'),
       estado: 'PENDIENTE'
     }));
 
@@ -60,9 +62,9 @@ describe('IniciarCompraUseCase', () => {
     const mockRepoProductos: RepositorioProductos = {
       obtenerPorId: vi.fn(),
       crear: vi.fn(),
+      actualizar: vi.fn(),
       eliminar: vi.fn(),
       obtenerTodos: vi.fn(),
-      // El repositorio devuelve solo el producto 1 (el producto 2 no existe)
       obtenerPorIds: vi.fn().mockResolvedValue([
         { id: '1', titulo: 'P1', precio: 100, driveUrl: 'link1' }
       ]),
@@ -75,5 +77,33 @@ describe('IniciarCompraUseCase', () => {
     await expect(useCase.ejecutar({ emailCliente: 'cliente@test.com', productoIds: ['1', '2'] }))
       .rejects
       .toThrow('El producto con id 2 no existe.');
+  });
+
+  it('debe calcular correctamente el total con decimales (0.10 + 0.20 = 0.30)', async () => {
+    const mockRepoOrdenes: RepositorioOrdenes = {
+      obtenerPorId: vi.fn(),
+      crear: vi.fn().mockResolvedValue({ id: 'ord-123' }),
+      actualizarEstado: vi.fn(),
+      obtenerTodos: vi.fn(),
+    };
+    const mockRepoProductos: RepositorioProductos = {
+      obtenerPorId: vi.fn(),
+      crear: vi.fn(),
+      actualizar: vi.fn(),
+      eliminar: vi.fn(),
+      obtenerTodos: vi.fn(),
+      obtenerPorIds: vi.fn().mockResolvedValue([
+        { id: '1', titulo: 'P1', precio: new Prisma.Decimal('0.10'), driveUrl: 'link1' },
+        { id: '2', titulo: 'P2', precio: new Prisma.Decimal('0.20'), driveUrl: 'link2' }
+      ]),
+    };
+    
+    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos);
+
+    await useCase.ejecutar({ emailCliente: 'cliente@test.com', productoIds: ['1', '2'] });
+
+    expect(mockRepoOrdenes.crear).toHaveBeenCalledWith(expect.objectContaining({
+      total: new Prisma.Decimal('0.30')
+    }));
   });
 });

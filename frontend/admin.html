@@ -73,8 +73,8 @@
             </div>
             <div class="form-group" style="position: relative;">
               <label for="prodCategoria">CATEGORÍA</label>
-              <input type="text" id="prodCategoria" autocomplete="off" required placeholder="Ej: Ficción, Rol, Arte..." />
-              <div id="customCategorias" class="custom-dropdown hidden"></div>
+              <input type="text" id="prodCategoria" autocomplete="off" required placeholder="Ej: Ficción, Rol, Arte..." role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="customCategorias" />
+              <div id="customCategorias" class="custom-dropdown hidden" role="listbox"></div>
             </div>
             <div class="form-group">
               <label for="prodImagen">URL PORTADA</label>
@@ -114,9 +114,9 @@
     </main>
 
     <!-- Modal Edición -->
-    <div id="modalEdicion" class="modal-overlay hidden">
-      <div class="modal-content new-product-form-container" style="width: 90%; max-width: 600px; margin-top: 5vh; border: 1px solid var(--accent-cyan); background-color: var(--bg-color);">
-        <h3 style="margin-top: 0;">&gt; MODO_EDICIÓN_ACTIVADO</h3>
+      <div id="modalEdicion" class="product-detail-view hidden" role="dialog" aria-modal="true" aria-labelledby="modalEdicionTitle">
+        <div class="product-detail-container" style="max-width: 600px;">
+          <h3 id="modalEdicionTitle" class="section-title blink" style="color: var(--accent-cyan); font-size: 1.5rem; margin-bottom: 2rem;">&gt; MODO_EDICIÓN_ACTIVADO</h3>
         <form id="editarProductoForm">
           <input type="hidden" id="editProdId" />
           <div class="form-group">
@@ -129,8 +129,8 @@
           </div>
           <div class="form-group" style="position: relative;">
             <label for="editProdCategoria">CATEGORÍA</label>
-            <input type="text" id="editProdCategoria" autocomplete="off" required />
-            <div id="customCategoriasEdit" class="custom-dropdown hidden"></div>
+            <input type="text" id="editProdCategoria" autocomplete="off" required role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="customCategoriasEdit" />
+            <div id="customCategoriasEdit" class="custom-dropdown hidden" role="listbox"></div>
           </div>
           <div class="form-group">
             <label for="editProdImagen">URL PORTADA</label>
