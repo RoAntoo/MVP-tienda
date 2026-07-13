@@ -6,6 +6,8 @@ import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-pris
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
 import { AprobarOrdenUseCase } from '../../aplicacion/casos-uso/aprobar-orden.js';
 import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-producto.js';
+import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.js';
+import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
 
 // Esquemas de validación Zod
 const EsquemaIniciarCompra = z.object({
@@ -39,6 +41,8 @@ export async function rutas(servidor: FastifyInstance) {
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes);
   const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
+  const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
+  const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', async (peticion, respuesta) => {
@@ -75,7 +79,8 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.post('/admin/ordenes/aprobar', async (peticion, respuesta) => {
     try {
       // Validar API_KEY
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
       if (!ADMIN_API_KEY) {
@@ -115,10 +120,15 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
@@ -133,10 +143,15 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 4: Obtener Todos los Productos (Admin)
   servidor.get('/admin/productos', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
@@ -147,19 +162,23 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Error al obtener los productos.' });
     }
   });
-
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
-      const nuevoProducto = await repositorioProductos.crear(cuerpo);
+      const nuevoProducto = await crearProductoUseCase.ejecutar(cuerpo);
       
       return respuesta.status(201).send(nuevoProducto);
     } catch (error: any) {
@@ -168,6 +187,43 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(400).send({ error: error.issues });
       }
       return respuesta.status(500).send({ error: 'Error al crear el producto.' });
+    }
+  });
+  // Endpoint 6: Eliminar Producto (Admin)
+  servidor.delete('/admin/productos/:id', async (peticion, respuesta) => {
+    try {
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
+        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+      }
+
+      const EsquemaParams = z.object({
+        id: z.string().trim().min(1, 'El ID del producto es requerido')
+      });
+      
+      const { id } = EsquemaParams.parse(peticion.params);
+
+      await eliminarProductoUseCase.ejecutar(id);
+      return respuesta.status(204).send(); // 204 No Content
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: 'ID de producto inválido' });
+      }
+      if (error.code === 'P2025') {
+        return respuesta.status(404).send({ error: 'Producto no encontrado' });
+      }
+      if (error.message === 'Producto no encontrado') {
+        return respuesta.status(404).send({ error: error.message });
+      }
+      return respuesta.status(500).send({ error: 'Error al eliminar el producto.' });
     }
   });
 }

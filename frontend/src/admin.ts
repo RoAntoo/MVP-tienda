@@ -167,7 +167,7 @@ async function cargarOrdenes() {
 }
 
 async function cargarProductos() {
-  productosBody.innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+  productosBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/productos`, {
       headers: { 'x-api-key': apiKey }
@@ -179,7 +179,7 @@ async function cargarProductos() {
     actualizarDatalistCategorias(productos);
     dibujarProductos(productos);
   } catch (err: any) {
-    productosBody.innerHTML = `<tr><td colspan="3" style="color:red">${err.message}</td></tr>`;
+    productosBody.innerHTML = `<tr><td colspan="4" style="color:red">${err.message}</td></tr>`;
   }
 }
 
@@ -225,15 +225,15 @@ function dibujarOrdenes(ordenes: any[]) {
   // Eventos para botones aprobar
   document.querySelectorAll('.btn-aprobar').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      const id = (e.target as HTMLElement).getAttribute('data-id');
-      if (id) aprobarOrden(id, e.target as HTMLButtonElement);
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+      if (id) aprobarOrden(id, e.currentTarget as HTMLButtonElement);
     });
   });
 }
 
 function dibujarProductos(productos: any[]) {
   if (productos.length === 0) {
-    productosBody.innerHTML = '<tr><td colspan="3">No hay productos.</td></tr>';
+    productosBody.innerHTML = '<tr><td colspan="4">No hay productos.</td></tr>';
     return;
   }
 
@@ -242,8 +242,21 @@ function dibujarProductos(productos: any[]) {
       <td>${prod.titulo}</td>
       <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
+      <td>
+        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-prod" data-id="${prod.id}">ELIMINAR</button>
+      </td>
     </tr>
   `).join('');
+
+  // Eventos para botones eliminar
+  document.querySelectorAll('.btn-eliminar-prod').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+      if (id && confirm('¿Estás seguro de eliminar este producto?')) {
+        eliminarProducto(id, e.currentTarget as HTMLButtonElement);
+      }
+    });
+  });
 }
 
 // --- ACCIONES ---
@@ -269,5 +282,28 @@ async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
     alert('Error al aprobar orden');
     botonRef.disabled = false;
     botonRef.innerText = 'APROBAR';
+  }
+}
+
+async function eliminarProducto(productoId: string, botonRef: HTMLButtonElement) {
+  botonRef.disabled = true;
+  botonRef.innerText = 'ELIMINANDO...';
+  
+  try {
+    const res = await fetch(`${API_URL}/admin/productos/${productoId}`, {
+      method: 'DELETE',
+      headers: {
+        'x-api-key': apiKey
+      }
+    });
+
+    if (!res.ok) throw new Error('Falló eliminación');
+    
+    // Recargar tabla de productos
+    cargarProductos();
+  } catch (error) {
+    alert('Error al eliminar producto');
+    botonRef.disabled = false;
+    botonRef.innerText = 'ELIMINAR';
   }
 }
