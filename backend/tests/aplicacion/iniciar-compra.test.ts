@@ -3,12 +3,18 @@ import { IniciarCompraUseCase } from '../../src/aplicacion/casos-uso/iniciar-com
 import { RepositorioOrdenes } from '../../src/dominio/repositorios/repositorio-ordenes.js';
 import { RepositorioProductos } from '../../src/dominio/repositorios/repositorio-productos.js';
 import { Prisma } from '@prisma/client';
+import { ServicioEmail } from '../../src/dominio/servicios/servicio-email.js';
 
 describe('IniciarCompraUseCase', () => {
+  const mockServicioEmail = {
+    enviarInstruccionesPago: vi.fn(),
+    enviarLinksDescarga: vi.fn()
+  } as unknown as ServicioEmail;
+
   it('debe lanzar error si el carrito está vacío', async () => {
     const mockRepoOrdenes = {} as RepositorioOrdenes;
     const mockRepoProductos = {} as RepositorioProductos;
-    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos);
+    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     await expect(useCase.ejecutar({ emailCliente: 'test@test.com', productoIds: [] }))
       .rejects
@@ -36,7 +42,7 @@ describe('IniciarCompraUseCase', () => {
       obtenerTodos: vi.fn(),
     };
 
-    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos);
+    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     // Mandamos el id "1" dos veces (duplicado)
     const resultado = await useCase.ejecutar({
@@ -72,7 +78,7 @@ describe('IniciarCompraUseCase', () => {
     
     const mockRepoOrdenes = {} as RepositorioOrdenes;
 
-    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos);
+    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     await expect(useCase.ejecutar({ emailCliente: 'cliente@test.com', productoIds: ['1', '2'] }))
       .rejects
@@ -98,7 +104,7 @@ describe('IniciarCompraUseCase', () => {
       ]),
     };
     
-    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos);
+    const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     await useCase.ejecutar({ emailCliente: 'cliente@test.com', productoIds: ['1', '2'] });
 

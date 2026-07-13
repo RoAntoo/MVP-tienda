@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../base-datos/prisma-cliente.js';
 import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-prisma.js';
 import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-prisma.js';
+import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
 import { AprobarOrdenUseCase } from '../../aplicacion/casos-uso/aprobar-orden.js';
 import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-producto.js';
@@ -39,13 +40,17 @@ const EsquemaActualizarProducto = z.object({
 });
 
 export async function rutas(servidor: FastifyInstance) {
-  // 1. Inicializar Repositorios
+  // 1. Inicializar Repositorios y Servicios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
+  
+  const emailUser = process.env.EMAIL_USER || '';
+  const emailPass = process.env.EMAIL_PASS || '';
+  const servicioEmail = new ServicioEmailNodemailer(emailUser, emailPass);
 
   // 2. Inicializar Casos de Uso
-  const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos);
-  const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes);
+  const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
+  const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
   const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);

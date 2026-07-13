@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { RepositorioOrdenes } from '../../dominio/repositorios/repositorio-ordenes.js';
 import { RepositorioProductos } from '../../dominio/repositorios/repositorio-productos.js';
+import { ServicioEmail } from '../../dominio/servicios/servicio-email.js';
 import { Orden } from '../../dominio/entidades/orden.js';
 import { Producto } from '../../dominio/entidades/producto.js';
 
@@ -17,7 +18,8 @@ export interface RespuestaIniciarCompra {
 export class IniciarCompraUseCase {
   constructor(
     private repositorioOrdenes: RepositorioOrdenes,
-    private repositorioProductos: RepositorioProductos
+    private repositorioProductos: RepositorioProductos,
+    private servicioEmail: ServicioEmail
   ) {}
 
   async ejecutar(solicitud: SolicitudIniciarCompra): Promise<RespuestaIniciarCompra> {
@@ -51,20 +53,8 @@ export class IniciarCompraUseCase {
       estado: 'PENDIENTE',
     });
 
-    const [nombre, dominio] = solicitud.emailCliente.split('@');
-    const emailOculto = `${nombre.charAt(0)}***@${dominio}`;
-
-    // Simulación de correo con instrucciones de pago
-    console.log(`========================================`);
-    console.log(`[SIMULACION - CORREO DE INSTRUCCIONES DE PAGO]`);
-    console.log(`Para: ${emailOculto}`);
-    console.log(`Asunto: Datos para pagar tu compra`);
-    console.log(`Mensaje: Hola! Has iniciado la compra de ${idsUnicos.length} libro(s) por un total de $${total.toString()}.`);
-    console.log(`Por favor, deposita o transfiere a esta cuenta bancaria:`);
-    console.log(`CBU: 1234567890123456789012`);
-    console.log(`Alias: MI.TIENDA.LIBROS`);
-    console.log(`Una vez recibamos el pago, te enviaremos los links de descarga.`);
-    console.log(`========================================`);
+    // Enviar correo con instrucciones de pago usando el servicio
+    await this.servicioEmail.enviarInstruccionesPago(solicitud.emailCliente, total, idsUnicos.length);
 
     return {
       orden: nuevaOrden,

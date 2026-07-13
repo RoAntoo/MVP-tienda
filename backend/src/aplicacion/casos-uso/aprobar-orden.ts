@@ -1,4 +1,6 @@
 import { RepositorioOrdenes } from '../../dominio/repositorios/repositorio-ordenes.js';
+import { RepositorioProductos } from '../../dominio/repositorios/repositorio-productos.js';
+import { ServicioEmail } from '../../dominio/servicios/servicio-email.js';
 import { Orden } from '../../dominio/entidades/orden.js';
 
 export interface SolicitudAprobarOrden {
@@ -6,7 +8,11 @@ export interface SolicitudAprobarOrden {
 }
 
 export class AprobarOrdenUseCase {
-  constructor(private repositorioOrdenes: RepositorioOrdenes) { }
+  constructor(
+    private repositorioOrdenes: RepositorioOrdenes,
+    private repositorioProductos: RepositorioProductos,
+    private servicioEmail: ServicioEmail
+  ) { }
 
   async ejecutar(solicitud: SolicitudAprobarOrden): Promise<{ orden: Orden; yaAprobada: boolean }> {
     // Intentar actualizar atómicamente la orden (de PENDIENTE a APROBADO)
@@ -14,6 +20,11 @@ export class AprobarOrdenUseCase {
 
     if (!resultado) {
       throw new Error(`La orden con id ${solicitud.ordenId} no existe.`);
+    }
+
+    if (resultado.modificada) {
+      const productosAComprar = await this.repositorioProductos.obtenerPorIds(resultado.orden.productoIds);
+      await this.servicioEmail.enviarLinksDescarga(resultado.orden.emailCliente, productosAComprar);
     }
 
     return {
