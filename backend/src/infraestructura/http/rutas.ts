@@ -55,7 +55,8 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.post('/admin/ordenes/aprobar', async (peticion, respuesta) => {
     try {
       // Validar API_KEY
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
       if (!ADMIN_API_KEY) {
@@ -95,7 +96,8 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
       if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
@@ -113,7 +115,8 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 4: Obtener Todos los Productos (Admin)
   servidor.get('/admin/productos', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
       if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
@@ -133,7 +136,8 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
       if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
@@ -156,7 +160,8 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 6: Eliminar Producto (Admin)
   servidor.delete('/admin/productos/:id', async (peticion, respuesta) => {
     try {
-      const apiKey = peticion.headers['x-api-key'];
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
       if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {

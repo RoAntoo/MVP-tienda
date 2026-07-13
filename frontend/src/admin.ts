@@ -141,8 +141,8 @@ function dibujarOrdenes(ordenes: any[]) {
   // Eventos para botones aprobar
   document.querySelectorAll('.btn-aprobar').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      const id = (e.target as HTMLElement).getAttribute('data-id');
-      if (id) aprobarOrden(id, e.target as HTMLButtonElement);
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+      if (id) aprobarOrden(id, e.currentTarget as HTMLButtonElement);
     });
   });
 }
@@ -167,9 +167,9 @@ function dibujarProductos(productos: any[]) {
   // Eventos para botones eliminar
   document.querySelectorAll('.btn-eliminar-prod').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      const id = (e.target as HTMLElement).getAttribute('data-id');
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
       if (id && confirm('¿Estás seguro de eliminar este producto?')) {
-        eliminarProducto(id, e.target as HTMLButtonElement);
+        eliminarProducto(id, e.currentTarget as HTMLButtonElement);
       }
     });
   });
