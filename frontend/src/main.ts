@@ -11,11 +11,7 @@ interface Product {
 
 // Los productos ahora se cargan dinámicamente desde el backend
 let PRODUCTS: Product[] = [];
-<<<<<<< Updated upstream
 let activeCategory: string | null = null;
-=======
-let activeCategory = 'Todos';
->>>>>>> Stashed changes
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -228,7 +224,6 @@ function addToCart(productId: string): boolean {
 
 // Renderizar Categorías
 function renderCategories() {
-<<<<<<< Updated upstream
   const categories = [...new Set(PRODUCTS.map(p => p.categoria))];
   const filtersContainer = document.getElementById('categoryFilters');
   if (!filtersContainer) return;
@@ -258,25 +253,6 @@ function renderCategories() {
       renderProducts();
     });
     filtersContainer.appendChild(btn);
-=======
-  const categories = ['Todos', ...new Set(PRODUCTS.map(p => p.categoria))];
-  const filtersContainer = document.getElementById('categoryFilters');
-  if (!filtersContainer) return;
-
-  filtersContainer.innerHTML = categories.map(cat => `
-    <button class="category-btn ${activeCategory === cat ? 'active' : ''}" data-category="${cat}">
-      ${cat}
-    </button>
-  `).join('');
-
-  document.querySelectorAll('.category-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      activeCategory = target.getAttribute('data-category') || 'Todos';
-      renderCategories();
-      renderProducts();
-    });
->>>>>>> Stashed changes
   });
 }
 
@@ -285,11 +261,7 @@ function renderProducts() {
   const grid = document.getElementById('productsGrid');
   if (!grid) return;
 
-<<<<<<< Updated upstream
   const productosFiltrados = activeCategory === null 
-=======
-  const productosFiltrados = activeCategory === 'Todos' 
->>>>>>> Stashed changes
     ? PRODUCTS 
     : PRODUCTS.filter(p => p.categoria === activeCategory);
 
