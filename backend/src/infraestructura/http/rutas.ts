@@ -44,12 +44,15 @@ export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios y Servicios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
-  
+
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
-  
-  const servicioEmail = (emailUser && emailPass) 
-    ? new ServicioEmailNodemailer(emailUser, emailPass) 
+  const adminEmail = process.env.ADMIN_EMAIL || emailUser;
+  const apiKeyEnv = process.env.ADMIN_API_KEY || '';
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+
+  const servicioEmail = (emailUser && emailPass)
+    ? new ServicioEmailNodemailer(emailUser, emailPass, apiKeyEnv, backendUrl)
     : new ServicioEmailDummy();
 
   if (!emailUser || !emailPass) {
@@ -57,7 +60,7 @@ export async function rutas(servidor: FastifyInstance) {
   }
 
   // 2. Inicializar Casos de Uso
-  const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
+  const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail, adminEmail);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
   const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
@@ -122,9 +125,9 @@ export async function rutas(servidor: FastifyInstance) {
         await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
       }
 
-      return respuesta.status(200).send({ 
-        mensaje: resultadoAprobacion.yaAprobada ? 'Orden ya estaba aprobada' : 'Orden aprobada y productos despachados', 
-        orden: resultadoAprobacion.orden 
+      return respuesta.status(200).send({
+        mensaje: resultadoAprobacion.yaAprobada ? 'Orden ya estaba aprobada' : 'Orden aprobada y productos despachados',
+        orden: resultadoAprobacion.orden
       });
     } catch (error: any) {
       servidor.log.error(error);
@@ -137,6 +140,44 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Ocurrió un error interno en el servidor.' });
     }
   });
+
+  // Endpoint 2.5: Aprobar Orden (Magic Link por GET)
+  servidor.get('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
+    try {
+      const { ordenId, key } = peticion.query as { ordenId?: string, key?: string };
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+      if (!ADMIN_API_KEY || key !== ADMIN_API_KEY) {
+        return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
+      }
+
+      if (!ordenId) {
+        return respuesta.type('text/html').send('<h1>Error</h1><p>ID de orden faltante.</p>');
+      }
+
+      // Procesamos el pago (aprobamos la orden)
+      const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId });
+
+      // Intentamos despachar el producto si la orden está aprobada
+      if (resultadoAprobacion.orden.estado === 'APROBADO') {
+        await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
+      }
+
+      const html = `
+        <div style="font-family: monospace; padding: 40px; text-align: center; background: #0d0d12; color: #00f0ff; height: 100vh;">
+          <h1 style="color: #ff2a85;">> CONFIRMACION_EXITOSA_</h1>
+          <h2>¡La orden #${ordenId.substring(0, 8)} ha sido APROBADA!</h2>
+          <p>Los libros fueron liberados y enviados al cliente ${resultadoAprobacion.orden.emailCliente}.</p>
+          <a href="http://localhost:5173" style="color: white; margin-top: 20px; display: inline-block;">Cerrar ventana</a>
+        </div>
+      `;
+      return respuesta.type('text/html').send(html);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.type('text/html').send(`<h1>Error</h1><p>${error.message}</p>`);
+    }
+  });
+
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', async (peticion, respuesta) => {
     try {
@@ -199,7 +240,7 @@ export async function rutas(servidor: FastifyInstance) {
 
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
       const nuevoProducto = await crearProductoUseCase.ejecutar(cuerpo);
-      
+
       return respuesta.status(201).send(nuevoProducto);
     } catch (error: any) {
       servidor.log.error(error);
@@ -227,7 +268,7 @@ export async function rutas(servidor: FastifyInstance) {
       const EsquemaParams = z.object({
         id: z.string().trim().min(1, 'El ID del producto es requerido')
       });
-      
+
       const { id } = EsquemaParams.parse(peticion.params);
 
       await eliminarProductoUseCase.ejecutar(id);
@@ -269,7 +310,7 @@ export async function rutas(servidor: FastifyInstance) {
       const cuerpo = EsquemaActualizarProducto.parse(peticion.body);
 
       const productoActualizado = await actualizarProductoUseCase.ejecutar({ id, ...cuerpo });
-      
+
       return respuesta.status(200).send(productoActualizado);
     } catch (error: any) {
       servidor.log.error(error);

@@ -6,7 +6,12 @@ import { Prisma } from '@prisma/client';
 export class ServicioEmailNodemailer implements ServicioEmail {
   private transporter: nodemailer.Transporter;
 
-  constructor(usuario: string, pass: string) {
+  constructor(
+    usuario: string, 
+    pass: string, 
+    private apiKey: string = '', 
+    private backendUrl: string = 'http://localhost:3000'
+  ) {
     this.transporter = nodemailer.createTransport({
       service: 'gmail', // Por defecto usamos Gmail
       auth: {
@@ -69,6 +74,44 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       from: '"EbooksPack" <no-reply@ebookspack.com>',
       to: emailCliente,
       subject: '¡Tus libros están listos para descargar!',
+      html: htmlContent,
+    });
+  }
+
+  async notificarNuevaOrdenAdmin(emailAdmin: string, orden: any, productos: Producto[]): Promise<void> {
+    const listaProductosHTML = productos.map(p => `<li>- ${p.titulo} ($${p.precio})</li>`).join('');
+    const htmlContent = `
+      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
+        <h2 style="color: #ff2a85;">> ALERTA_NUEVA_VENTA</h2>
+        <p>¡El sistema ha registrado una nueva orden de compra!</p>
+        <div style="border: 1px solid #ff2a85; padding: 15px; margin: 20px 0;">
+          <h3 style="color: #ff2a85; margin-top: 0;">DATOS DE LA ORDEN #${orden.id.substring(0,8)}</h3>
+          <ul>
+            <li><strong>Cliente:</strong> ${orden.emailCliente}</li>
+            <li><strong>Total a recibir:</strong> $${orden.total}</li>
+          </ul>
+          <h4>Libros solicitados:</h4>
+          <ul style="list-style: none; padding-left: 0; border-left: 2px solid #ff2a85; padding-left: 15px;">
+            ${listaProductosHTML}
+          </ul>
+        </div>
+        <p>Revisa tu cuenta bancaria. Si el pago ingresó correctamente, haz clic en el siguiente botón para aprobar la orden instantáneamente:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${this.backendUrl}/admin/ordenes/aprobar-magico?ordenId=${orden.id}&key=${this.apiKey}" 
+             style="background-color: #ff2a85; color: white; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; font-size: 16px;">
+            [ CONFIRMAR Y LIBERAR LIBROS ]
+          </a>
+        </div>
+        
+        <p style="color: #a0a0b0;">© 2026 EbooksPack Admin System</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: '"EbooksPack System" <no-reply@ebookspack.com>',
+      to: emailAdmin,
+      subject: `Nueva orden de compra - $${orden.total}`,
       html: htmlContent,
     });
   }

@@ -10,4 +10,8 @@ export class ServicioEmailDummy implements ServicioEmail {
   async enviarLinksDescarga(emailCliente: string, productos: Producto[]): Promise<void> {
     console.warn(`[ServicioEmailDummy] Simulación: Links de descarga a ${emailCliente}`);
   }
+
+  async notificarNuevaOrdenAdmin(emailAdmin: string, orden: any, productos: Producto[]): Promise<void> {
+    console.warn(`[ServicioEmailDummy] Simulación: Alerta de nueva orden al admin ${emailAdmin}`);
+  }
 }

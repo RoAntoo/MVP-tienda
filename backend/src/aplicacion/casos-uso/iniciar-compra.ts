@@ -19,7 +19,8 @@ export class IniciarCompraUseCase {
   constructor(
     private repositorioOrdenes: RepositorioOrdenes,
     private repositorioProductos: RepositorioProductos,
-    private servicioEmail: ServicioEmail
+    private servicioEmail: ServicioEmail,
+    private adminEmail?: string
   ) {}
 
   async ejecutar(solicitud: SolicitudIniciarCompra): Promise<RespuestaIniciarCompra> {
@@ -57,6 +58,13 @@ export class IniciarCompraUseCase {
     this.servicioEmail.enviarInstruccionesPago(solicitud.emailCliente, total, idsUnicos.length).catch((err) => {
       console.error('Error enviando instrucciones de pago (asíncrono):', err);
     });
+
+    // Notificar al administrador
+    if (this.adminEmail) {
+      this.servicioEmail.notificarNuevaOrdenAdmin(this.adminEmail, nuevaOrden, productosValidos).catch((err) => {
+        console.error('Error enviando notificación al admin (asíncrono):', err);
+      });
+    }
 
     return {
       orden: nuevaOrden,
