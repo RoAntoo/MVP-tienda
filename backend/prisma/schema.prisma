@@ -3,13 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Producto {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid())
   titulo    String
-  precio    Decimal  @db.Decimal(10, 2)
+  precio    Decimal
   driveUrl  String   @map("drive_url")
   ordenes   Orden[]  @relation("OrdenProductos")
 
@@ -17,17 +18,13 @@ model Producto {
 }
 
 model Orden {
-  id            String       @id @default(uuid()) @db.Uuid
+  id            String       @id @default(uuid())
   emailCliente  String       @map("customer_email")
-  total         Decimal      @db.Decimal(10, 2)
-  estado        EstadoOrden
+  total         Decimal
+  estado        String       @default("PENDIENTE") // SQLite no soporta Enums nativamente de la misma forma, pero Prisma lo emula a veces. Usaremos String.
   productos     Producto[]   @relation("OrdenProductos")
 
   @@map("ordenes")
 }
 
-enum EstadoOrden {
-  PENDIENTE
-  APROBADO
-  DESPACHADO
-}
+

@@ -307,24 +307,55 @@ function renderProducts() {
   });
 }
 
-// Evento de Checkout (Simulado)
+// Evento de Checkout (Conectado a la API)
 if (checkoutForm) {
-  checkoutForm.addEventListener('submit', (e) => {
+  checkoutForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (cartItems.length === 0) {
       alert("⚠️ Error: El carrito está vacío.");
       return;
     }
-    const email = (document.getElementById('emailInput') as HTMLInputElement).value;
-    alert(`[ SISTEMA ]
-Iniciando orden de compra...
-Email: ${email}
-Total: $${calculateTotal().toFixed(2)}
-¡La API se conectará en la próxima fase!`);
     
-    cartItems = [];
-    renderCart();
-    toggleCart();
+    const email = (document.getElementById('emailInput') as HTMLInputElement).value;
+    const submitBtn = checkoutForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    
+    // UI Estado de carga
+    const originalBtnText = submitBtn.innerText;
+    submitBtn.innerText = '[ ENVIANDO... ]';
+    submitBtn.disabled = true;
+
+    try {
+      const response = await fetch('http://localhost:3000/compras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailCliente: email,
+          productoIds: cartItems.map(p => p.id)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Fallo de conexión encriptada');
+      }
+
+      // Vaciar carrito
+      cartItems = [];
+      renderCart();
+      toggleCart();
+      
+      // Mostrar Modal de Éxito
+      const successModal = document.getElementById('checkoutSuccessModal');
+      if (successModal) {
+        successModal.classList.remove('hidden');
+      }
+
+    } catch (error: any) {
+      alert(`⚠️ ERROR EN EL ENLACE: ${error.message}`);
+    } finally {
+      submitBtn.innerText = originalBtnText;
+      submitBtn.disabled = false;
+    }
   });
 }
 
@@ -351,5 +382,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  const closeSuccessBtn = document.getElementById('closeSuccessBtn');
+  if (closeSuccessBtn) {
+    closeSuccessBtn.addEventListener('click', () => {
+      const successModal = document.getElementById('checkoutSuccessModal');
+      if (successModal) successModal.classList.add('hidden');
+    });
+  }
+
   renderCart();
 });
