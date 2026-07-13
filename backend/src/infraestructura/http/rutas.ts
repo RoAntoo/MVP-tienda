@@ -119,7 +119,11 @@ export async function rutas(servidor: FastifyInstance) {
       const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
@@ -138,7 +142,11 @@ export async function rutas(servidor: FastifyInstance) {
       const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
@@ -156,7 +164,11 @@ export async function rutas(servidor: FastifyInstance) {
       const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
@@ -179,15 +191,21 @@ export async function rutas(servidor: FastifyInstance) {
       const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
         return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
       }
 
-      const params = peticion.params as { id: string };
-      // Validar ID
-      z.string().min(1).parse(params.id);
+      const EsquemaParams = z.object({
+        id: z.string().trim().min(1, 'El ID del producto es requerido')
+      });
+      
+      const { id } = EsquemaParams.parse(peticion.params);
 
-      await eliminarProductoUseCase.ejecutar(params.id);
+      await eliminarProductoUseCase.ejecutar(id);
       return respuesta.status(204).send(); // 204 No Content
     } catch (error: any) {
       servidor.log.error(error);
