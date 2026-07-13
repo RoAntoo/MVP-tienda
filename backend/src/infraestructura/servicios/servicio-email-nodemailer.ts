@@ -13,6 +13,8 @@ export class ServicioEmailNodemailer implements ServicioEmail {
         user: usuario,
         pass: pass,
       },
+      connectionTimeout: 5000,
+      socketTimeout: 5000,
     });
   }
 
@@ -35,18 +37,12 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       </div>
     `;
 
-    try {
-      await this.transporter.sendMail({
-        from: '"EbooksPack" <no-reply@ebookspack.com>',
-        to: emailCliente,
-        subject: 'Instrucciones para pagar tu compra',
-        html: htmlContent,
-      });
-    } catch (error) {
-      console.error('Error enviando instrucciones de pago:', error);
-      // Para un MVP, no rompemos el flujo de compra si falla el mail (ej. credenciales malas), 
-      // pero en prod lo ideal sería manejar esto o reintentar.
-    }
+    await this.transporter.sendMail({
+      from: '"EbooksPack" <no-reply@ebookspack.com>',
+      to: emailCliente,
+      subject: 'Instrucciones para pagar tu compra',
+      html: htmlContent,
+    });
   }
 
   async enviarLinksDescarga(emailCliente: string, productos: Producto[]): Promise<void> {
@@ -69,15 +65,11 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       </div>
     `;
 
-    try {
-      await this.transporter.sendMail({
-        from: '"EbooksPack" <no-reply@ebookspack.com>',
-        to: emailCliente,
-        subject: '¡Tus libros están listos para descargar!',
-        html: htmlContent,
-      });
-    } catch (error) {
-      console.error('Error enviando links de descarga:', error);
-    }
+    await this.transporter.sendMail({
+      from: '"EbooksPack" <no-reply@ebookspack.com>',
+      to: emailCliente,
+      subject: '¡Tus libros están listos para descargar!',
+      html: htmlContent,
+    });
   }
 }

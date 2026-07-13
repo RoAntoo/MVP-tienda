@@ -4,6 +4,7 @@ import { prisma } from '../base-datos/prisma-cliente.js';
 import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-prisma.js';
 import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-prisma.js';
 import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.js';
+import { ServicioEmailDummy } from '../servicios/servicio-email-dummy.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
 import { AprobarOrdenUseCase } from '../../aplicacion/casos-uso/aprobar-orden.js';
 import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-producto.js';
@@ -37,16 +38,23 @@ const EsquemaActualizarProducto = z.object({
   categoria: z.string().optional().transform(val => val === undefined ? undefined : (val.trim() === '' ? 'General' : val.trim())),
   imagenUrl: z.string().url('Debe ser una URL válida').optional(),
   driveUrl: z.string().url('Debe ser una URL válida').optional(),
-});
+}).refine(data => Object.keys(data).length > 0, 'Se requiere al menos un campo para actualizar');
 
 export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios y Servicios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
   
-  const emailUser = process.env.EMAIL_USER || '';
-  const emailPass = process.env.EMAIL_PASS || '';
-  const servicioEmail = new ServicioEmailNodemailer(emailUser, emailPass);
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+  
+  const servicioEmail = (emailUser && emailPass) 
+    ? new ServicioEmailNodemailer(emailUser, emailPass) 
+    : new ServicioEmailDummy();
+
+  if (!emailUser || !emailPass) {
+    console.warn('⚠️ No se encontraron EMAIL_USER o EMAIL_PASS. Los correos no se enviarán de forma real.');
+  }
 
   // 2. Inicializar Casos de Uso
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);

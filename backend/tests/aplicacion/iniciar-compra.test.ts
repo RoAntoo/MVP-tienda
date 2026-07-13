@@ -7,8 +7,8 @@ import { ServicioEmail } from '../../src/dominio/servicios/servicio-email.js';
 
 describe('IniciarCompraUseCase', () => {
   const mockServicioEmail = {
-    enviarInstruccionesPago: vi.fn(),
-    enviarLinksDescarga: vi.fn()
+    enviarInstruccionesPago: vi.fn().mockResolvedValue(undefined),
+    enviarLinksDescarga: vi.fn().mockResolvedValue(undefined)
   } as unknown as ServicioEmail;
 
   it('debe lanzar error si el carrito está vacío', async () => {

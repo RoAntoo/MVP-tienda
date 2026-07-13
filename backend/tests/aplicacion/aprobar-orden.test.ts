@@ -6,8 +6,8 @@ import { ServicioEmail } from '../../src/dominio/servicios/servicio-email.js';
 
 describe('AprobarOrdenUseCase', () => {
   const mockServicioEmail = {
-    enviarInstruccionesPago: vi.fn(),
-    enviarLinksDescarga: vi.fn()
+    enviarInstruccionesPago: vi.fn().mockResolvedValue(undefined),
+    enviarLinksDescarga: vi.fn().mockResolvedValue(undefined)
   } as unknown as ServicioEmail;
 
   const mockRepoProductos = {

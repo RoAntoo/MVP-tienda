@@ -23,8 +23,21 @@ export class AprobarOrdenUseCase {
     }
 
     if (resultado.modificada) {
-      const productosAComprar = await this.repositorioProductos.obtenerPorIds(resultado.orden.productoIds);
-      await this.servicioEmail.enviarLinksDescarga(resultado.orden.emailCliente, productosAComprar);
+      const idsRequeridos = (resultado.orden.productos || []).map(p => p.id);
+      
+      if (idsRequeridos.length === 0) {
+        console.error(`La orden ${resultado.orden.id} no tiene productos asociados.`);
+      } else {
+        const productosAComprar = await this.repositorioProductos.obtenerPorIds(idsRequeridos);
+        
+        if (productosAComprar.length !== idsRequeridos.length) {
+          console.error(`Faltan productos en la base de datos para la orden ${resultado.orden.id}. Se abortó el envío de links.`);
+        } else {
+          this.servicioEmail.enviarLinksDescarga(resultado.orden.emailCliente, productosAComprar).catch((err) => {
+            console.error('Error enviando links de descarga (asíncrono):', err);
+          });
+        }
+      }
     }
 
     return {

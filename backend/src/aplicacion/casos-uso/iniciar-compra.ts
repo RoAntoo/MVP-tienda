@@ -53,12 +53,14 @@ export class IniciarCompraUseCase {
       estado: 'PENDIENTE',
     });
 
-    // Enviar correo con instrucciones de pago usando el servicio
-    await this.servicioEmail.enviarInstruccionesPago(solicitud.emailCliente, total, idsUnicos.length);
+    // Enviar correo con instrucciones de pago asíncronamente sin bloquear la respuesta
+    this.servicioEmail.enviarInstruccionesPago(solicitud.emailCliente, total, idsUnicos.length).catch((err) => {
+      console.error('Error enviando instrucciones de pago (asíncrono):', err);
+    });
 
     return {
       orden: nuevaOrden,
-      mensaje: 'Orden creada exitosamente. Te hemos enviado un correo con las instrucciones de pago.',
+      mensaje: 'Orden creada exitosamente. Las instrucciones de pago llegarán a tu correo próximamente.',
     };
   }
 }
