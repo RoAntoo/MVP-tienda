@@ -6,10 +6,12 @@ interface Product {
   price: number;
   imageUrl: string;
   description: string;
+  categoria: string;
 }
 
 // Los productos ahora se cargan dinámicamente desde el backend
 let PRODUCTS: Product[] = [];
+let activeCategory = 'Todos';
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -220,12 +222,45 @@ function addToCart(productId: string): boolean {
   return true;
 }
 
+// Renderizar Categorías
+function renderCategories() {
+  const categories = ['Todos', ...new Set(PRODUCTS.map(p => p.categoria))];
+  const filtersContainer = document.getElementById('categoryFilters');
+  if (!filtersContainer) return;
+
+  filtersContainer.innerHTML = categories.map(cat => `
+    <button class="category-btn ${activeCategory === cat ? 'active' : ''}" data-category="${cat}">
+      ${cat}
+    </button>
+  `).join('');
+
+  document.querySelectorAll('.category-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget as HTMLButtonElement;
+      activeCategory = target.getAttribute('data-category') || 'Todos';
+      renderCategories();
+      renderProducts();
+    });
+  });
+}
+
 // Renderizar Productos en Home
 function renderProducts() {
   const grid = document.getElementById('productsGrid');
   if (!grid) return;
 
-  PRODUCTS.forEach(product => {
+  const productosFiltrados = activeCategory === 'Todos' 
+    ? PRODUCTS 
+    : PRODUCTS.filter(p => p.categoria === activeCategory);
+
+  grid.innerHTML = '';
+  
+  if (productosFiltrados.length === 0) {
+    grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;width:100%;grid-column:1/-1;">[ NO_HAY_DATOS_EN_ESTE_SECTOR ]</p>';
+    return;
+  }
+
+  productosFiltrados.forEach(product => {
     const card = document.createElement('div');
     card.className = 'product-card';
     
@@ -367,10 +402,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         title: p.titulo,
         price: precioValidado,
         description: p.descripcion,
+        categoria: p.categoria || 'General',
         imageUrl: p.imagenUrl
       };
     });
     
+    renderCategories();
     renderProducts();
   } catch (error) {
     console.error('No se pudo cargar el catálogo:', error);

@@ -21,6 +21,7 @@ const EsquemaCrearProducto = z.object({
   titulo: z.string().min(1, 'El título es requerido'),
   precio: z.number().positive('El precio debe ser positivo'),
   descripcion: z.string().min(1, 'La descripción es requerida'),
+  categoria: z.string().optional().default('General'),
   imagenUrl: z.string().url('Debe ser una URL válida'),
   driveUrl: z.string().url('Debe ser una URL válida'),
 });

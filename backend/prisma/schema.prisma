@@ -12,6 +12,7 @@ model Producto {
   titulo      String
   precio      Decimal
   descripcion String
+  categoria   String   @default("General")
   imagenUrl   String   @map("imagen_url")
   driveUrl    String   @map("drive_url")
   createdAt   DateTime @default(now())

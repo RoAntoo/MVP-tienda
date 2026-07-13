@@ -19,6 +19,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       titulo: productoDb.titulo,
       precio: productoDb.precio,
       descripcion: productoDb.descripcion,
+      categoria: productoDb.categoria,
       imagenUrl: productoDb.imagenUrl,
       driveUrl: productoDb.driveUrl,
     };
@@ -34,6 +35,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       titulo: p.titulo,
       precio: p.precio,
       descripcion: p.descripcion,
+      categoria: p.categoria,
       imagenUrl: p.imagenUrl,
       driveUrl: p.driveUrl,
     }));
@@ -48,6 +50,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       titulo: p.titulo,
       precio: p.precio,
       descripcion: p.descripcion,
+      categoria: p.categoria,
       imagenUrl: p.imagenUrl,
       driveUrl: p.driveUrl,
     }));
@@ -59,6 +62,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
         titulo: producto.titulo,
         precio: producto.precio,
         descripcion: producto.descripcion,
+        categoria: producto.categoria,
         imagenUrl: producto.imagenUrl,
         driveUrl: producto.driveUrl,
       }
@@ -68,6 +72,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       titulo: p.titulo,
       precio: p.precio,
       descripcion: p.descripcion,
+      categoria: p.categoria,
       imagenUrl: p.imagenUrl,
       driveUrl: p.driveUrl,
     };
