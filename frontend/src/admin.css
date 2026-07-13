@@ -221,3 +221,30 @@ tr:hover td {
   color: var(--accent-cyan);
   margin-bottom: 1rem;
 }
+
+/* --- CUSTOM DROPDOWN CATEGORIAS --- */
+.custom-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-cyan);
+  border-top: none;
+  z-index: 100;
+  max-height: 150px;
+  overflow-y: auto;
+  box-shadow: 0 4px 10px rgba(0, 243, 255, 0.2);
+}
+
+.custom-dropdown-item {
+  padding: 0.8rem;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.custom-dropdown-item:hover {
+  background: var(--accent-cyan);
+  color: var(--bg-dark);
+}

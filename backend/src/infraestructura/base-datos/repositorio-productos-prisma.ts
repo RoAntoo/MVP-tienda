@@ -78,6 +78,29 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     };
   }
 
+  async actualizar(id: string, producto: Partial<Omit<Producto, 'id'>>): Promise<Producto> {
+    const p = await this.prisma.producto.update({
+      where: { id },
+      data: {
+        titulo: producto.titulo,
+        precio: producto.precio,
+        descripcion: producto.descripcion,
+        categoria: producto.categoria,
+        imagenUrl: producto.imagenUrl,
+        driveUrl: producto.driveUrl,
+      }
+    });
+    return {
+      id: p.id,
+      titulo: p.titulo,
+      precio: p.precio,
+      descripcion: p.descripcion,
+      categoria: p.categoria,
+      imagenUrl: p.imagenUrl,
+      driveUrl: p.driveUrl,
+    };
+  }
+
   async eliminar(id: string): Promise<void> {
     await this.prisma.producto.delete({
       where: { id }

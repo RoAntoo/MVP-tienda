@@ -23,8 +23,8 @@ describe('IniciarCompraUseCase', () => {
       eliminar: vi.fn(),
       obtenerTodos: vi.fn(),
       obtenerPorIds: vi.fn().mockResolvedValue([
-        { id: '1', titulo: 'P1', precio: new Prisma.Decimal(100), driveUrl: 'url1' },
-        { id: '2', titulo: 'P2', precio: new Prisma.Decimal(50), driveUrl: 'url2' }
+        { id: '1', titulo: 'P1', precio: 100, driveUrl: 'link1' },
+        { id: '2', titulo: 'P2', precio: 50, driveUrl: 'link2' }
       ]),
     };
     
@@ -49,7 +49,7 @@ describe('IniciarCompraUseCase', () => {
     expect(mockRepoOrdenes.crear).toHaveBeenCalledWith(expect.objectContaining({
       emailCliente: 'cliente@test.com',
       productoIds: ['1', '2'],
-      total: new Prisma.Decimal(150),
+      total: 150,
       estado: 'PENDIENTE'
     }));
 
@@ -64,7 +64,7 @@ describe('IniciarCompraUseCase', () => {
       obtenerTodos: vi.fn(),
       // El repositorio devuelve solo el producto 1 (el producto 2 no existe)
       obtenerPorIds: vi.fn().mockResolvedValue([
-        { id: '1', titulo: 'P1', precio: new Prisma.Decimal(100), driveUrl: 'url1' },
+        { id: '1', titulo: 'P1', precio: 100, driveUrl: 'link1' }
       ]),
     };
     

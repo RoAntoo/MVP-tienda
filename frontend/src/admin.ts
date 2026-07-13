@@ -17,23 +17,38 @@ const productosBody = document.getElementById('productosBody')!;
 
 // Elementos Formulario Producto
 const mostrarFormBtn = document.getElementById('mostrarFormBtn')!;
-const cancelarFormBtn = document.getElementById('cancelarFormBtn')!;
+const cancelarFormBtn = document.getElementById('cancelarFormBtn') as HTMLButtonElement;
 const nuevoProductoFormContainer = document.getElementById('nuevoProductoFormContainer')!;
 const nuevoProductoForm = document.getElementById('nuevoProductoForm') as HTMLFormElement;
 
+// Modal de Edición
+const modalEdicion = document.getElementById('modalEdicion') as HTMLDivElement;
+const editarProductoForm = document.getElementById('editarProductoForm') as HTMLFormElement;
+const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButtonElement;
+
 // Estado
 let apiKey = localStorage.getItem('adminApiKey') || '';
+let categoriasDisponibles: string[] = [];
 
 // --- INICIALIZACIÓN ---
 if (apiKey) {
-  iniciarDashboard();
+  loginSection.classList.add('hidden');
+  validarYEntrar(apiKey).then((valido) => {
+    if (!valido) loginSection.classList.remove('hidden');
+  });
 }
 
-loginBtn.addEventListener('click', () => {
-  apiKey = apiKeyInput.value.trim();
-  if (apiKey) {
-    localStorage.setItem('adminApiKey', apiKey);
-    iniciarDashboard();
+loginBtn.addEventListener('click', async () => {
+  const key = apiKeyInput.value.trim();
+  if (key) {
+    const textOriginal = loginBtn.innerText;
+    loginBtn.innerText = 'AUTENTICANDO...';
+    (loginBtn as HTMLButtonElement).disabled = true;
+    
+    const valido = await validarYEntrar(key);
+    
+    loginBtn.innerText = textOriginal;
+    (loginBtn as HTMLButtonElement).disabled = false;
   }
 });
 
@@ -82,6 +97,9 @@ cancelarFormBtn.addEventListener('click', () => {
   mostrarFormBtn.classList.remove('hidden');
   nuevoProductoForm.reset();
 });
+
+cancelarEditBtn.addEventListener('click', cerrarModalEdicion);
+editarProductoForm.addEventListener('submit', manejarEdicionProducto);
 
 nuevoProductoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -136,14 +154,32 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
 });
 
 // --- FUNCIONES CORE ---
-async function iniciarDashboard() {
-  // Ocultar login, mostrar dashboard
-  loginSection.classList.add('hidden');
-  loginError.classList.add('hidden');
-  dashboardSection.classList.remove('hidden');
-  
-  // Cargar primera tab
-  cargarOrdenes();
+async function validarYEntrar(key: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/admin/ordenes`, {
+      headers: { 'x-api-key': key }
+    });
+    
+    if (!res.ok) throw new Error('Inválida');
+
+    // Autenticación exitosa
+    apiKey = key;
+    localStorage.setItem('adminApiKey', apiKey);
+    
+    loginSection.classList.add('hidden');
+    loginError.classList.add('hidden');
+    dashboardSection.classList.remove('hidden');
+    
+    const ordenes = await res.json();
+    dibujarOrdenes(ordenes);
+    return true;
+  } catch(err: any) {
+    apiKey = '';
+    localStorage.removeItem('adminApiKey');
+    loginError.classList.remove('hidden');
+    loginError.textContent = 'Acceso Denegado';
+    return false;
+  }
 }
 
 async function cargarOrdenes() {
@@ -161,8 +197,13 @@ async function cargarOrdenes() {
     const ordenes = await res.json();
     dibujarOrdenes(ordenes);
   } catch (err: any) {
-    if (err.message === 'API Key Inválida') logoutError();
-    else ordenesBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
+    if (err.message === 'API Key Inválida') {
+      logoutBtn.click();
+      loginError.classList.remove('hidden');
+      loginError.textContent = 'Acceso Denegado';
+    } else {
+      ordenesBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
+    }
   }
 }
 
@@ -183,21 +224,103 @@ async function cargarProductos() {
   }
 }
 
-function logoutError() {
-  logoutBtn.click();
-  loginError.classList.remove('hidden');
+function actualizarDatalistCategorias(productos: any[]) {
+  categoriasDisponibles = [...new Set(productos.map(p => p.categoria).filter(Boolean))] as string[];
 }
 
-function actualizarDatalistCategorias(productos: any[]) {
-  const categoriasUnicas = [...new Set(productos.map(p => p.categoria).filter(Boolean))];
-  const datalist = document.getElementById('listaCategorias');
-  if (datalist) {
-    datalist.innerHTML = '';
-    categoriasUnicas.forEach(cat => {
-      const option = document.createElement('option');
-      option.value = String(cat);
-      datalist.appendChild(option);
+function configurarDropdown(inputId: string, dropdownId: string) {
+  const input = document.getElementById(inputId) as HTMLInputElement;
+  const dropdown = document.getElementById(dropdownId) as HTMLDivElement;
+  
+  if (!input || !dropdown) return;
+
+  const renderDropdown = (filtro: string = '') => {
+    dropdown.innerHTML = '';
+    const match = filtro.toLowerCase();
+    const filtradas = categoriasDisponibles.filter(cat => cat.toLowerCase().includes(match));
+    
+    if (filtradas.length === 0) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+    
+    filtradas.forEach(cat => {
+      const div = document.createElement('div');
+      div.className = 'custom-dropdown-item';
+      div.textContent = cat;
+      div.addEventListener('click', () => {
+        input.value = cat;
+        dropdown.classList.add('hidden');
+      });
+      dropdown.appendChild(div);
     });
+    dropdown.classList.remove('hidden');
+  };
+
+  input.addEventListener('focus', () => renderDropdown(input.value));
+  input.addEventListener('input', () => renderDropdown(input.value));
+  
+  // Ocultar si hacemos clic fuera
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
+      dropdown.classList.add('hidden');
+    }
+  });
+}
+
+// Configurar dropdowns al inicio
+configurarDropdown('prodCategoria', 'customCategorias');
+configurarDropdown('editProdCategoria', 'customCategoriasEdit');
+
+function abrirModalEdicion(p: any) {
+  (document.getElementById('editProdId') as HTMLInputElement).value = p.id;
+  (document.getElementById('editProdTitulo') as HTMLInputElement).value = p.titulo;
+  (document.getElementById('editProdPrecio') as HTMLInputElement).value = p.precio;
+  (document.getElementById('editProdCategoria') as HTMLInputElement).value = p.categoria;
+  (document.getElementById('editProdImagen') as HTMLInputElement).value = p.imagenUrl || '';
+  (document.getElementById('editProdDrive') as HTMLInputElement).value = p.driveUrl || '';
+  (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
+  modalEdicion.classList.remove('hidden');
+}
+
+function cerrarModalEdicion() {
+  modalEdicion.classList.add('hidden');
+  editarProductoForm.reset();
+}
+
+async function manejarEdicionProducto(e: Event) {
+  e.preventDefault();
+  
+  const id = (document.getElementById('editProdId') as HTMLInputElement).value;
+  const payload = {
+    titulo: (document.getElementById('editProdTitulo') as HTMLInputElement).value,
+    precio: parseInt((document.getElementById('editProdPrecio') as HTMLInputElement).value, 10),
+    categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value,
+    imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value,
+    driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value,
+    descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value,
+  };
+
+  const apiKey = apiKeyInput.value;
+  try {
+    const res = await fetch(`http://localhost:3000/admin/productos/${id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey 
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Error: ${res.status} - ${errorText}`);
+    }
+
+    cerrarModalEdicion();
+    await cargarProductos();
+  } catch (err: any) {
+    alert(`Error al guardar cambios: ${err.message}`);
   }
 }
 
@@ -243,10 +366,21 @@ function dibujarProductos(productos: any[]) {
       <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
       <td>
+        <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod='${JSON.stringify(prod).replace(/'/g, "&apos;")}'>EDITAR</button>
         <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-prod" data-id="${prod.id}">ELIMINAR</button>
       </td>
     </tr>
   `).join('');
+
+  // Eventos para botones editar
+  document.querySelectorAll('.btn-editar-prod').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const prodData = (e.currentTarget as HTMLElement).getAttribute('data-prod');
+      if (prodData) {
+        abrirModalEdicion(JSON.parse(prodData));
+      }
+    });
+  });
 
   // Eventos para botones eliminar
   document.querySelectorAll('.btn-eliminar-prod').forEach(btn => {

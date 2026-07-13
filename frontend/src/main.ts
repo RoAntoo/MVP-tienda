@@ -1,5 +1,3 @@
-import './style.css';
-
 interface Product {
   id: string;
   title: string;

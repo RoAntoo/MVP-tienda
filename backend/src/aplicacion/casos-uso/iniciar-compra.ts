@@ -38,10 +38,10 @@ export class IniciarCompraUseCase {
       throw new Error(`El producto con id ${idFaltante} no existe.`);
     }
 
-    // Calcular el total usando Decimal para evitar pérdida de precisión
+    // Calcular el total
     const total = productosValidos.reduce(
-      (acc, p) => Prisma.Decimal.add(acc, p.precio as any), 
-      new Prisma.Decimal(0)
+      (acc, p) => acc + Number(p.precio), 
+      0
     );
 
     const nuevaOrden = await this.repositorioOrdenes.crear({

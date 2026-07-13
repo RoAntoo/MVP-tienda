@@ -8,6 +8,7 @@ import { AprobarOrdenUseCase } from '../../aplicacion/casos-uso/aprobar-orden.js
 import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-producto.js';
 import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.js';
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
+import { ActualizarProductoUseCase } from '../../aplicacion/casos-uso/actualizar-producto.js';
 
 // Esquemas de validación Zod
 const EsquemaIniciarCompra = z.object({
@@ -28,6 +29,15 @@ const EsquemaCrearProducto = z.object({
   driveUrl: z.string().url('Debe ser una URL válida'),
 });
 
+const EsquemaActualizarProducto = z.object({
+  titulo: z.string().min(1, 'El título no puede estar vacío').optional(),
+  precio: z.number().positive('El precio debe ser positivo').optional(),
+  descripcion: z.string().min(1, 'La descripción no puede estar vacía').optional(),
+  categoria: z.string().optional().transform(val => (!val || val.trim() === '') ? 'General' : val.trim()),
+  imagenUrl: z.string().url('Debe ser una URL válida').optional(),
+  driveUrl: z.string().url('Debe ser una URL válida').optional(),
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
@@ -39,6 +49,7 @@ export async function rutas(servidor: FastifyInstance) {
   const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
+  const actualizarProductoUseCase = new ActualizarProductoUseCase(repositorioProductos);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', async (peticion, respuesta) => {
@@ -220,6 +231,42 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(404).send({ error: error.message });
       }
       return respuesta.status(500).send({ error: 'Error al eliminar el producto.' });
+    }
+  });
+
+  // Endpoint 7: Actualizar Producto (Admin)
+  servidor.put('/admin/productos/:id', async (peticion, respuesta) => {
+    try {
+      const rawKey = peticion.headers['x-api-key'];
+      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+      if (!ADMIN_API_KEY) {
+        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+      }
+
+      if (apiKey !== ADMIN_API_KEY) {
+        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+      }
+
+      const EsquemaParams = z.object({
+        id: z.string().trim().min(1, 'El ID del producto es requerido')
+      });
+      const { id } = EsquemaParams.parse(peticion.params);
+      const cuerpo = EsquemaActualizarProducto.parse(peticion.body);
+
+      const productoActualizado = await actualizarProductoUseCase.ejecutar({ id, ...cuerpo });
+      
+      return respuesta.status(200).send(productoActualizado);
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
+      if (error.message === 'Producto no encontrado') {
+        return respuesta.status(404).send({ error: error.message });
+      }
+      return respuesta.status(500).send({ error: 'Error al actualizar el producto.' });
     }
   });
 }
