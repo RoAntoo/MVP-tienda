@@ -1,7 +1,9 @@
 import nodemailer from 'nodemailer';
 import { ServicioEmail } from '../../dominio/servicios/servicio-email.js';
 import { Producto } from '../../dominio/entidades/producto.js';
+import { Orden } from '../../dominio/entidades/orden.js';
 import { Prisma } from '@prisma/client';
+import { generarTokenAprobacion } from '../seguridad/tokens.js';
 
 export class ServicioEmailNodemailer implements ServicioEmail {
   private transporter: nodemailer.Transporter;
@@ -23,7 +25,7 @@ export class ServicioEmailNodemailer implements ServicioEmail {
     });
   }
 
-  async enviarInstruccionesPago(emailCliente: string, total: Prisma.Decimal, cantidad: number): Promise<void> {
+  async enviarInstruccionesPago(emailCliente: string, total: Prisma.Decimal | number, cantidad: number): Promise<void> {
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
         <h2 style="color: #00f0ff;">> EbooksPack</h2>
@@ -78,8 +80,9 @@ export class ServicioEmailNodemailer implements ServicioEmail {
     });
   }
 
-  async notificarNuevaOrdenAdmin(emailAdmin: string, orden: any, productos: Producto[]): Promise<void> {
+  async notificarNuevaOrdenAdmin(emailAdmin: string, orden: Orden, productos: Producto[]): Promise<void> {
     const listaProductosHTML = productos.map(p => `<li>- ${p.titulo} ($${p.precio})</li>`).join('');
+    const token = generarTokenAprobacion(orden.id, this.apiKey);
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
         <h2 style="color: #ff2a85;">> ALERTA_NUEVA_VENTA</h2>
@@ -98,7 +101,7 @@ export class ServicioEmailNodemailer implements ServicioEmail {
         <p>Revisa tu cuenta bancaria. Si el pago ingresó correctamente, haz clic en el siguiente botón para aprobar la orden instantáneamente:</p>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${this.backendUrl}/admin/ordenes/aprobar-magico?ordenId=${orden.id}&key=${this.apiKey}" 
+          <a href="${this.backendUrl}/admin/ordenes/aprobar-magico?ordenId=${orden.id}&token=${token}" 
              style="background-color: #ff2a85; color: white; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; font-size: 16px;">
             [ CONFIRMAR Y LIBERAR LIBROS ]
           </a>

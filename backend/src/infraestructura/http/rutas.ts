@@ -11,6 +11,36 @@ import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-p
 import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.js';
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
 import { ActualizarProductoUseCase } from '../../aplicacion/casos-uso/actualizar-producto.js';
+import { validarTokenAprobacion } from '../seguridad/tokens.js';
+
+// Helpers
+function escapeHtml(unsafe: string) {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function verificarApiKeyAdmin(peticion: any, respuesta: any): boolean {
+  const rawKey = peticion.headers['x-api-key'];
+  const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+  const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+  if (!ADMIN_API_KEY) {
+    respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
+    return false;
+  }
+
+  if (apiKey !== ADMIN_API_KEY) {
+    respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+    return false;
+  }
+  
+  return true;
+}
 
 // Esquemas de validación Zod
 const EsquemaIniciarCompra = z.object({
@@ -70,9 +100,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', async (peticion, respuesta) => {
     try {
-      // Validar estrictamente el cuerpo con Zod
       const cuerpo = EsquemaIniciarCompra.parse(peticion.body);
-
       const resultado = await iniciarCompraUseCase.ejecutar(cuerpo);
       return respuesta.status(201).send(resultado);
     } catch (error: any) {
@@ -101,26 +129,11 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 2: Aprobar Orden Manual (Admin)
   servidor.post('/admin/ordenes/aprobar', async (peticion, respuesta) => {
     try {
-      // Validar API_KEY
-      const rawKey = peticion.headers['x-api-key'];
-      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
 
-      if (!ADMIN_API_KEY) {
-        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-      }
-
-      if (apiKey !== ADMIN_API_KEY) {
-        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
-      }
-
-      // Validar estrictamente el cuerpo con Zod
       const cuerpo = EsquemaAprobarOrden.parse(peticion.body);
-
-      // Procesamos el pago (aprobamos la orden)
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
 
-      // Intentamos despachar el producto si la orden está aprobada (idempotente)
       if (resultadoAprobacion.orden.estado === 'APROBADO') {
         await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
       }
@@ -141,24 +154,61 @@ export async function rutas(servidor: FastifyInstance) {
     }
   });
 
-  // Endpoint 2.5: Aprobar Orden (Magic Link por GET)
+  // Endpoint 2.5: Aprobar Orden (Magic Link GET - Vista de Confirmación)
   servidor.get('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
     try {
-      const { ordenId, key } = peticion.query as { ordenId?: string, key?: string };
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+      const { ordenId, token } = peticion.query as { ordenId?: string, token?: string };
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 
-      if (!ADMIN_API_KEY || key !== ADMIN_API_KEY) {
+      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, ADMIN_API_KEY)) {
         return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
       }
 
-      if (!ordenId) {
-        return respuesta.type('text/html').send('<h1>Error</h1><p>ID de orden faltante.</p>');
+      const html = `
+        <div style="font-family: monospace; padding: 40px; text-align: center; background: #0d0d12; color: #f0f0f0; height: 100vh;">
+          <h1 style="color: #ff2a85;">> CONFIRMAR APROBACIÓN</h1>
+          <h2>Orden #${escapeHtml(ordenId).substring(0, 8)}</h2>
+          <p>¿Estás seguro de que deseas aprobar esta orden y enviar los libros?</p>
+          <button id="btn" onclick="confirmar()" style="background-color: #ff2a85; color: white; padding: 15px 30px; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px;">
+            [ CONFIRMAR APROBACIÓN DE ORDEN ]
+          </button>
+          <script>
+            function confirmar() {
+              document.getElementById('btn').innerText = 'PROCESANDO...';
+              document.getElementById('btn').disabled = true;
+              fetch('/admin/ordenes/aprobar-magico', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ordenId: '${escapeHtml(ordenId)}', token: '${escapeHtml(token)}' })
+              })
+              .then(res => res.text())
+              .then(html => {
+                document.body.innerHTML = html;
+              })
+              .catch(err => alert('Error: ' + err));
+            }
+          </script>
+        </div>
+      `;
+      return respuesta.type('text/html').send(html);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
+    }
+  });
+
+  // Endpoint 2.6: Aprobar Orden (Magic Link POST - Mutación)
+  servidor.post('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
+    try {
+      const { ordenId, token } = peticion.body as { ordenId?: string, token?: string };
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+
+      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, ADMIN_API_KEY)) {
+        return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
       }
 
-      // Procesamos el pago (aprobamos la orden)
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId });
-
-      // Intentamos despachar el producto si la orden está aprobada
+      
       if (resultadoAprobacion.orden.estado === 'APROBADO') {
         await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
       }
@@ -166,33 +216,22 @@ export async function rutas(servidor: FastifyInstance) {
       const html = `
         <div style="font-family: monospace; padding: 40px; text-align: center; background: #0d0d12; color: #00f0ff; height: 100vh;">
           <h1 style="color: #ff2a85;">> CONFIRMACION_EXITOSA_</h1>
-          <h2>¡La orden #${ordenId.substring(0, 8)} ha sido APROBADA!</h2>
-          <p>Los libros fueron liberados y enviados al cliente ${resultadoAprobacion.orden.emailCliente}.</p>
+          <h2>¡La orden #${escapeHtml(ordenId).substring(0, 8)} ha sido APROBADA!</h2>
+          <p>Los libros fueron liberados y enviados al cliente ${escapeHtml(resultadoAprobacion.orden.emailCliente)}.</p>
           <a href="http://localhost:5173" style="color: white; margin-top: 20px; display: inline-block;">Cerrar ventana</a>
         </div>
       `;
       return respuesta.type('text/html').send(html);
     } catch (error: any) {
       servidor.log.error(error);
-      return respuesta.type('text/html').send(`<h1>Error</h1><p>${error.message}</p>`);
+      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
     }
   });
 
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', async (peticion, respuesta) => {
     try {
-      const rawKey = peticion.headers['x-api-key'];
-      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
-
-      if (!ADMIN_API_KEY) {
-        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-      }
-
-      if (apiKey !== ADMIN_API_KEY) {
-        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
-      }
-
+      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
       const ordenes = await repositorioOrdenes.obtenerTodas();
       return respuesta.status(200).send(ordenes);
     } catch (error: any) {
@@ -204,18 +243,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 4: Obtener Todos los Productos (Admin)
   servidor.get('/admin/productos', async (peticion, respuesta) => {
     try {
-      const rawKey = peticion.headers['x-api-key'];
-      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
-
-      if (!ADMIN_API_KEY) {
-        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-      }
-
-      if (apiKey !== ADMIN_API_KEY) {
-        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
-      }
-
+      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
       const productos = await repositorioProductos.obtenerTodos();
       return respuesta.status(200).send(productos);
     } catch (error: any) {
@@ -223,24 +251,13 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Error al obtener los productos.' });
     }
   });
+
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', async (peticion, respuesta) => {
     try {
-      const rawKey = peticion.headers['x-api-key'];
-      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
-
-      if (!ADMIN_API_KEY) {
-        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-      }
-
-      if (apiKey !== ADMIN_API_KEY) {
-        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
-      }
-
+      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
       const nuevoProducto = await crearProductoUseCase.ejecutar(cuerpo);
-
       return respuesta.status(201).send(nuevoProducto);
     } catch (error: any) {
       servidor.log.error(error);
@@ -250,25 +267,14 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(500).send({ error: 'Error al crear el producto.' });
     }
   });
+
   // Endpoint 6: Eliminar Producto (Admin)
   servidor.delete('/admin/productos/:id', async (peticion, respuesta) => {
     try {
-      const rawKey = peticion.headers['x-api-key'];
-      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
-
-      if (!ADMIN_API_KEY) {
-        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-      }
-
-      if (apiKey !== ADMIN_API_KEY) {
-        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
-      }
-
+      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
       const EsquemaParams = z.object({
         id: z.string().trim().min(1, 'El ID del producto es requerido')
       });
-
       const { id } = EsquemaParams.parse(peticion.params);
 
       await eliminarProductoUseCase.ejecutar(id);
@@ -291,18 +297,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 7: Actualizar Producto (Admin)
   servidor.put('/admin/productos/:id', async (peticion, respuesta) => {
     try {
-      const rawKey = peticion.headers['x-api-key'];
-      const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
-
-      if (!ADMIN_API_KEY) {
-        return respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-      }
-
-      if (apiKey !== ADMIN_API_KEY) {
-        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
-      }
-
+      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
       const EsquemaParams = z.object({
         id: z.string().trim().min(1, 'El ID del producto es requerido')
       });
@@ -310,7 +305,6 @@ export async function rutas(servidor: FastifyInstance) {
       const cuerpo = EsquemaActualizarProducto.parse(peticion.body);
 
       const productoActualizado = await actualizarProductoUseCase.ejecutar({ id, ...cuerpo });
-
       return respuesta.status(200).send(productoActualizado);
     } catch (error: any) {
       servidor.log.error(error);
