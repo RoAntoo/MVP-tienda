@@ -1,11 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Producto } from '../../dominio/entidades/producto.js';
 import { RepositorioProductos } from '../../dominio/repositorios/repositorio-productos.js';
 
 export class RepositorioProductosPrisma implements RepositorioProductos {
   constructor(private prisma: PrismaClient) {}
 
-  private mapearProducto(p: any): Producto {
+  private mapearProducto(p: Prisma.ProductoGetPayload<{}>): Producto {
     return {
       id: p.id,
       titulo: p.titulo,
@@ -62,12 +62,12 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     const p = await this.prisma.producto.update({
       where: { id },
       data: {
-        titulo: producto.titulo,
-        precio: producto.precio,
-        descripcion: producto.descripcion,
-        categoria: producto.categoria,
-        imagenUrl: producto.imagenUrl,
-        driveUrl: producto.driveUrl,
+        ...(producto.titulo !== undefined && { titulo: producto.titulo }),
+        ...(producto.precio !== undefined && { precio: producto.precio }),
+        ...(producto.descripcion !== undefined && { descripcion: producto.descripcion }),
+        ...(producto.categoria !== undefined && { categoria: producto.categoria }),
+        ...(producto.imagenUrl !== undefined && { imagenUrl: producto.imagenUrl }),
+        ...(producto.driveUrl !== undefined && { driveUrl: producto.driveUrl }),
       }
     });
     return this.mapearProducto(p);

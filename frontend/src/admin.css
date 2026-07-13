@@ -222,6 +222,12 @@ tr:hover td {
   margin-bottom: 1rem;
 }
 
+.new-product-form-container {
+  max-height: 80vh;
+  overflow-y: auto;
+  padding-right: 1rem;
+}
+
 /* --- CUSTOM DROPDOWN CATEGORIAS --- */
 .custom-dropdown {
   position: absolute;

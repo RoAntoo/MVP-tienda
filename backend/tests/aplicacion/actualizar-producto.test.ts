@@ -50,4 +50,35 @@ describe('ActualizarProductoUseCase', () => {
     await expect(useCase.ejecutar({ id: 'invalido', titulo: 'x' })).rejects.toThrow('Producto no encontrado');
     expect(mockRepo.actualizar).not.toHaveBeenCalled();
   });
+
+  it('debe mantener los valores originales al modificar un solo campo', async () => {
+    const productoExistente = {
+      id: 'prod-123',
+      titulo: 'Original',
+      precio: 10,
+      descripcion: 'Original desc',
+      categoria: 'Manga',
+      imagenUrl: 'http://img',
+      driveUrl: 'http://drive',
+    };
+
+    const mockRepo: RepositorioProductos = {
+      obtenerPorId: vi.fn().mockResolvedValue(productoExistente),
+      crear: vi.fn(),
+      actualizar: vi.fn().mockImplementation((id, cambios) => {
+        return Promise.resolve({ ...productoExistente, ...cambios });
+      }),
+      eliminar: vi.fn(),
+      obtenerTodos: vi.fn(),
+      obtenerPorIds: vi.fn()
+    };
+
+    const useCase = new ActualizarProductoUseCase(mockRepo);
+    const result = await useCase.ejecutar({ id: 'prod-123', precio: 55 });
+
+    expect(mockRepo.actualizar).toHaveBeenCalledWith('prod-123', { precio: 55 });
+    expect(result.titulo).toBe('Original');
+    expect(result.precio).toBe(55);
+    expect(result.descripcion).toBe('Original desc');
+  });
 });
