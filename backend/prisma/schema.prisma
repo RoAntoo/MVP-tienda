@@ -21,7 +21,7 @@ model Orden {
   id            String       @id @default(uuid())
   emailCliente  String       @map("customer_email")
   total         Decimal
-  estado        String       @default("PENDIENTE") // SQLite no soporta Enums nativamente de la misma forma, pero Prisma lo emula a veces. Usaremos String.
+  estado        String       @default("PENDIENTE") // SQLite no admite enums en el schema de Prisma
   productos     Producto[]   @relation("OrdenProductos")
 
   @@map("ordenes")

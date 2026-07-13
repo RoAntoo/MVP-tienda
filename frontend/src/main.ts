@@ -34,6 +34,7 @@ const PRODUCTS: Product[] = [
 
 // Estado del Carrito
 let cartItems: Product[] = [];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Elementos del DOM
 const cartBtn = document.getElementById('cartBtn');
@@ -47,6 +48,7 @@ const cartCountElement = document.getElementById('cartCount');
 
 // Funciones del Modal
 let lastFocusedElement: HTMLElement | null = null;
+let lastFocusedBeforeModal: HTMLElement | null = null;
 
 function toggleCart() {
   if (cartSidebar && cartOverlay) {
@@ -325,7 +327,7 @@ if (checkoutForm) {
     submitBtn.disabled = true;
 
     try {
-      const response = await fetch('http://localhost:3000/compras', {
+      const response = await fetch(`${API_URL}/compras`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -346,8 +348,11 @@ if (checkoutForm) {
       
       // Mostrar Modal de Éxito
       const successModal = document.getElementById('checkoutSuccessModal');
+      const closeSuccessBtn = document.getElementById('closeSuccessBtn');
       if (successModal) {
+        lastFocusedBeforeModal = document.activeElement as HTMLElement;
         successModal.classList.remove('hidden');
+        if (closeSuccessBtn) closeSuccessBtn.focus();
       }
 
     } catch (error: any) {
@@ -387,7 +392,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (closeSuccessBtn) {
     closeSuccessBtn.addEventListener('click', () => {
       const successModal = document.getElementById('checkoutSuccessModal');
-      if (successModal) successModal.classList.add('hidden');
+      if (successModal) {
+        successModal.classList.add('hidden');
+        if (lastFocusedBeforeModal) {
+          lastFocusedBeforeModal.focus();
+        }
+      }
     });
   }
 
