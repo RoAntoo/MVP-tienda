@@ -17,6 +17,14 @@ const EsquemaAprobarOrden = z.object({
   ordenId: z.string().uuid('ID de orden inválido'),
 });
 
+const EsquemaCrearProducto = z.object({
+  titulo: z.string().min(1, 'El título es requerido'),
+  precio: z.number().positive('El precio debe ser positivo'),
+  descripcion: z.string().min(1, 'La descripción es requerida'),
+  imagenUrl: z.string().url('Debe ser una URL válida'),
+  driveUrl: z.string().url('Debe ser una URL válida'),
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
@@ -44,6 +52,17 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(400).send({ error: error.message });
       }
       return respuesta.status(500).send({ error: 'Ocurrió un error interno en el servidor.' });
+    }
+  });
+
+  // Endpoint 1.5: Obtener Catálogo Público
+  servidor.get('/productos', async (peticion, respuesta) => {
+    try {
+      const productos = await repositorioProductos.obtenerTodos();
+      return respuesta.status(200).send(productos);
+    } catch (error) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener el catálogo.' });
     }
   });
 
@@ -121,6 +140,29 @@ export async function rutas(servidor: FastifyInstance) {
     } catch (error: any) {
       servidor.log.error(error);
       return respuesta.status(500).send({ error: 'Error al obtener los productos.' });
+    }
+  });
+
+  // Endpoint 5: Crear Producto (Admin)
+  servidor.post('/admin/productos', async (peticion, respuesta) => {
+    try {
+      const apiKey = peticion.headers['x-api-key'];
+      const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+      if (!ADMIN_API_KEY || apiKey !== ADMIN_API_KEY) {
+        return respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+      }
+
+      const cuerpo = EsquemaCrearProducto.parse(peticion.body);
+      const nuevoProducto = await repositorioProductos.crear(cuerpo);
+      
+      return respuesta.status(201).send(nuevoProducto);
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
+      return respuesta.status(500).send({ error: 'Error al crear el producto.' });
     }
   });
 }
