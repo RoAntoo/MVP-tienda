@@ -44,4 +44,33 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       driveUrl: p.driveUrl,
     }));
   }
+<<<<<<< Updated upstream
+=======
+
+  async crear(producto: Omit<Producto, 'id'>): Promise<Producto> {
+    const p = await this.prisma.producto.create({
+      data: {
+        titulo: producto.titulo,
+        precio: producto.precio,
+        descripcion: producto.descripcion,
+        imagenUrl: producto.imagenUrl,
+        driveUrl: producto.driveUrl,
+      }
+    });
+    return {
+      id: p.id,
+      titulo: p.titulo,
+      precio: p.precio,
+      descripcion: p.descripcion,
+      imagenUrl: p.imagenUrl,
+      driveUrl: p.driveUrl,
+    };
+  }
+
+  async eliminar(id: string): Promise<void> {
+    await this.prisma.producto.delete({
+      where: { id }
+    });
+  }
+>>>>>>> Stashed changes
 }

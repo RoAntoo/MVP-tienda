@@ -149,7 +149,7 @@ function dibujarOrdenes(ordenes: any[]) {
 
 function dibujarProductos(productos: any[]) {
   if (productos.length === 0) {
-    productosBody.innerHTML = '<tr><td colspan="3">No hay productos.</td></tr>';
+    productosBody.innerHTML = '<tr><td colspan="4">No hay productos.</td></tr>';
     return;
   }
 
@@ -158,8 +158,21 @@ function dibujarProductos(productos: any[]) {
       <td>${prod.titulo}</td>
       <td>$${prod.precio}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
+      <td>
+        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-prod" data-id="${prod.id}">ELIMINAR</button>
+      </td>
     </tr>
   `).join('');
+
+  // Eventos para botones eliminar
+  document.querySelectorAll('.btn-eliminar-prod').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = (e.target as HTMLElement).getAttribute('data-id');
+      if (id && confirm('¿Estás seguro de eliminar este producto?')) {
+        eliminarProducto(id, e.target as HTMLButtonElement);
+      }
+    });
+  });
 }
 
 // --- ACCIONES ---
@@ -185,5 +198,28 @@ async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
     alert('Error al aprobar orden');
     botonRef.disabled = false;
     botonRef.innerText = 'APROBAR';
+  }
+}
+
+async function eliminarProducto(productoId: string, botonRef: HTMLButtonElement) {
+  botonRef.disabled = true;
+  botonRef.innerText = 'ELIMINANDO...';
+  
+  try {
+    const res = await fetch(`${API_URL}/admin/productos/${productoId}`, {
+      method: 'DELETE',
+      headers: {
+        'x-api-key': apiKey
+      }
+    });
+
+    if (!res.ok) throw new Error('Falló eliminación');
+    
+    // Recargar tabla de productos
+    cargarProductos();
+  } catch (error) {
+    alert('Error al eliminar producto');
+    botonRef.disabled = false;
+    botonRef.innerText = 'ELIMINAR';
   }
 }
