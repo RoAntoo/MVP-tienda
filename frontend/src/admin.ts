@@ -40,7 +40,7 @@ loginBtn.addEventListener('click', async () => {
     loginBtn.innerText = 'AUTENTICANDO...';
     (loginBtn as HTMLButtonElement).disabled = true;
     
-    const valido = await validarYEntrar(key);
+    await validarYEntrar(key);
     
     loginBtn.innerText = textOriginal;
     (loginBtn as HTMLButtonElement).disabled = false;
@@ -294,7 +294,6 @@ async function manejarEdicionProducto(e: Event) {
     };
 
     const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
-    const textOriginal = submitBtn.innerText;
     submitBtn.innerText = 'GUARDANDO...';
     submitBtn.disabled = true;
 
