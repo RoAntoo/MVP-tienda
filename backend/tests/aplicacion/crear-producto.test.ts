@@ -7,7 +7,7 @@ describe('CrearProductoUseCase', () => {
   it('debe delegar en repositorioProductos.crear y retornar el producto creado', async () => {
     const nuevoProducto = {
       titulo: 'Nuevo Libro',
-      precio: new Prisma.Decimal(100),
+      precio: 100,
       descripcion: 'Desc',
       categoria: 'General',
       imagenUrl: 'http://img.com/1.png',

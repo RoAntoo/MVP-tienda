@@ -1,5 +1,3 @@
-import './style.css';
-
 interface Product {
   id: string;
   title: string;
@@ -12,6 +10,7 @@ interface Product {
 // Los productos ahora se cargan dinámicamente desde el backend
 let PRODUCTS: Product[] = [];
 let activeCategory: string | null = null;
+let currentSearchQuery: string = '';
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -26,6 +25,7 @@ const cartItemsContainer = document.getElementById('cartItemsContainer');
 const cartTotalPrice = document.getElementById('cartTotalPrice');
 const checkoutForm = document.getElementById('checkoutForm');
 const cartCountElement = document.getElementById('cartCount');
+const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
 
 // Funciones del Modal
 let lastFocusedElement: HTMLElement | null = null;
@@ -34,7 +34,7 @@ let lastFocusedBeforeModal: HTMLElement | null = null;
 function toggleCart() {
   if (cartSidebar && cartOverlay) {
     const isHidden = cartSidebar.classList.contains('hidden');
-    
+
     if (isHidden) {
       // Abrir carrito
       lastFocusedElement = document.activeElement as HTMLElement;
@@ -57,7 +57,7 @@ function showAddedFeedback(button: HTMLButtonElement) {
   button.innerText = '[ ADDED ]';
   button.style.background = 'var(--accent-pink)';
   button.style.color = 'var(--bg-color)';
-  
+
   setTimeout(() => {
     button.innerText = originalText;
     button.style.background = 'transparent';
@@ -75,7 +75,7 @@ function openProductDetails(productId: string) {
   const catalog = document.querySelector('.products-section');
   const hero = document.querySelector('.hero');
   const detailView = document.getElementById('productDetailView');
-  
+
   if (!catalog || !detailView || !hero) return;
 
   lastFocusedFromCatalog = document.activeElement as HTMLElement;
@@ -108,7 +108,7 @@ function closeProductDetails() {
   const catalog = document.querySelector('.products-section');
   const hero = document.querySelector('.hero');
   const detailView = document.getElementById('productDetailView');
-  
+
   if (!catalog || !detailView || !hero) return;
 
   detailView.classList.add('hidden');
@@ -169,15 +169,15 @@ function renderCart() {
 
     const info = document.createElement('div');
     info.className = 'cart-item-info';
-    
+
     const title = document.createElement('div');
     title.className = 'cart-item-title';
     title.textContent = item.title;
-    
+
     const price = document.createElement('div');
     price.className = 'cart-item-price';
     price.textContent = `$${item.price.toLocaleString('es-AR')}`;
-    
+
     info.appendChild(title);
     info.appendChild(price);
 
@@ -218,7 +218,7 @@ function addToCart(productId: string): boolean {
       cartCountElement.style.transform = 'scale(1)';
     }, 200);
   }
-  
+
   return true;
 }
 
@@ -261,12 +261,24 @@ function renderProducts() {
   const grid = document.getElementById('productsGrid');
   if (!grid) return;
 
-  const productosFiltrados = activeCategory === null 
-    ? PRODUCTS 
-    : PRODUCTS.filter(p => p.categoria === activeCategory);
+  let productosFiltrados = PRODUCTS;
+
+  // Filtrar por categoría
+  if (activeCategory !== null) {
+    productosFiltrados = productosFiltrados.filter(p => p.categoria === activeCategory);
+  }
+
+  // Filtrar por búsqueda
+  if (currentSearchQuery.trim() !== '') {
+    const q = currentSearchQuery.toLowerCase().trim();
+    productosFiltrados = productosFiltrados.filter(p =>
+      p.title.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q)
+    );
+  }
 
   grid.innerHTML = '';
-  
+
   if (productosFiltrados.length === 0) {
     grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;width:100%;grid-column:1/-1;">[ NO_HAY_DATOS_EN_ESTE_SECTOR ]</p>';
     return;
@@ -275,33 +287,33 @@ function renderProducts() {
   productosFiltrados.forEach(product => {
     const card = document.createElement('div');
     card.className = 'product-card';
-    
+
     const img = document.createElement('img');
     img.src = product.imageUrl;
     img.alt = product.title;
     img.className = 'product-image';
     img.onerror = () => { img.src = 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE+FOUND'; };
-    
+
     const infoDiv = document.createElement('div');
     infoDiv.className = 'product-info';
-    
+
     const title = document.createElement('h3');
     title.className = 'product-title';
     title.textContent = product.title;
-    
+
     const price = document.createElement('p');
     price.className = 'product-price';
     price.textContent = `$${product.price.toLocaleString('es-AR')}`;
-    
+
     const btn = document.createElement('button');
     btn.className = 'cyber-btn cyber-btn-pink add-to-cart-btn';
     btn.setAttribute('data-id', product.id);
-    btn.textContent = '[ ADD_TO_CART ]';
-    
+    btn.textContent = '[ AGREGAR_AL_CARRITO ]';
+
     btn.addEventListener('click', (e) => {
       const target = e.currentTarget as HTMLButtonElement;
       const added = addToCart(product.id);
-      
+
       if (added) {
         showAddedFeedback(target);
       }
@@ -310,7 +322,7 @@ function renderProducts() {
     infoDiv.appendChild(title);
     infoDiv.appendChild(price);
     infoDiv.appendChild(btn);
-    
+
     card.appendChild(img);
     card.appendChild(infoDiv);
 
@@ -343,10 +355,10 @@ if (checkoutForm) {
       alert("⚠️ Error: El carrito está vacío.");
       return;
     }
-    
+
     const email = (document.getElementById('emailInput') as HTMLInputElement).value;
     const submitBtn = checkoutForm.querySelector('button[type="submit"]') as HTMLButtonElement;
-    
+
     // UI Estado de carga
     const originalBtnText = submitBtn.innerText;
     submitBtn.innerText = '[ ENVIANDO... ]';
@@ -371,7 +383,7 @@ if (checkoutForm) {
       cartItems = [];
       renderCart();
       toggleCart();
-      
+
       // Mostrar Modal de Éxito
       const successModal = document.getElementById('checkoutSuccessModal');
       const closeSuccessBtn = document.getElementById('closeSuccessBtn');
@@ -401,26 +413,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!res.ok) throw new Error('Error al cargar catálogo');
     const productosDb = await res.json();
-    
-    // Mapear al formato esperado por el frontend
-    PRODUCTS = productosDb.map((p: any) => {
+
+    // Mapear al formato esperado por el frontend omitiendo precios inválidos
+    PRODUCTS = productosDb.reduce((acc: Product[], p: any) => {
       let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
-      if (precioValidado == null || isNaN(precioValidado)) {
-        precioValidado = 0; // Fallback explícito
+      if (typeof precioValidado !== 'number' || isNaN(precioValidado)) {
+        console.warn(`Producto omitido por precio inválido: ${p.titulo}`);
+        return acc;
       }
-      
-      return {
+
+      acc.push({
         id: p.id,
         title: p.titulo,
         price: precioValidado,
         description: p.descripcion,
-        categoria: p.categoria || 'General',
+        categoria: p.categoria,
         imageUrl: p.imagenUrl
-      };
-    });
-    
+      });
+      return acc;
+    }, []);
+
     renderCategories();
     renderProducts();
+
+    // Event listener para buscador
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        currentSearchQuery = target.value;
+        renderProducts();
+      });
+    }
+
   } catch (error) {
     console.error('No se pudo cargar el catálogo:', error);
     const grid = document.getElementById('productsGrid');

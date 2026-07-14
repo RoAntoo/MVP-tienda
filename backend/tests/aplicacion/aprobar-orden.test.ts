@@ -2,8 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { AprobarOrdenUseCase } from '../../src/aplicacion/casos-uso/aprobar-orden.js';
 import { RepositorioOrdenes } from '../../src/dominio/repositorios/repositorio-ordenes.js';
 import { Orden } from '../../src/dominio/entidades/orden.js';
+import { ServicioEmail } from '../../src/dominio/servicios/servicio-email.js';
 
 describe('AprobarOrdenUseCase', () => {
+  const mockServicioEmail = {
+    enviarInstruccionesPago: vi.fn().mockResolvedValue(undefined),
+    enviarLinksDescarga: vi.fn().mockResolvedValue(undefined)
+  } as unknown as ServicioEmail;
+
+  const mockRepoProductos = {
+    obtenerPorIds: vi.fn().mockResolvedValue([])
+  } as unknown as any;
+
   it('debe lanzar error si la orden no existe', async () => {
     const mockRepoOrdenes: RepositorioOrdenes = {
       crear: vi.fn(),
@@ -11,7 +21,7 @@ describe('AprobarOrdenUseCase', () => {
       actualizarEstado: vi.fn().mockResolvedValue(null), // Null indica que no se encontró o no se actualizó
     };
     
-    const useCase = new AprobarOrdenUseCase(mockRepoOrdenes);
+    const useCase = new AprobarOrdenUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     await expect(useCase.ejecutar({ ordenId: 'invalido' }))
       .rejects
@@ -32,7 +42,7 @@ describe('AprobarOrdenUseCase', () => {
       }),
     };
     
-    const useCase = new AprobarOrdenUseCase(mockRepoOrdenes);
+    const useCase = new AprobarOrdenUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     const resultado = await useCase.ejecutar({ ordenId: '1' });
     
@@ -54,7 +64,7 @@ describe('AprobarOrdenUseCase', () => {
       }),
     };
     
-    const useCase = new AprobarOrdenUseCase(mockRepoOrdenes);
+    const useCase = new AprobarOrdenUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
 
     const resultado = await useCase.ejecutar({ ordenId: '1' });
     

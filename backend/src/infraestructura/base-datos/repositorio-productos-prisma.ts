@@ -1,9 +1,21 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Producto } from '../../dominio/entidades/producto.js';
 import { RepositorioProductos } from '../../dominio/repositorios/repositorio-productos.js';
 
 export class RepositorioProductosPrisma implements RepositorioProductos {
   constructor(private prisma: PrismaClient) {}
+
+  private mapearProducto(p: Prisma.ProductoGetPayload<{}>): Producto {
+    return {
+      id: p.id,
+      titulo: p.titulo,
+      precio: p.precio,
+      descripcion: p.descripcion,
+      categoria: p.categoria,
+      imagenUrl: p.imagenUrl,
+      driveUrl: p.driveUrl,
+    };
+  }
 
   async obtenerPorId(id: string): Promise<Producto | null> {
     const productoDb = await this.prisma.producto.findUnique({
@@ -14,15 +26,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       return null;
     }
 
-    return {
-      id: productoDb.id,
-      titulo: productoDb.titulo,
-      precio: productoDb.precio,
-      descripcion: productoDb.descripcion,
-      categoria: productoDb.categoria,
-      imagenUrl: productoDb.imagenUrl,
-      driveUrl: productoDb.driveUrl,
-    };
+    return this.mapearProducto(productoDb);
   }
 
   async obtenerPorIds(ids: string[]): Promise<Producto[]> {
@@ -30,30 +34,14 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       where: { id: { in: ids } },
     });
 
-    return productosDb.map(p => ({
-      id: p.id,
-      titulo: p.titulo,
-      precio: p.precio,
-      descripcion: p.descripcion,
-      categoria: p.categoria,
-      imagenUrl: p.imagenUrl,
-      driveUrl: p.driveUrl,
-    }));
+    return productosDb.map(p => this.mapearProducto(p));
   }
 
   async obtenerTodos(): Promise<Producto[]> {
     const productosDb = await this.prisma.producto.findMany({
       orderBy: { createdAt: 'desc' }
     });
-    return productosDb.map(p => ({
-      id: p.id,
-      titulo: p.titulo,
-      precio: p.precio,
-      descripcion: p.descripcion,
-      categoria: p.categoria,
-      imagenUrl: p.imagenUrl,
-      driveUrl: p.driveUrl,
-    }));
+    return productosDb.map(p => this.mapearProducto(p));
   }
 
   async crear(producto: Omit<Producto, 'id'>): Promise<Producto> {
@@ -67,15 +55,22 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
         driveUrl: producto.driveUrl,
       }
     });
-    return {
-      id: p.id,
-      titulo: p.titulo,
-      precio: p.precio,
-      descripcion: p.descripcion,
-      categoria: p.categoria,
-      imagenUrl: p.imagenUrl,
-      driveUrl: p.driveUrl,
-    };
+    return this.mapearProducto(p);
+  }
+
+  async actualizar(id: string, producto: Partial<Omit<Producto, 'id'>>): Promise<Producto> {
+    const p = await this.prisma.producto.update({
+      where: { id },
+      data: {
+        ...(producto.titulo !== undefined && { titulo: producto.titulo }),
+        ...(producto.precio !== undefined && { precio: producto.precio }),
+        ...(producto.descripcion !== undefined && { descripcion: producto.descripcion }),
+        ...(producto.categoria !== undefined && { categoria: producto.categoria }),
+        ...(producto.imagenUrl !== undefined && { imagenUrl: producto.imagenUrl }),
+        ...(producto.driveUrl !== undefined && { driveUrl: producto.driveUrl }),
+      }
+    });
+    return this.mapearProducto(p);
   }
 
   async eliminar(id: string): Promise<void> {
