@@ -12,29 +12,14 @@ import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
 import { ActualizarProductoUseCase } from '../../aplicacion/casos-uso/actualizar-producto.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
+import escapeHtml from 'escape-html';
 
 // Helpers
-function escapeHtml(unsafe: string) {
-  if (!unsafe) return '';
-  return String(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function verificarApiKeyAdmin(peticion: any, respuesta: any): boolean {
+function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string): boolean {
   const rawKey = peticion.headers['x-api-key'];
   const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-  const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-  if (!ADMIN_API_KEY) {
-    respuesta.status(500).send({ error: 'Falta configurar ADMIN_API_KEY en el servidor' });
-    return false;
-  }
-
-  if (apiKey !== ADMIN_API_KEY) {
+  if (apiKey !== adminApiKey) {
     respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
     return false;
   }
@@ -71,6 +56,19 @@ const EsquemaActualizarProducto = z.object({
 }).refine(data => Object.keys(data).length > 0, 'Se requiere al menos un campo para actualizar');
 
 export async function rutas(servidor: FastifyInstance) {
+  // --- VALIDACIÓN DE VARIABLES CRÍTICAS (FAIL-FAST) ---
+  const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+  if (!ADMIN_API_KEY) {
+    servidor.log.error('CRITICAL: ADMIN_API_KEY no está configurada.');
+    throw new Error('ADMIN_API_KEY no está configurada.');
+  }
+
+  const TOKEN_SIGNING_SECRET = process.env.TOKEN_SIGNING_SECRET;
+  if (!TOKEN_SIGNING_SECRET) {
+    servidor.log.error('CRITICAL: TOKEN_SIGNING_SECRET no está configurada.');
+    throw new Error('TOKEN_SIGNING_SECRET no está configurada.');
+  }
+
   // 1. Inicializar Repositorios y Servicios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
@@ -78,11 +76,10 @@ export async function rutas(servidor: FastifyInstance) {
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
   const adminEmail = process.env.ADMIN_EMAIL || emailUser;
-  const apiKeyEnv = process.env.ADMIN_API_KEY || '';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
   const servicioEmail = (emailUser && emailPass)
-    ? new ServicioEmailNodemailer(emailUser, emailPass, apiKeyEnv, backendUrl)
+    ? new ServicioEmailNodemailer(emailUser, emailPass, TOKEN_SIGNING_SECRET, backendUrl)
     : new ServicioEmailDummy();
 
   if (!emailUser || !emailPass) {
@@ -129,7 +126,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 2: Aprobar Orden Manual (Admin)
   servidor.post('/admin/ordenes/aprobar', async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
 
       const cuerpo = EsquemaAprobarOrden.parse(peticion.body);
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
@@ -158,16 +155,18 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.get('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
     try {
       const { ordenId, token } = peticion.query as { ordenId?: string, token?: string };
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 
-      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, ADMIN_API_KEY)) {
+      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, TOKEN_SIGNING_SECRET)) {
         return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
       }
+
+      const safeOrdenId = escapeHtml(String(ordenId || ''));
+      const safeToken = escapeHtml(String(token || ''));
 
       const html = `
         <div style="font-family: monospace; padding: 40px; text-align: center; background: #0d0d12; color: #f0f0f0; height: 100vh;">
           <h1 style="color: #ff2a85;">> CONFIRMAR APROBACIÓN</h1>
-          <h2>Orden #${escapeHtml(ordenId).substring(0, 8)}</h2>
+          <h2>Orden #${safeOrdenId.substring(0, 8)}</h2>
           <p>¿Estás seguro de que deseas aprobar esta orden y enviar los libros?</p>
           <button id="btn" onclick="confirmar()" style="background-color: #ff2a85; color: white; padding: 15px 30px; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px;">
             [ CONFIRMAR APROBACIÓN DE ORDEN ]
@@ -179,7 +178,7 @@ export async function rutas(servidor: FastifyInstance) {
               fetch('/admin/ordenes/aprobar-magico', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ordenId: '${escapeHtml(ordenId)}', token: '${escapeHtml(token)}' })
+                body: JSON.stringify({ ordenId: '${safeOrdenId}', token: '${safeToken}' })
               })
               .then(res => res.text())
               .then(html => {
@@ -193,7 +192,7 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.type('text/html').send(html);
     } catch (error: any) {
       servidor.log.error(error);
-      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
+      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(String(error.message || 'Error desconocido'))}</p>`);
     }
   });
 
@@ -201,9 +200,8 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.post('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
     try {
       const { ordenId, token } = peticion.body as { ordenId?: string, token?: string };
-      const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 
-      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, ADMIN_API_KEY)) {
+      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, TOKEN_SIGNING_SECRET)) {
         return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
       }
 
@@ -213,25 +211,28 @@ export async function rutas(servidor: FastifyInstance) {
         await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
       }
 
+      const safeOrdenId = escapeHtml(String(ordenId || ''));
+      const safeEmail = escapeHtml(String(resultadoAprobacion.orden.emailCliente || ''));
+
       const html = `
         <div style="font-family: monospace; padding: 40px; text-align: center; background: #0d0d12; color: #00f0ff; height: 100vh;">
           <h1 style="color: #ff2a85;">> CONFIRMACION_EXITOSA_</h1>
-          <h2>¡La orden #${escapeHtml(ordenId).substring(0, 8)} ha sido APROBADA!</h2>
-          <p>Los libros fueron liberados y enviados al cliente ${escapeHtml(resultadoAprobacion.orden.emailCliente)}.</p>
+          <h2>¡La orden #${safeOrdenId.substring(0, 8)} ha sido APROBADA!</h2>
+          <p>Los libros fueron liberados y enviados al cliente ${safeEmail}.</p>
           <a href="http://localhost:5173" style="color: white; margin-top: 20px; display: inline-block;">Cerrar ventana</a>
         </div>
       `;
       return respuesta.type('text/html').send(html);
     } catch (error: any) {
       servidor.log.error(error);
-      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
+      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(String(error.message || 'Error desconocido'))}</p>`);
     }
   });
 
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const ordenes = await repositorioOrdenes.obtenerTodas();
       return respuesta.status(200).send(ordenes);
     } catch (error: any) {
@@ -243,7 +244,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 4: Obtener Todos los Productos (Admin)
   servidor.get('/admin/productos', async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const productos = await repositorioProductos.obtenerTodos();
       return respuesta.status(200).send(productos);
     } catch (error: any) {
@@ -255,7 +256,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
       const nuevoProducto = await crearProductoUseCase.ejecutar(cuerpo);
       return respuesta.status(201).send(nuevoProducto);
@@ -271,7 +272,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 6: Eliminar Producto (Admin)
   servidor.delete('/admin/productos/:id', async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const EsquemaParams = z.object({
         id: z.string().trim().min(1, 'El ID del producto es requerido')
       });
@@ -297,7 +298,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 7: Actualizar Producto (Admin)
   servidor.put('/admin/productos/:id', async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const EsquemaParams = z.object({
         id: z.string().trim().min(1, 'El ID del producto es requerido')
       });

@@ -293,7 +293,7 @@ async function manejarEdicionProducto(e: Event) {
       descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim()
     };
 
-    const submitBtn = modalEdicionForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
     const textOriginal = submitBtn.innerText;
     submitBtn.innerText = 'GUARDANDO...';
     submitBtn.disabled = true;
