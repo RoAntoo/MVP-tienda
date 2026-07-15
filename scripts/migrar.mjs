@@ -5,8 +5,13 @@ import * as cheerio from 'cheerio';
 // ⚙️ CONFIGURACIÓN DEL SCRIPT
 // ==========================================
 
-// Tu clave secreta de administrador (Cámbiala si es distinta)
-const ADMIN_API_KEY = "hola123";
+// Tu clave secreta de administrador (Cárgala desde variable de entorno)
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
+
+if (!ADMIN_API_KEY) {
+  console.error("❌ ERROR: La variable de entorno ADMIN_API_KEY no está definida. Uso: ADMIN_API_KEY=tusecreto node scripts/migrar.mjs");
+  process.exit(1);
+}
 
 // La URL de tu nueva tienda en Heroku (Sin barra al final)
 const API_DESTINO = "https://ebookspack-82e1864c7352.herokuapp.com/admin/productos";
@@ -33,7 +38,7 @@ async function migrarCatalogo() {
 
     try {
       // 1. Obtener el HTML de la página de Empretienda
-      const respuestaHtml = await axios.get(url);
+      const respuestaHtml = await axios.get(url, { timeout: 10000 });
       const $ = cheerio.load(respuestaHtml.data);
 
       // 2. Extraer los datos usando selectores CSS
@@ -41,7 +46,7 @@ async function migrarCatalogo() {
       
       // El precio viene en un meta tag (ej: content="6000")
       const precioString = $('meta[property="product:price:amount"]').attr('content');
-      const precio = Number(precioString) || 0;
+      const precio = Number(precioString);
       
       // La descripción suele estar en este div
       const descripcion = $('.product-vip__description').first().text().trim();
@@ -50,15 +55,19 @@ async function migrarCatalogo() {
       if (!titulo) {
         throw new Error("No se pudo encontrar el título en esta URL.");
       }
+      
+      if (!precioString || isNaN(precio) || precio <= 0) {
+        throw new Error(`Precio inválido o ausente: '${precioString}'. El precio debe ser un número mayor a 0.`);
+      }
 
       // 3. Preparar el objeto para enviar a tu API
       const nuevoProducto = {
         titulo: titulo,
         precio: precio,
         descripcion: descripcion || "Sin descripción", 
-        imagenUrl: "", // Lo dejamos vacío por tu recomendación inteligente sobre los links caídos
+        imagenUrl: "https://placeholder.com/imagen-pendiente.jpg", // Se requiere URL válida por esquema Zod
         categoria: "General", // Categoría por defecto (requerida por nuestra API)
-        driveUrl: "" // Link de drive vacío para rellenar luego en tu panel
+        driveUrl: "https://placeholder.com/drive-pendiente" // Se requiere URL válida por esquema Zod
       };
 
       // 4. Enviar a Heroku
@@ -66,7 +75,8 @@ async function migrarCatalogo() {
         headers: {
           'x-api-key': ADMIN_API_KEY,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 10000
       });
 
       console.log(`✅ ¡Éxito! Libro subido: "${titulo}"\n`);
