@@ -1,0 +1,97 @@
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+
+// ==========================================
+// ⚙️ CONFIGURACIÓN DEL SCRIPT
+// ==========================================
+
+// Tu clave secreta de administrador (Cámbiala si es distinta)
+const ADMIN_API_KEY = "hola123";
+
+// La URL de tu nueva tienda en Heroku (Sin barra al final)
+const API_DESTINO = "https://ebookspack-82e1864c7352.herokuapp.com/admin/productos";
+
+// Lista de URLs de Empretienda que quieres migrar
+const urlsAMigrar = [
+  "https://ebookspack.empretienda.com.ar/ebook/the-empyrean-series",
+  // Pega el resto de tus URLs aquí, separadas por comas (y entre comillas)...
+];
+
+// ==========================================
+// 🛠️ LÓGICA PRINCIPAL
+// ==========================================
+
+// Función auxiliar para pausar el script (Delay)
+const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function migrarCatalogo() {
+  console.log(`🚀 Iniciando migración de ${urlsAMigrar.length} libros...\n`);
+
+  for (let i = 0; i < urlsAMigrar.length; i++) {
+    const url = urlsAMigrar[i];
+    console.log(`[${i + 1}/${urlsAMigrar.length}] Procesando: ${url}`);
+
+    try {
+      // 1. Obtener el HTML de la página de Empretienda
+      const respuestaHtml = await axios.get(url);
+      const $ = cheerio.load(respuestaHtml.data);
+
+      // 2. Extraer los datos usando selectores CSS
+      const titulo = $('h1.product-vip__title').text().trim();
+      
+      // El precio viene en un meta tag (ej: content="6000")
+      const precioString = $('meta[property="product:price:amount"]').attr('content');
+      const precio = Number(precioString) || 0;
+      
+      // La descripción suele estar en este div
+      const descripcion = $('.product-vip__description').first().text().trim();
+
+      // Validación básica
+      if (!titulo) {
+        throw new Error("No se pudo encontrar el título en esta URL.");
+      }
+
+      // 3. Preparar el objeto para enviar a tu API
+      const nuevoProducto = {
+        titulo: titulo,
+        precio: precio,
+        descripcion: descripcion || "Sin descripción", 
+        imagenUrl: "", // Lo dejamos vacío por tu recomendación inteligente sobre los links caídos
+        categoria: "General", // Categoría por defecto (requerida por nuestra API)
+        driveUrl: "" // Link de drive vacío para rellenar luego en tu panel
+      };
+
+      // 4. Enviar a Heroku
+      await axios.post(API_DESTINO, nuevoProducto, {
+        headers: {
+          'x-api-key': ADMIN_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log(`✅ ¡Éxito! Libro subido: "${titulo}"\n`);
+
+    } catch (error) {
+      // Manejo de errores: Si falla, mostramos el error pero el script continúa
+      console.error(`❌ Error al procesar "${url}":`);
+      if (error.response) {
+        // Error de la API de Heroku (ej. 401, 500)
+        console.error(`   El servidor respondió con código ${error.response.status}:`, error.response.data);
+      } else {
+        // Error de red, cheerio, etc.
+        console.error(`   ${error.message}`);
+      }
+      console.log(); // Salto de línea
+    }
+
+    // 5. El Delay Político (2 segundos de pausa si no es el último elemento)
+    if (i < urlsAMigrar.length - 1) {
+      await esperar(2000);
+    }
+  }
+
+  console.log(`🎉 Migración finalizada. Revisa tu panel en Vercel para ver los libros.`);
+}
+
+// Arrancar el script
+migrarCatalogo();
