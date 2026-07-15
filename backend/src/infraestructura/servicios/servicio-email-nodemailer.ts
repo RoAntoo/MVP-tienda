@@ -10,7 +10,7 @@ function getSafeUrl(urlStr: string): string {
   try {
     const parsed = new URL(urlStr);
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.href;
+      return parsed.href.replace(/\/$/, '');
     }
   } catch (e) {
     // Ignorar URLs inválidas
