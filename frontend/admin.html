@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin - CyberStore</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+  <title>Admin - EbooksPack</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
   <link rel="stylesheet" href="./src/admin.css" />
   <!-- Usar la misma fuente que la app principal -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 </head>
+
 <body>
-  
+
   <div id="loginSection" class="admin-container">
     <div class="terminal-box">
       <h2>&gt; REQUERIDA_CREDENCIAL</h2>
@@ -56,13 +59,13 @@
       </section>
 
       <section id="productosTab" class="hidden">
-          <div class="catalog-header">
-            <h2>[ CATÁLOGO_DINÁMICO ]</h2>
-            <button id="mostrarFormBtn" class="cyber-btn cyber-btn-sm">+ NUEVO_PRODUCTO</button>
-          </div>
+        <div class="catalog-header">
+          <h2>[ CATÁLOGO_DINÁMICO ]</h2>
+          <button id="mostrarFormBtn" class="cyber-btn cyber-btn-sm">+ NUEVO_PRODUCTO</button>
+        </div>
 
-          <div id="nuevoProductoFormContainer" class="hidden new-product-form-container">
-            <h3>&gt; INICIAR_CARGA</h3>
+        <div id="nuevoProductoFormContainer" class="hidden new-product-form-container">
+          <h3>&gt; INICIAR_CARGA</h3>
           <form id="nuevoProductoForm">
             <div class="form-group">
               <label for="prodTitulo">TÍTULO</label>
@@ -74,7 +77,8 @@
             </div>
             <div class="form-group" style="position: relative;">
               <label for="prodCategoria">CATEGORÍA</label>
-              <input type="text" id="prodCategoria" autocomplete="off" required placeholder="Ej: Ficción, Rol, Arte..." role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="customCategorias" />
+              <input type="text" id="prodCategoria" autocomplete="off" required placeholder="Ej: Ficción, Rol, Arte..."
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="customCategorias" />
               <div id="customCategorias" class="custom-dropdown hidden" role="listbox"></div>
             </div>
             <div class="form-group">
@@ -115,9 +119,11 @@
     </main>
 
     <!-- Modal Edición -->
-      <div id="modalEdicion" class="product-detail-view hidden" role="dialog" aria-modal="true" aria-labelledby="modalEdicionTitle">
-        <div class="product-detail-container" style="max-width: 600px;">
-          <h3 id="modalEdicionTitle" class="section-title blink" style="color: var(--accent-cyan); font-size: 1.5rem; margin-bottom: 2rem;">&gt; MODO_EDICIÓN_ACTIVADO</h3>
+    <div id="modalEdicion" class="product-detail-view hidden" role="dialog" aria-modal="true"
+      aria-labelledby="modalEdicionTitle">
+      <div class="product-detail-container" style="max-width: 600px;">
+        <h3 id="modalEdicionTitle" class="section-title blink"
+          style="color: var(--accent-cyan); font-size: 1.5rem; margin-bottom: 2rem; margin-top: 4rem;">&gt; MODO_EDICIÓN_ACTIVADO</h3>
         <form id="editarProductoForm">
           <input type="hidden" id="editProdId" />
           <div class="form-group">
@@ -130,7 +136,8 @@
           </div>
           <div class="form-group" style="position: relative;">
             <label for="editProdCategoria">CATEGORÍA</label>
-            <input type="text" id="editProdCategoria" autocomplete="off" required role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="customCategoriasEdit" />
+            <input type="text" id="editProdCategoria" autocomplete="off" required role="combobox"
+              aria-autocomplete="list" aria-expanded="false" aria-controls="customCategoriasEdit" />
             <div id="customCategoriasEdit" class="custom-dropdown hidden" role="listbox"></div>
           </div>
           <div class="form-group">
@@ -156,4 +163,5 @@
 
   <script type="module" src="./src/admin.ts"></script>
 </body>
+
 </html>

@@ -273,6 +273,10 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdDrive') as HTMLInputElement).value = p.driveUrl || '';
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
   modalEdicion.classList.remove('hidden');
+  
+  setTimeout(() => {
+    modalEdicion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 function cerrarModalEdicion() {
