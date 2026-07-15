@@ -18,8 +18,17 @@ const API_DESTINO = "https://ebookspack-82e1864c7352.herokuapp.com/admin/product
 
 // Lista de URLs de Empretienda que quieres migrar
 const urlsAMigrar = [
-  "https://ebookspack.empretienda.com.ar/ebook/the-empyrean-series",
-  // Pega el resto de tus URLs aquí, separadas por comas (y entre comillas)...
+  "https://ebookspack.empretienda.com.ar/ebook/a-perfectly-nice-family",
+  "https://ebookspack.empretienda.com.ar/lesbianbook/the-witchs-pet",
+  "https://ebookspack.empretienda.com.ar/ebook/el-divorcio-freida-mcfadden",
+  "https://ebookspack.empretienda.com.ar/ebook/el-novio-freida-mcfadden",
+  "https://ebookspack.empretienda.com.ar/ebook/coleccion-la-biblioteca-de-hogwarts-jk-rowling",
+  "https://ebookspack.empretienda.com.ar/ebook/saga-harry-potter-jk-rowling-coleccion-completa",
+  "https://ebookspack.empretienda.com.ar/gaybook/saga-mas-que-rivales-rachel-reid-coleccion-completa",
+  "https://ebookspack.empretienda.com.ar/ebook/saga-trono-de-cristal-sarah-j-maas",
+  "https://ebookspack.empretienda.com.ar/ebook/into-darkness-en-espanol",
+  "https://ebookspack.empretienda.com.ar/ebook/saga-fenix-y-dragon-coleccion-completa-en-epub",
+  "https://ebookspack.empretienda.com.ar/gaybook/serie-el-novela-completa-en-epub"
 ];
 
 // ==========================================
@@ -43,11 +52,11 @@ async function migrarCatalogo() {
 
       // 2. Extraer los datos usando selectores CSS
       const titulo = $('h1.product-vip__title').text().trim();
-      
+
       // El precio viene en un meta tag (ej: content="6000")
       const precioString = $('meta[property="product:price:amount"]').attr('content');
       const precio = Number(precioString);
-      
+
       // La descripción suele estar en este div
       const descripcion = $('.product-vip__description').first().text().trim();
 
@@ -55,7 +64,7 @@ async function migrarCatalogo() {
       if (!titulo) {
         throw new Error("No se pudo encontrar el título en esta URL.");
       }
-      
+
       if (!precioString || isNaN(precio) || precio <= 0) {
         throw new Error(`Precio inválido o ausente: '${precioString}'. El precio debe ser un número mayor a 0.`);
       }
@@ -64,7 +73,7 @@ async function migrarCatalogo() {
       const nuevoProducto = {
         titulo: titulo,
         precio: precio,
-        descripcion: descripcion || "Sin descripción", 
+        descripcion: descripcion || "Sin descripción",
         imagenUrl: "https://placeholder.com/imagen-pendiente.jpg", // Se requiere URL válida por esquema Zod
         categoria: "General", // Categoría por defecto (requerida por nuestra API)
         driveUrl: "https://placeholder.com/drive-pendiente" // Se requiere URL válida por esquema Zod

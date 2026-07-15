@@ -294,6 +294,7 @@ async function manejarEdicionProducto(e: Event) {
     };
 
     const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const textOriginal = submitBtn.innerText;
     submitBtn.innerText = 'GUARDANDO...';
     submitBtn.disabled = true;
 
@@ -316,6 +317,9 @@ async function manejarEdicionProducto(e: Event) {
     await cargarProductos();
   } catch (err: any) {
     alert(`Error al guardar cambios: ${err.message}`);
+  } finally {
+    submitBtn.innerText = textOriginal;
+    submitBtn.disabled = false;
   }
 }
 

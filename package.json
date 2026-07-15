@@ -8,5 +8,9 @@
   "scripts": {
     "heroku-postbuild": "cd backend && npm install --include=dev && npm run build && npm run heroku-postbuild",
     "start": "cd backend && npm start"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0"
   }
 }
