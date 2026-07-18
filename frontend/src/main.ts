@@ -404,6 +404,25 @@ if (checkoutForm) {
 
 // Inicializar la App
 document.addEventListener('DOMContentLoaded', async () => {
+  // Lógica del Promo Modal (Aparece ANTES de hacer la petición al backend)
+  const promoModal = document.getElementById('promoModal');
+  const closePromoBtn = document.getElementById('closePromoBtn');
+  const entendidoPromoBtn = document.getElementById('entendidoPromoBtn');
+
+  if (promoModal && closePromoBtn && entendidoPromoBtn) {
+    if (!sessionStorage.getItem('promoVisto')) {
+      promoModal.classList.remove('hidden');
+    }
+
+    const cerrarPromo = () => {
+      promoModal.classList.add('hidden');
+      sessionStorage.setItem('promoVisto', 'true');
+    };
+
+    closePromoBtn.addEventListener('click', cerrarPromo);
+    entendidoPromoBtn.addEventListener('click', cerrarPromo);
+  }
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
