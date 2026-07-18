@@ -404,6 +404,40 @@ if (checkoutForm) {
 
 // Inicializar la App
 document.addEventListener('DOMContentLoaded', async () => {
+  // Lógica del Promo Modal (Aparece ANTES de hacer la petición al backend)
+  const promoModal = document.getElementById('promoModal');
+  const closePromoBtn = document.getElementById('closePromoBtn');
+  const entendidoPromoBtn = document.getElementById('entendidoPromoBtn');
+
+  if (promoModal && closePromoBtn && entendidoPromoBtn) {
+    let focusBeforePromo: HTMLElement | null = null;
+
+    const cerrarPromo = () => {
+      promoModal.classList.add('hidden');
+      sessionStorage.setItem('promoVisto', 'true');
+      if (focusBeforePromo && typeof focusBeforePromo.focus === 'function') {
+        focusBeforePromo.focus();
+      }
+    };
+
+    if (!sessionStorage.getItem('promoVisto')) {
+      focusBeforePromo = document.activeElement as HTMLElement;
+      promoModal.classList.remove('hidden');
+      promoModal.focus();
+    }
+
+    closePromoBtn.addEventListener('click', cerrarPromo);
+    entendidoPromoBtn.addEventListener('click', cerrarPromo);
+
+    promoModal.addEventListener('click', (e) => {
+      if (e.target === promoModal) cerrarPromo();
+    });
+
+    promoModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrarPromo();
+    });
+  }
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout

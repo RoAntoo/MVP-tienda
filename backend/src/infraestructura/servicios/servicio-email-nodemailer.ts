@@ -22,9 +22,9 @@ export class ServicioEmailNodemailer implements ServicioEmail {
   private transporter: nodemailer.Transporter;
 
   constructor(
-    usuario: string, 
-    pass: string, 
-    private apiKey: string = '', 
+    usuario: string,
+    pass: string,
+    private apiKey: string = '',
     private backendUrl: string = 'http://localhost:3000'
   ) {
     this.transporter = nodemailer.createTransport({
@@ -79,11 +79,11 @@ export class ServicioEmailNodemailer implements ServicioEmail {
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
         <h2 style="color: #00f0ff;">> PAGO_CONFIRMADO</h2>
-        <p>¡Tu pago ha sido validado con éxito! Aquí tienes los archivos encriptados listos para descargar:</p>
+        <p>¡Tu pago ha sido validado con éxito! Aquí tienes los archivos listos para descargar:</p>
         <ul style="list-style: none; padding-left: 0; border-left: 2px solid #00f0ff; padding-left: 15px;">
           ${listaProductosHTML}
         </ul>
-        <p>Gracias por tu compra.</p>
+        <p>Gracias por tu compra❤️.</p>
         <p style="color: #a0a0b0;">© 2026 EbooksPack</p>
       </div>
     `;
@@ -104,13 +104,13 @@ export class ServicioEmailNodemailer implements ServicioEmail {
 
     const listaProductosHTML = productos.map(p => `<li>- ${escapeHtml(p.titulo)} ($${escapeHtml(p.precio.toString())})</li>`).join('');
     const token = generarTokenAprobacion(orden.id, this.apiKey);
-    
+
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
         <h2 style="color: #ff2a85;">> ALERTA_NUEVA_VENTA</h2>
         <p>¡El sistema ha registrado una nueva orden de compra!</p>
         <div style="border: 1px solid #ff2a85; padding: 15px; margin: 20px 0;">
-          <h3 style="color: #ff2a85; margin-top: 0;">DATOS DE LA ORDEN #${safeId.substring(0,8)}</h3>
+          <h3 style="color: #ff2a85; margin-top: 0;">DATOS DE LA ORDEN #${safeId.substring(0, 8)}</h3>
           <ul>
             <li><strong>Cliente:</strong> ${safeEmailCliente}</li>
             <li><strong>Total a recibir:</strong> $${safeTotal}</li>
