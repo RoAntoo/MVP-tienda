@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Producto } from '../../dominio/entidades/producto.js';
-import { RepositorioProductos } from '../../dominio/repositorios/repositorio-productos.js';
+import { RepositorioProductos, OpcionesOrdenamiento } from '../../dominio/repositorios/repositorio-productos.js';
 
 export class RepositorioProductosPrisma implements RepositorioProductos {
   constructor(private prisma: PrismaClient) {}
@@ -38,9 +38,10 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     return productosDb.map(p => this.mapearProducto(p));
   }
 
-  async obtenerTodos(): Promise<Producto[]> {
+  async obtenerTodos(opciones?: OpcionesOrdenamiento): Promise<Producto[]> {
+    const orden = opciones ? { [opciones.campo]: opciones.direccion } : { createdAt: 'desc' as const };
     const productosDb = await this.prisma.producto.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: orden
     });
     return productosDb.map(p => this.mapearProducto(p));
   }

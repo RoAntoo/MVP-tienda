@@ -58,7 +58,15 @@
       <section id="productosTab" class="hidden">
           <div class="catalog-header">
             <h2>[ CATÁLOGO_DINÁMICO ]</h2>
-            <button id="mostrarFormBtn" class="cyber-btn cyber-btn-sm">+ NUEVO_PRODUCTO</button>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <select id="sortProductos" class="cyber-input" style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;">
+                <option value="createdAt-desc" style="background: #0d0d12; color: #00f0ff;">Más recientes</option>
+                <option value="precio-desc" style="background: #0d0d12; color: #00f0ff;">Mayor precio</option>
+                <option value="precio-asc" style="background: #0d0d12; color: #00f0ff;">Menor precio</option>
+                <option value="titulo-asc" style="background: #0d0d12; color: #00f0ff;">Alfabético (A-Z)</option>
+              </select>
+              <button id="mostrarFormBtn" class="cyber-btn cyber-btn-sm">+ NUEVO_PRODUCTO</button>
+            </div>
           </div>
 
           <div id="nuevoProductoFormContainer" class="hidden new-product-form-container">

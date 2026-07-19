@@ -11,6 +11,7 @@ import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-p
 import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.js';
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
 import { ActualizarProductoUseCase } from '../../aplicacion/casos-uso/actualizar-producto.js';
+import { ObtenerProductosUseCase } from '../../aplicacion/casos-uso/obtener-productos.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 
@@ -57,6 +58,11 @@ const EsquemaActualizarProducto = z.object({
   cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').optional(),
 }).refine(data => Object.keys(data).length > 0, 'Se requiere al menos un campo para actualizar');
 
+const EsquemaConsultarProductosQuery = z.object({
+  campo: z.enum(['precio', 'titulo', 'createdAt', 'cantidad']).optional(),
+  direccion: z.enum(['asc', 'desc']).optional()
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // --- VALIDACIÓN DE VARIABLES CRÍTICAS (FAIL-FAST) ---
   const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
@@ -91,10 +97,11 @@ export async function rutas(servidor: FastifyInstance) {
   // 2. Inicializar Casos de Uso
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail, adminEmail);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
-  const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
+  const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes, servicioEmail);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
   const actualizarProductoUseCase = new ActualizarProductoUseCase(repositorioProductos);
+  const obtenerProductosUseCase = new ObtenerProductosUseCase(repositorioProductos);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', async (peticion, respuesta) => {
@@ -117,7 +124,8 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 1.5: Obtener Catálogo Público
   servidor.get('/productos', async (peticion, respuesta) => {
     try {
-      const productos = await repositorioProductos.obtenerTodos();
+      const query = EsquemaConsultarProductosQuery.parse(peticion.query);
+      const productos = await obtenerProductosUseCase.ejecutar(query);
       return respuesta.status(200).send(productos);
     } catch (error) {
       servidor.log.error(error);
@@ -247,7 +255,8 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.get('/admin/productos', async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
-      const productos = await repositorioProductos.obtenerTodos();
+      const query = EsquemaConsultarProductosQuery.parse(peticion.query);
+      const productos = await obtenerProductosUseCase.ejecutar(query);
       return respuesta.status(200).send(productos);
     } catch (error: any) {
       servidor.log.error(error);
