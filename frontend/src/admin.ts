@@ -110,6 +110,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
     imagenUrl: (document.getElementById('prodImagen') as HTMLInputElement).value,
     driveUrl: (document.getElementById('prodDrive') as HTMLInputElement).value,
     descripcion: (document.getElementById('prodDesc') as HTMLTextAreaElement).value,
+    cantidad: parseInt((document.getElementById('prodCantidad') as HTMLInputElement).value, 10) || 1,
   };
 
   try {
@@ -272,6 +273,7 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdImagen') as HTMLInputElement).value = p.imagenUrl || '';
   (document.getElementById('editProdDrive') as HTMLInputElement).value = p.driveUrl || '';
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
+  (document.getElementById('editProdCantidad') as HTMLInputElement).value = p.cantidad || 1;
   modalEdicion.classList.remove('hidden');
 }
 
@@ -290,7 +292,8 @@ async function manejarEdicionProducto(e: Event) {
       categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value.trim(),
       imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value.trim(),
       driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value.trim(),
-      descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim()
+      descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim(),
+      cantidad: parseInt((document.getElementById('editProdCantidad') as HTMLInputElement).value, 10) || 1
     };
 
     const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
@@ -363,6 +366,7 @@ function dibujarProductos(productos: any[]) {
     <tr>
       <td>${prod.titulo}</td>
       <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
+      <td>${prod.cantidad || 1}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
       <td>
         <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod='${JSON.stringify(prod).replace(/'/g, "&apos;")}'>EDITAR</button>

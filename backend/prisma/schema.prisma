@@ -15,6 +15,7 @@ model Producto {
   categoria   String   @default("General")
   imagenUrl   String   @map("imagen_url")
   driveUrl    String   @map("drive_url")
+  cantidad    Int      @default(1)
   createdAt   DateTime @default(now())
   ordenes     Orden[]  @relation("OrdenProductos")
 

@@ -14,6 +14,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       categoria: p.categoria,
       imagenUrl: p.imagenUrl,
       driveUrl: p.driveUrl,
+      cantidad: (p as any).cantidad || 1, // Add any cast or fallback just in case generated types are stale
     };
   }
 
@@ -53,6 +54,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
         categoria: producto.categoria,
         imagenUrl: producto.imagenUrl,
         driveUrl: producto.driveUrl,
+        cantidad: producto.cantidad,
       }
     });
     return this.mapearProducto(p);
@@ -68,6 +70,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
         ...(producto.categoria !== undefined && { categoria: producto.categoria }),
         ...(producto.imagenUrl !== undefined && { imagenUrl: producto.imagenUrl }),
         ...(producto.driveUrl !== undefined && { driveUrl: producto.driveUrl }),
+        ...(producto.cantidad !== undefined && { cantidad: producto.cantidad }),
       }
     });
     return this.mapearProducto(p);
