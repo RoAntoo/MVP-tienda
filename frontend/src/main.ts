@@ -67,8 +67,6 @@ function showAddedFeedback(button: HTMLButtonElement) {
 }
 
 let lastFocusedFromCatalog: HTMLElement | null = null;
-let currentSelectedProduct: Product | null = null;
-
 // Vista de Detalles
 function openProductDetails(id: string) {
   const p = PRODUCTS.find(prod => prod.id === id);
@@ -81,7 +79,6 @@ function openProductDetails(id: string) {
   if (!catalog || !detailView || !hero) return;
 
   lastFocusedFromCatalog = document.activeElement as HTMLElement;
-  currentSelectedProduct = p;
   
   (document.getElementById('detailImage') as HTMLImageElement).src = p.imageUrl || 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE';
   document.getElementById('detailTitle')!.textContent = p.title;
@@ -92,7 +89,6 @@ function openProductDetails(id: string) {
   
   const btn = document.getElementById('detailAddToCartBtn');
   if (btn) btn.setAttribute('data-id', p.id);
-  
   hero.classList.add('hidden');
   catalog.classList.add('hidden');
   detailView.classList.remove('hidden');

@@ -289,6 +289,10 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
   (document.getElementById('editProdCantidad') as HTMLInputElement).value = p.cantidad || 1;
   modalEdicion.classList.remove('hidden');
+  
+  setTimeout(() => {
+    modalEdicion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 function cerrarModalEdicion() {
