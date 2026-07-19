@@ -66,7 +66,10 @@ function showAddedFeedback(button: HTMLButtonElement) {
 }
 
 let lastFocusedFromCatalog: HTMLElement | null = null;
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 // Vista de Detalles
 function openProductDetails(productId: string) {
   const product = PRODUCTS.find(p => p.id === productId);
@@ -79,6 +82,7 @@ function openProductDetails(productId: string) {
   if (!catalog || !detailView || !hero) return;
 
   lastFocusedFromCatalog = document.activeElement as HTMLElement;
+<<<<<<< Updated upstream
 
   // Inyectar datos
   const img = document.getElementById('detailImage') as HTMLImageElement;
@@ -94,6 +98,19 @@ function openProductDetails(productId: string) {
   if (btn) btn.setAttribute('data-id', product.id);
 
   // Transición
+=======
+  
+  (document.getElementById('detailImage') as HTMLImageElement).src = p.imageUrl || 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE';
+  document.getElementById('detailTitle')!.textContent = p.title;
+  document.getElementById('detailPrice')!.textContent = `$${p.price.toLocaleString('es-AR')}`;
+  document.getElementById('detailDesc')!.textContent = p.description || 'Sin descripción disponible.';
+  const qty = p.cantidad || 1;
+  document.getElementById('detailCantidadValue')!.textContent = `${qty} ${qty === 1 ? 'archivo' : 'archivos'}`;
+  
+  const btn = document.getElementById('detailAddToCartBtn');
+  if (btn) btn.setAttribute('data-id', p.id);
+  
+>>>>>>> Stashed changes
   hero.classList.add('hidden');
   catalog.classList.add('hidden');
   detailView.classList.remove('hidden');
