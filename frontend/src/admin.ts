@@ -77,8 +77,13 @@ tabBtns.forEach(btn => {
       productosTab.classList.remove('hidden');
       cargarProductos();
     }
-  });
 });
+});
+
+const sortProductosSelect = document.getElementById('sortProductos') as HTMLSelectElement;
+if (sortProductosSelect) {
+  sortProductosSelect.addEventListener('change', cargarProductos);
+}
 
 // --- LÓGICA DE NUEVO PRODUCTO ---
 mostrarFormBtn.addEventListener('click', () => {
@@ -203,7 +208,16 @@ async function cargarOrdenes() {
 async function cargarProductos() {
   productosBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
-    const res = await fetch(`${API_URL}/admin/productos`, {
+    let query = '';
+    const sortSelect = document.getElementById('sortProductos') as HTMLSelectElement;
+    if (sortSelect && sortSelect.value) {
+      const [campo, direccion] = sortSelect.value.split('-');
+      if (campo && direccion) {
+        query = `?campo=${campo}&direccion=${direccion}`;
+      }
+    }
+    
+    const res = await fetch(`${API_URL}/admin/productos${query}`, {
       headers: { 'x-api-key': apiKey }
     });
     
