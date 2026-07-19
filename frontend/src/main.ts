@@ -5,6 +5,7 @@ interface Product {
   imageUrl: string;
   description: string;
   categoria: string;
+  cantidad: number;
 }
 
 // Los productos ahora se cargan dinámicamente desde el backend
@@ -66,11 +67,12 @@ function showAddedFeedback(button: HTMLButtonElement) {
 }
 
 let lastFocusedFromCatalog: HTMLElement | null = null;
+let currentSelectedProduct: Product | null = null;
 
 // Vista de Detalles
-function openProductDetails(productId: string) {
-  const product = PRODUCTS.find(p => p.id === productId);
-  if (!product) return;
+function openProductDetails(id: string) {
+  const p = PRODUCTS.find(prod => prod.id === id);
+  if (!p) return;
 
   const catalog = document.querySelector('.products-section');
   const hero = document.querySelector('.hero');
@@ -79,27 +81,23 @@ function openProductDetails(productId: string) {
   if (!catalog || !detailView || !hero) return;
 
   lastFocusedFromCatalog = document.activeElement as HTMLElement;
-
-  // Inyectar datos
-  const img = document.getElementById('detailImage') as HTMLImageElement;
-  const title = document.getElementById('detailTitle');
-  const price = document.getElementById('detailPrice');
-  const desc = document.getElementById('detailDesc');
-  const btn = document.getElementById('detailAddToCartBtn') as HTMLButtonElement;
-
-  if (img) img.src = product.imageUrl;
-  if (title) title.textContent = product.title;
-  if (price) price.textContent = `$${product.price.toLocaleString('es-AR')}`;
-  if (desc) desc.textContent = product.description;
-  if (btn) btn.setAttribute('data-id', product.id);
-
-  // Transición
+  currentSelectedProduct = p;
+  
+  (document.getElementById('detailImage') as HTMLImageElement).src = p.imageUrl || 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE';
+  document.getElementById('detailTitle')!.textContent = p.title;
+  document.getElementById('detailPrice')!.textContent = `$${p.price.toLocaleString('es-AR')}`;
+  document.getElementById('detailDesc')!.textContent = p.description || 'Sin descripción disponible.';
+  const qty = p.cantidad || 1;
+  document.getElementById('detailCantidadValue')!.textContent = `${qty} ${qty === 1 ? 'archivo' : 'archivos'}`;
+  
+  const btn = document.getElementById('detailAddToCartBtn');
+  if (btn) btn.setAttribute('data-id', p.id);
+  
   hero.classList.add('hidden');
   catalog.classList.add('hidden');
   detailView.classList.remove('hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Focus
   const backBtn = document.getElementById('backToCatalogBtn');
   if (backBtn) backBtn.focus();
 }
@@ -462,7 +460,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         price: precioValidado,
         description: p.descripcion,
         categoria: p.categoria,
-        imageUrl: p.imagenUrl
+        imageUrl: p.imagenUrl,
+        cantidad: p.cantidad || 1
       });
       return acc;
     }, []);

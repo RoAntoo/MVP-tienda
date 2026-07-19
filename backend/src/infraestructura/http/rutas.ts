@@ -44,6 +44,7 @@ const EsquemaCrearProducto = z.object({
   categoria: z.string().optional().transform(val => (!val || val.trim() === '') ? 'General' : val.trim()),
   imagenUrl: z.string().url('Debe ser una URL válida'),
   driveUrl: z.string().url('Debe ser una URL válida'),
+  cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').optional().default(1),
 });
 
 const EsquemaActualizarProducto = z.object({
@@ -53,6 +54,7 @@ const EsquemaActualizarProducto = z.object({
   categoria: z.string().optional().transform(val => val === undefined ? undefined : (val.trim() === '' ? 'General' : val.trim())),
   imagenUrl: z.string().url('Debe ser una URL válida').optional(),
   driveUrl: z.string().url('Debe ser una URL válida').optional(),
+  cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').optional(),
 }).refine(data => Object.keys(data).length > 0, 'Se requiere al menos un campo para actualizar');
 
 export async function rutas(servidor: FastifyInstance) {
