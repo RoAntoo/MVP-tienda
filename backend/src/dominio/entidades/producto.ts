@@ -8,4 +8,5 @@ export interface Producto {
   categoria: string;
   imagenUrl: string;
   driveUrl: string;
+  cantidad: number;
 }

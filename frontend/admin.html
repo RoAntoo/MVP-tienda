@@ -75,6 +75,10 @@
               <label for="prodPrecio">PRECIO (ARS)</label>
               <input type="number" id="prodPrecio" required step="1" min="1" placeholder="Ej: 5000" />
             </div>
+            <div class="form-group">
+              <label for="prodCantidad">CANTIDAD (ARCHIVOS INCLUIDOS)</label>
+              <input type="number" id="prodCantidad" required step="1" min="1" value="1" />
+            </div>
             <div class="form-group" style="position: relative;">
               <label for="prodCategoria">CATEGORÍA</label>
               <input type="text" id="prodCategoria" autocomplete="off" required placeholder="Ej: Ficción, Rol, Arte..."
@@ -106,6 +110,7 @@
               <tr>
                 <th>TÍTULO</th>
                 <th>PRECIO</th>
+                <th>CANTIDAD</th>
                 <th>DRIVE_URL</th>
                 <th>ACCIÓN</th>
               </tr>
@@ -133,6 +138,10 @@
           <div class="form-group">
             <label for="editProdPrecio">PRECIO (ARS)</label>
             <input type="number" id="editProdPrecio" required step="1" min="1" />
+          </div>
+          <div class="form-group">
+            <label for="editProdCantidad">CANTIDAD (ARCHIVOS INCLUIDOS)</label>
+            <input type="number" id="editProdCantidad" required step="1" min="1" />
           </div>
           <div class="form-group" style="position: relative;">
             <label for="editProdCategoria">CATEGORÍA</label>

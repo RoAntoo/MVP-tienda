@@ -110,6 +110,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
     imagenUrl: (document.getElementById('prodImagen') as HTMLInputElement).value,
     driveUrl: (document.getElementById('prodDrive') as HTMLInputElement).value,
     descripcion: (document.getElementById('prodDesc') as HTMLTextAreaElement).value,
+    cantidad: (document.getElementById('prodCantidad') as HTMLInputElement).valueAsNumber || 1,
   };
 
   try {
@@ -200,7 +201,7 @@ async function cargarOrdenes() {
 }
 
 async function cargarProductos() {
-  productosBody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+  productosBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/productos`, {
       headers: { 'x-api-key': apiKey }
@@ -212,7 +213,7 @@ async function cargarProductos() {
     actualizarDatalistCategorias(productos);
     dibujarProductos(productos);
   } catch (err: any) {
-    productosBody.innerHTML = `<tr><td colspan="4" style="color:red">${err.message}</td></tr>`;
+    productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
   }
 }
 
@@ -272,6 +273,7 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdImagen') as HTMLInputElement).value = p.imagenUrl || '';
   (document.getElementById('editProdDrive') as HTMLInputElement).value = p.driveUrl || '';
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
+  (document.getElementById('editProdCantidad') as HTMLInputElement).value = p.cantidad || 1;
   modalEdicion.classList.remove('hidden');
   
   setTimeout(() => {
@@ -294,7 +296,8 @@ async function manejarEdicionProducto(e: Event) {
       categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value.trim(),
       imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value.trim(),
       driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value.trim(),
-      descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim()
+      descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim(),
+      cantidad: (document.getElementById('editProdCantidad') as HTMLInputElement).valueAsNumber || 1
     };
 
     const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
@@ -359,7 +362,7 @@ function dibujarOrdenes(ordenes: any[]) {
 
 function dibujarProductos(productos: any[]) {
   if (productos.length === 0) {
-    productosBody.innerHTML = '<tr><td colspan="4">No hay productos.</td></tr>';
+    productosBody.innerHTML = '<tr><td colspan="5">No hay productos.</td></tr>';
     return;
   }
 
@@ -367,6 +370,7 @@ function dibujarProductos(productos: any[]) {
     <tr>
       <td>${prod.titulo}</td>
       <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
+      <td>${prod.cantidad || 1}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
       <td>
         <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod='${JSON.stringify(prod).replace(/'/g, "&apos;")}'>EDITAR</button>
