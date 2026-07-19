@@ -97,7 +97,7 @@ export async function rutas(servidor: FastifyInstance) {
   // 2. Inicializar Casos de Uso
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail, adminEmail);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
-  const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes, servicioEmail);
+  const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
   const actualizarProductoUseCase = new ActualizarProductoUseCase(repositorioProductos);
@@ -127,8 +127,11 @@ export async function rutas(servidor: FastifyInstance) {
       const query = EsquemaConsultarProductosQuery.parse(peticion.query);
       const productos = await obtenerProductosUseCase.ejecutar(query);
       return respuesta.status(200).send(productos);
-    } catch (error) {
+    } catch (error: any) {
       servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
       return respuesta.status(500).send({ error: 'Error al obtener el catálogo.' });
     }
   });
@@ -260,6 +263,9 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(200).send(productos);
     } catch (error: any) {
       servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
       return respuesta.status(500).send({ error: 'Error al obtener los productos.' });
     }
   });
