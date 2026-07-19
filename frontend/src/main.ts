@@ -87,7 +87,8 @@ function openProductDetails(id: string) {
   document.getElementById('detailTitle')!.textContent = p.title;
   document.getElementById('detailPrice')!.textContent = `$${p.price.toLocaleString('es-AR')}`;
   document.getElementById('detailDesc')!.textContent = p.description || 'Sin descripción disponible.';
-  document.getElementById('detailCantidadValue')!.textContent = (p.cantidad || 1).toString();
+  const qty = p.cantidad || 1;
+  document.getElementById('detailCantidadValue')!.textContent = `${qty} ${qty === 1 ? 'archivo' : 'archivos'}`;
   
   const btn = document.getElementById('detailAddToCartBtn');
   if (btn) btn.setAttribute('data-id', p.id);

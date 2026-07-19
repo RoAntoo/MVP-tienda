@@ -14,7 +14,7 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
       categoria: p.categoria,
       imagenUrl: p.imagenUrl,
       driveUrl: p.driveUrl,
-      cantidad: (p as any).cantidad || 1, // Add any cast or fallback just in case generated types are stale
+      cantidad: p.cantidad,
     };
   }
 

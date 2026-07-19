@@ -9,6 +9,7 @@ interface InputActualizarProducto {
   categoria?: string;
   imagenUrl?: string;
   driveUrl?: string;
+  cantidad?: number;
 }
 
 export class ActualizarProductoUseCase {
