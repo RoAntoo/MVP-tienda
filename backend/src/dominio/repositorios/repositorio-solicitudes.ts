@@ -20,4 +20,5 @@ export interface RepositorioSolicitudes {
   obtenerPorId(id: string): Promise<SolicitudLibro | null>;
   obtenerUltimaPorEmail(email: string): Promise<SolicitudLibro | null>;
   encolarNotificacion(solicitudId: string, tipo: string, payload?: string): Promise<void>;
+  reservarYEncolar(solicitudId: string, estadosRequeridos: string[], estadoNuevo: string, tipoOutbox: string, payload?: string): Promise<boolean>;
 }

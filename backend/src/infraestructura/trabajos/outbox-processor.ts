@@ -16,7 +16,11 @@ export class OutboxProcessor {
   start(intervalMs = 10000) {
     if (this.intervalId) return;
     this.intervalId = setInterval(() => {
-      this.currentBatchPromise = this.processOutbox();
+      if (!this.currentBatchPromise) {
+        this.currentBatchPromise = this.processOutbox().finally(() => {
+          this.currentBatchPromise = null;
+        });
+      }
     }, intervalMs);
     console.log('OutboxProcessor iniciado...');
   }
@@ -54,12 +58,19 @@ export class OutboxProcessor {
       for (const job of pendientes) {
         // Bloquear temporalmente el job (Lease por 5 minutos)
         const lockedUntil = new Date(Date.now() + 5 * 60 * 1000);
+        
+        // Configurar el where para validar el vencimiento si ya estaba EN_PROCESO
+        const whereCondition: any = { id: job.id, estado: job.estado };
+        if (job.estado === 'EN_PROCESO') {
+          whereCondition.lockedUntil = { lt: new Date() };
+        }
+
         const lockedJob = await this.prisma.notificacionOutbox.updateMany({
-          where: { id: job.id, estado: job.estado },
+          where: whereCondition,
           data: { estado: 'EN_PROCESO', intentos: job.intentos + 1, lockedUntil }
         });
 
-        if (lockedJob.count === 0) continue; // Si otro lo tomó
+        if (lockedJob.count === 0) continue; // Si otro proceso lo tomó o no cumplió la condición
 
         const solicitud = await this.prisma.solicitudLibro.findUnique({ where: { id: job.solicitudId } });
         

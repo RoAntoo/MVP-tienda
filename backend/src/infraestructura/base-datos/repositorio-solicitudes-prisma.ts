@@ -91,4 +91,36 @@ export class RepositorioSolicitudesPrisma implements RepositorioSolicitudes {
       }
     });
   }
+
+  async reservarYEncolar(
+    solicitudId: string, 
+    estadosRequeridos: string[], 
+    estadoNuevo: string, 
+    tipoOutbox: string, 
+    payload?: string
+  ): Promise<boolean> {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Validar y actualizar estado atómicamente
+      const actualizados = await tx.solicitudLibro.updateMany({
+        where: { id: solicitudId, estado: { in: estadosRequeridos } },
+        data: { estado: estadoNuevo }
+      });
+
+      if (actualizados.count === 0) {
+        return false;
+      }
+
+      // 2. Crear registro en Outbox
+      await tx.notificacionOutbox.create({
+        data: {
+          solicitudId,
+          tipo: tipoOutbox,
+          payload,
+          estado: 'PENDIENTE'
+        }
+      });
+
+      return true;
+    });
+  }
 }
