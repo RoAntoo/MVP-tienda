@@ -1,5 +1,63 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+function escapeHtml(unsafe: string) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Custom Modal Alert/Confirm
+const customAlertModal = document.getElementById('customAlertModal')!;
+const customAlertTitle = document.getElementById('customAlertTitle')!;
+const customAlertMessage = document.getElementById('customAlertMessage')!;
+const customAlertOkBtn = document.getElementById('customAlertOkBtn') as HTMLButtonElement;
+const customAlertCancelBtn = document.getElementById('customAlertCancelBtn') as HTMLButtonElement;
+
+function cyberAlert(message: string, title: string = '&gt; ADVERTENCIA_SISTEMA'): Promise<void> {
+  return new Promise((resolve) => {
+    customAlertTitle.innerHTML = title;
+    customAlertMessage.innerHTML = message;
+    customAlertCancelBtn.classList.add('hidden');
+    customAlertModal.classList.remove('hidden');
+
+    const handleOk = () => {
+      customAlertOkBtn.removeEventListener('click', handleOk);
+      customAlertModal.classList.add('hidden');
+      resolve();
+    };
+    customAlertOkBtn.addEventListener('click', handleOk);
+  });
+}
+
+function cyberConfirm(message: string, title: string = '&gt; CONFIRMAR_ACCIÓN'): Promise<boolean> {
+  return new Promise((resolve) => {
+    customAlertTitle.innerHTML = title;
+    customAlertMessage.innerHTML = message;
+    customAlertCancelBtn.classList.remove('hidden');
+    customAlertModal.classList.remove('hidden');
+
+    const handleOk = () => {
+      cleanup();
+      resolve(true);
+    };
+    const handleCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+    const cleanup = () => {
+      customAlertOkBtn.removeEventListener('click', handleOk);
+      customAlertCancelBtn.removeEventListener('click', handleCancel);
+      customAlertModal.classList.add('hidden');
+    };
+
+    customAlertOkBtn.addEventListener('click', handleOk);
+    customAlertCancelBtn.addEventListener('click', handleCancel);
+  });
+}
+
 // Elementos Login
 const loginSection = document.getElementById('loginSection')!;
 const dashboardSection = document.getElementById('dashboardSection')!;
@@ -12,8 +70,17 @@ const logoutBtn = document.getElementById('logoutBtn')!;
 const tabBtns = document.querySelectorAll('.tab-btn');
 const ordenesTab = document.getElementById('ordenesTab')!;
 const productosTab = document.getElementById('productosTab')!;
+const solicitudesTab = document.getElementById('solicitudesTab')!;
 const ordenesBody = document.getElementById('ordenesBody')!;
 const productosBody = document.getElementById('productosBody')!;
+const solicitudesBody = document.getElementById('solicitudesBody')!;
+
+// Elementos Solicitudes Paginación
+let solicitudesCurrentPage = 1;
+const solicitudesLimit = 10;
+const prevSolicitudesBtn = document.getElementById('prevSolicitudesBtn') as HTMLButtonElement;
+const nextSolicitudesBtn = document.getElementById('nextSolicitudesBtn') as HTMLButtonElement;
+const solicitudesPageInfo = document.getElementById('solicitudesPageInfo')!;
 
 // Elementos Formulario Producto
 const mostrarFormBtn = document.getElementById('mostrarFormBtn')!;
@@ -39,9 +106,9 @@ loginBtn.addEventListener('click', async () => {
     const textOriginal = loginBtn.innerText;
     loginBtn.innerText = 'AUTENTICANDO...';
     (loginBtn as HTMLButtonElement).disabled = true;
-    
+
     await validarYEntrar(key);
-    
+
     loginBtn.innerText = textOriginal;
     (loginBtn as HTMLButtonElement).disabled = false;
   }
@@ -52,6 +119,98 @@ apiKeyInput.addEventListener('keydown', (e) => {
     loginBtn.click();
   }
 });
+
+// --- CERRAR MODAL CON ESCAPE ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !modalEdicion.classList.contains('hidden')) {
+    cerrarModalEdicion();
+  }
+});
+
+// --- LÓGICA DE SOLICITUDES ---
+let currentTabFetchId = 0;
+
+async function cargarSolicitudes() {
+  const fetchId = ++currentTabFetchId;
+  try {
+    solicitudesBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Cargando...</td></tr>';
+    const offset = (solicitudesCurrentPage - 1) * solicitudesLimit;
+    const res = await fetch(`${API_URL}/admin/solicitudes?limit=${solicitudesLimit}&offset=${offset}`, {
+      headers: { 'x-api-key': apiKey }
+    });
+    if (!res.ok) throw new Error('Error al obtener solicitudes');
+
+    const data = await res.json();
+    const solicitudes = data.solicitudes || [];
+    const total = data.total || 0;
+
+    if (fetchId !== currentTabFetchId) return;
+
+    solicitudesBody.innerHTML = '';
+
+    if (solicitudes.length === 0) {
+      solicitudesBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay solicitudes registradas</td></tr>';
+    } else {
+      solicitudes.forEach((sol: any) => {
+        const tr = document.createElement('tr');
+
+        // Estilo tenue si ya fue notificada
+        if (sol.estado === 'NOTIFICADO') {
+          tr.style.opacity = '0.5';
+          tr.style.filter = 'grayscale(100%)';
+        }
+
+        tr.innerHTML = `
+          <td>${new Date(sol.createdAt).toLocaleDateString()}</td>
+          <td>${escapeHtml(sol.emailCliente)}</td>
+          <td>${escapeHtml(sol.mensaje)}</td>
+          <td>
+            <span style="color: ${sol.estado === 'NOTIFICADO' ? 'var(--text-muted)' : 'var(--accent-pink)'}; font-weight: bold;">
+              ${sol.estado}
+            </span>
+          </td>
+          <td>
+            ${sol.estado === 'PENDIENTE'
+            ? `<button class="cyber-btn cyber-btn-sm" onclick="notificarSubida('${sol.id}')">Avisar Subida</button>`
+            : '-'
+          }
+          </td>
+        `;
+        solicitudesBody.appendChild(tr);
+      });
+    }
+
+    // Actualizar paginación
+    solicitudesPageInfo.textContent = `PÁGINA ${solicitudesCurrentPage}`;
+    prevSolicitudesBtn.disabled = solicitudesCurrentPage === 1;
+    nextSolicitudesBtn.disabled = (offset + solicitudesLimit) >= total;
+
+  } catch (error: any) {
+    solicitudesBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">Error: ${error.message}</td></tr>`;
+  }
+}
+
+if (prevSolicitudesBtn) prevSolicitudesBtn.addEventListener('click', () => { solicitudesCurrentPage--; cargarSolicitudes(); });
+if (nextSolicitudesBtn) nextSolicitudesBtn.addEventListener('click', () => { solicitudesCurrentPage++; cargarSolicitudes(); });
+
+(window as any).notificarSubida = async (id: string) => {
+  if (!(await cyberConfirm('¿Seguro que quieres notificar al cliente que el libro ya está subido?'))) return;
+
+  try {
+    const res = await fetch(`${API_URL}/admin/solicitudes/${id}/notificar`, {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey }
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || 'Error al notificar');
+    }
+    await cyberAlert('Notificación enviada correctamente al cliente.');
+    cargarSolicitudes(); // Recargar la tabla
+  } catch (error: any) {
+    await cyberAlert(`Error: ${error.message}`);
+  }
+};
 
 logoutBtn.addEventListener('click', () => {
   apiKey = '';
@@ -71,13 +230,20 @@ tabBtns.forEach(btn => {
     if (tabName === 'ordenes') {
       ordenesTab.classList.remove('hidden');
       productosTab.classList.add('hidden');
+      solicitudesTab.classList.add('hidden');
       cargarOrdenes();
-    } else {
+    } else if (tabName === 'productos') {
       ordenesTab.classList.add('hidden');
       productosTab.classList.remove('hidden');
+      solicitudesTab.classList.add('hidden');
       cargarProductos();
+    } else if (tabName === 'solicitudes') {
+      ordenesTab.classList.add('hidden');
+      productosTab.classList.add('hidden');
+      solicitudesTab.classList.remove('hidden');
+      cargarSolicitudes();
     }
-});
+  });
 });
 
 const sortProductosSelect = document.getElementById('sortProductos') as HTMLSelectElement;
@@ -102,7 +268,7 @@ editarProductoForm.addEventListener('submit', manejarEdicionProducto);
 
 nuevoProductoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  
+
   const submitBtn = nuevoProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   const originalText = submitBtn.innerText;
   submitBtn.innerText = 'GUARDANDO...';
@@ -146,7 +312,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
     mostrarFormBtn.classList.remove('hidden');
     cargarProductos(); // Recargar tabla
   } catch (err: any) {
-    alert(`Error: ${err.message}`);
+    await cyberAlert(`Error: ${err.message}`);
   } finally {
     submitBtn.innerText = originalText;
     submitBtn.disabled = false;
@@ -159,20 +325,20 @@ async function validarYEntrar(key: string): Promise<boolean> {
     const res = await fetch(`${API_URL}/admin/ordenes`, {
       headers: { 'x-api-key': key }
     });
-    
+
     if (!res.ok) throw new Error('Inválida');
 
     // Autenticación exitosa
     apiKey = key;
-    
+
     loginSection.classList.add('hidden');
     loginError.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
-    
+
     const ordenes = await res.json();
     dibujarOrdenes(ordenes);
     return true;
-  } catch(err: any) {
+  } catch (err: any) {
     apiKey = '';
     loginError.classList.remove('hidden');
     loginError.textContent = 'Acceso Denegado';
@@ -181,20 +347,23 @@ async function validarYEntrar(key: string): Promise<boolean> {
 }
 
 async function cargarOrdenes() {
+  const fetchId = ++currentTabFetchId;
   ordenesBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/ordenes`, {
       headers: { 'x-api-key': apiKey }
     });
-    
+
     if (!res.ok) {
       if (res.status === 401) throw new Error('API Key Inválida');
       throw new Error('Error al cargar órdenes');
     }
 
     const ordenes = await res.json();
+    if (fetchId !== currentTabFetchId) return;
     dibujarOrdenes(ordenes);
   } catch (err: any) {
+    if (fetchId !== currentTabFetchId) return;
     if (err.message === 'API Key Inválida') {
       logoutBtn.click();
       loginError.classList.remove('hidden');
@@ -206,6 +375,7 @@ async function cargarOrdenes() {
 }
 
 async function cargarProductos() {
+  const fetchId = ++currentTabFetchId;
   productosBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     let query = '';
@@ -216,20 +386,22 @@ async function cargarProductos() {
         query = `?campo=${campo}&direccion=${direccion}`;
       }
     }
-    
+
     const res = await fetch(`${API_URL}/admin/productos${query}`, {
       headers: { 'x-api-key': apiKey }
     });
-    
+
     if (!res.ok) throw new Error('Error al cargar productos');
 
     const responseData = await res.json();
+    if (fetchId !== currentTabFetchId) return;
     // Soporte para formato paginado { productos, total } o array directo
     const productos = Array.isArray(responseData) ? responseData : (responseData.productos || []);
-    
+
     actualizarDatalistCategorias(productos);
     dibujarProductos(productos);
   } catch (err: any) {
+    if (fetchId !== currentTabFetchId) return;
     productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
   }
 }
@@ -241,19 +413,19 @@ function actualizarDatalistCategorias(productos: any[]) {
 function configurarDropdown(inputId: string, dropdownId: string) {
   const input = document.getElementById(inputId) as HTMLInputElement;
   const dropdown = document.getElementById(dropdownId) as HTMLDivElement;
-  
+
   if (!input || !dropdown) return;
 
   const renderDropdown = (filtro: string = '') => {
     dropdown.innerHTML = '';
     const match = filtro.toLowerCase();
     const filtradas = categoriasDisponibles.filter(cat => cat.toLowerCase().includes(match));
-    
+
     if (filtradas.length === 0) {
       dropdown.classList.add('hidden');
       return;
     }
-    
+
     filtradas.forEach(cat => {
       const div = document.createElement('div');
       div.className = 'custom-dropdown-item';
@@ -269,7 +441,7 @@ function configurarDropdown(inputId: string, dropdownId: string) {
 
   input.addEventListener('focus', () => renderDropdown(input.value));
   input.addEventListener('input', () => renderDropdown(input.value));
-  
+
   // Ocultar si hacemos clic fuera
   document.addEventListener('click', (e) => {
     if (!input.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
@@ -282,7 +454,11 @@ function configurarDropdown(inputId: string, dropdownId: string) {
 configurarDropdown('prodCategoria', 'customCategorias');
 configurarDropdown('editProdCategoria', 'customCategoriasEdit');
 
+let lastFocusedElementEdicion: HTMLElement | null = null;
+
 function abrirModalEdicion(p: any) {
+  lastFocusedElementEdicion = document.activeElement as HTMLElement;
+
   (document.getElementById('editProdId') as HTMLInputElement).value = p.id;
   (document.getElementById('editProdTitulo') as HTMLInputElement).value = p.titulo;
   (document.getElementById('editProdPrecio') as HTMLInputElement).value = p.precio;
@@ -292,7 +468,44 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
   (document.getElementById('editProdCantidad') as HTMLInputElement).value = p.cantidad || 1;
   modalEdicion.classList.remove('hidden');
-  
+
+  // Focus trap para accesibilidad
+  const focusableElements = modalEdicion.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusableElements.length > 0) {
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    
+    firstElement.focus();
+    
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    
+    modalEdicion.addEventListener('keydown', trapFocus);
+    // Limpiar al cerrar
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class' && modalEdicion.classList.contains('hidden')) {
+          modalEdicion.removeEventListener('keydown', trapFocus);
+          observer.disconnect();
+        }
+      });
+    });
+    observer.observe(modalEdicion, { attributes: true });
+  }
+
   setTimeout(() => {
     modalEdicion.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 100);
@@ -301,36 +514,39 @@ function abrirModalEdicion(p: any) {
 function cerrarModalEdicion() {
   modalEdicion.classList.add('hidden');
   editarProductoForm.reset();
+  if (lastFocusedElementEdicion && typeof lastFocusedElementEdicion.focus === 'function') {
+    lastFocusedElementEdicion.focus();
+  }
 }
 
 async function manejarEdicionProducto(e: Event) {
   e.preventDefault();
-  
+
   const id = (document.getElementById('editProdId') as HTMLInputElement).value;
-    const productoEditado = {
-      titulo: (document.getElementById('editProdTitulo') as HTMLInputElement).value.trim(),
-      precio: Number((document.getElementById('editProdPrecio') as HTMLInputElement).value),
-      categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value.trim(),
-      imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value.trim(),
-      driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value.trim(),
-      descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim(),
-      cantidad: (document.getElementById('editProdCantidad') as HTMLInputElement).valueAsNumber || 1
-    };
+  const productoEditado = {
+    titulo: (document.getElementById('editProdTitulo') as HTMLInputElement).value.trim(),
+    precio: Number((document.getElementById('editProdPrecio') as HTMLInputElement).value),
+    categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value.trim(),
+    imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value.trim(),
+    driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value.trim(),
+    descripcion: (document.getElementById('editProdDesc') as HTMLTextAreaElement).value.trim(),
+    cantidad: (document.getElementById('editProdCantidad') as HTMLInputElement).valueAsNumber || 1
+  };
 
-    const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
-    const textOriginal = submitBtn.innerText;
-    submitBtn.innerText = 'GUARDANDO...';
-    submitBtn.disabled = true;
+  const submitBtn = editarProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const textOriginal = submitBtn.innerText;
+  submitBtn.innerText = 'GUARDANDO...';
+  submitBtn.disabled = true;
 
-    try {
-      const res = await fetch(`${API_URL}/admin/productos/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey
-        },
-        body: JSON.stringify(productoEditado)
-      });
+  try {
+    const res = await fetch(`${API_URL}/admin/productos/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey
+      },
+      body: JSON.stringify(productoEditado)
+    });
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -340,7 +556,7 @@ async function manejarEdicionProducto(e: Event) {
     cerrarModalEdicion();
     await cargarProductos();
   } catch (err: any) {
-    alert(`Error al guardar cambios: ${err.message}`);
+    await cyberAlert(`Error al guardar cambios: ${err.message}`);
   } finally {
     submitBtn.innerText = textOriginal;
     submitBtn.disabled = false;
@@ -361,9 +577,9 @@ function dibujarOrdenes(ordenes: any[]) {
       <td>$${Number(orden.total).toLocaleString('es-AR')}</td>
       <td><span class="status-badge status-${orden.estado}">${orden.estado}</span></td>
       <td>
-        ${orden.estado === 'PENDIENTE' 
-          ? `<button class="cyber-btn cyber-btn-sm btn-aprobar" data-id="${orden.id}">APROBAR</button>` 
-          : `<span style="color:#666">PROCESADO</span>`}
+        ${orden.estado === 'PENDIENTE'
+      ? `<button class="cyber-btn cyber-btn-sm btn-aprobar" data-id="${orden.id}">APROBAR</button>`
+      : `<span style="color:#666">PROCESADO</span>`}
       </td>
     </tr>
   `).join('');
@@ -385,9 +601,9 @@ function dibujarProductos(productos: any[]) {
 
   productosBody.innerHTML = productos.map(prod => `
     <tr>
-      <td>${prod.titulo}</td>
-      <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
-      <td>${prod.cantidad || 1}</td>
+      <td>${escapeHtml(prod.titulo)}</td>
+      <td>$${escapeHtml(Number(prod.precio).toLocaleString('es-AR'))}</td>
+      <td>${escapeHtml(String(prod.cantidad || 1))}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
       <td>
         <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod='${JSON.stringify(prod).replace(/'/g, "&apos;")}'>EDITAR</button>
@@ -410,7 +626,7 @@ function dibujarProductos(productos: any[]) {
   document.querySelectorAll('.btn-eliminar-prod').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-      if (id && confirm('¿Estás seguro de eliminar este producto?')) {
+      if (id && (await cyberConfirm('¿Estás seguro de eliminar este producto?'))) {
         eliminarProducto(id, e.currentTarget as HTMLButtonElement);
       }
     });
@@ -421,7 +637,7 @@ function dibujarProductos(productos: any[]) {
 async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
   botonRef.disabled = true;
   botonRef.innerText = 'PROCESANDO...';
-  
+
   try {
     const res = await fetch(`${API_URL}/admin/ordenes/aprobar`, {
       method: 'POST',
@@ -433,11 +649,11 @@ async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
     });
 
     if (!res.ok) throw new Error('Falló aprobación');
-    
+
     // Recargar para ver estado actualizado
     cargarOrdenes();
   } catch (error) {
-    alert('Error al aprobar orden');
+    await cyberAlert('Error al aprobar orden');
     botonRef.disabled = false;
     botonRef.innerText = 'APROBAR';
   }
@@ -446,7 +662,7 @@ async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
 async function eliminarProducto(productoId: string, botonRef: HTMLButtonElement) {
   botonRef.disabled = true;
   botonRef.innerText = 'ELIMINANDO...';
-  
+
   try {
     const res = await fetch(`${API_URL}/admin/productos/${productoId}`, {
       method: 'DELETE',
@@ -456,11 +672,11 @@ async function eliminarProducto(productoId: string, botonRef: HTMLButtonElement)
     });
 
     if (!res.ok) throw new Error('Falló eliminación');
-    
+
     // Recargar tabla de productos
     cargarProductos();
   } catch (error) {
-    alert('Error al eliminar producto');
+    await cyberAlert('Error al eliminar producto');
     botonRef.disabled = false;
     botonRef.innerText = 'ELIMINAR';
   }

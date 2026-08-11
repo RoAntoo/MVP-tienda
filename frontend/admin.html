@@ -35,6 +35,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="ordenes">ÓRDENES</button>
       <button class="tab-btn" data-tab="productos">PRODUCTOS</button>
+      <button class="tab-btn" data-tab="solicitudes">SOLICITUDES</button>
     </div>
 
     <main class="tab-content">
@@ -130,6 +131,33 @@
           </table>
         </div>
       </section>
+      <section id="solicitudesTab" class="hidden">
+        <div class="catalog-header">
+          <h3>Solicitudes de Libros</h3>
+        </div>
+        <div class="table-wrapper">
+          <table id="solicitudesTable">
+            <thead>
+              <tr>
+                <th>FECHA</th>
+                <th>CLIENTE</th>
+                <th>MENSAJE</th>
+                <th>ESTADO</th>
+                <th>ACCIÓN</th>
+              </tr>
+            </thead>
+            <tbody id="solicitudesBody">
+              <!-- JS Render -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+          <button id="prevSolicitudesBtn" class="cyber-btn cyber-btn-sm" disabled>&lt; ANTERIOR</button>
+          <span id="solicitudesPageInfo" style="color: var(--accent-cyan);">PÁGINA 1</span>
+          <button id="nextSolicitudesBtn" class="cyber-btn cyber-btn-sm" disabled>SIGUIENTE &gt;</button>
+        </div>
+      </section>
     </main>
 
     <!-- Modal Edición -->
@@ -176,6 +204,19 @@
             <button type="button" id="cancelarEditBtn" class="cyber-btn cyber-btn-pink">CANCELAR</button>
           </div>
         </form>
+      </div>
+    </div>
+    <!-- Modal Custom Alert/Confirm -->
+    <div id="customAlertModal" class="cyber-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="customAlertTitle" aria-describedby="customAlertMessage">
+      <div class="cyber-modal">
+        <h3 id="customAlertTitle" class="section-title" style="color: var(--accent-pink); font-size: 1.2rem; margin-top: 0; margin-bottom: 1rem;">
+          &gt; ADVERTENCIA_SISTEMA
+        </h3>
+        <p id="customAlertMessage" style="margin-bottom: 2rem; color: var(--text-main); font-size: 1rem;"></p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <button id="customAlertOkBtn" class="cyber-btn" style="flex: 1;">ACEPTAR</button>
+          <button id="customAlertCancelBtn" class="cyber-btn cyber-btn-pink hidden" style="flex: 1;">CANCELAR</button>
+        </div>
       </div>
     </div>
   </div>

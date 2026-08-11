@@ -267,6 +267,34 @@ body {
   display: none;
 }
 
+/* --- CYBER MODAL (ALERT/CONFIRM/REQUEST) --- */
+.cyber-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.3s ease;
+}
+
+.cyber-modal-overlay.hidden {
+  display: none !important;
+}
+
+.cyber-modal {
+  background: var(--card-bg);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+}
+
 .back-btn {
   margin-bottom: 2rem;
 }
