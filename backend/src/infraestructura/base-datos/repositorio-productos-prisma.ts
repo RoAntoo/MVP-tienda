@@ -39,7 +39,9 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
   }
 
   async obtenerTodos(filtros?: FiltrosProductos): Promise<ResultadoPaginado<Producto>> {
-    const orden = (filtros?.campo && filtros?.direccion) ? { [filtros.campo]: filtros.direccion } : { createdAt: 'desc' as const };
+    const orden = (filtros?.campo && filtros?.direccion) 
+      ? [{ [filtros.campo]: filtros.direccion }, { id: 'desc' as const }] 
+      : [{ createdAt: 'desc' as const }, { id: 'desc' as const }];
     
     let where: Prisma.ProductoWhereInput = {};
     if (filtros?.categorias && filtros.categorias.length > 0) {

@@ -61,9 +61,13 @@ const EsquemaActualizarProducto = z.object({
 const EsquemaConsultarProductosQuery = z.object({
   campo: z.enum(['precio', 'titulo', 'createdAt', 'cantidad']).optional(),
   direccion: z.enum(['asc', 'desc']).optional(),
-  limit: z.coerce.number().int().positive().optional(),
-  page: z.coerce.number().int().positive().optional(),
-  categorias: z.string().optional().transform(val => val ? val.split(',').map(s => s.trim()).filter(Boolean) : undefined)
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: z.coerce.number().int().positive().max(10000).optional(),
+  categorias: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    const cats = val.split(',').map(s => s.trim()).filter(Boolean);
+    return cats.slice(0, 20);
+  })
 });
 
 export async function rutas(servidor: FastifyInstance) {
@@ -131,6 +135,10 @@ export async function rutas(servidor: FastifyInstance) {
       const limit = query.limit;
       const offset = (query.limit && query.page) ? (query.page - 1) * query.limit : undefined;
       
+      if (offset && offset > Number.MAX_SAFE_INTEGER) {
+        return respuesta.status(400).send({ error: [{ message: 'El offset excede el límite máximo permitido' }] });
+      }
+
       const productos = await obtenerProductosUseCase.ejecutar({
         ...query,
         limit,
@@ -287,6 +295,10 @@ export async function rutas(servidor: FastifyInstance) {
       const limit = query.limit;
       const offset = (query.limit && query.page) ? (query.page - 1) * query.limit : undefined;
       
+      if (offset && offset > Number.MAX_SAFE_INTEGER) {
+        return respuesta.status(400).send({ error: [{ message: 'El offset excede el límite máximo permitido' }] });
+      }
+
       const productos = await obtenerProductosUseCase.ejecutar({
         ...query,
         limit,

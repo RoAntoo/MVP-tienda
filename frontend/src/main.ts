@@ -220,8 +220,15 @@ function addToCart(productId: string): boolean {
   return true;
 }
 
+let currentFetchController: AbortController | null = null;
+
 // Función para obtener productos del backend
 async function fetchProducts() {
+  if (currentFetchController) {
+    currentFetchController.abort();
+  }
+  currentFetchController = new AbortController();
+  
   try {
     const params = new URLSearchParams();
     params.append('page', currentPage.toString());
@@ -231,7 +238,13 @@ async function fetchProducts() {
       params.append('categorias', Array.from(selectedCategories).join(','));
     }
     
-    const res = await fetch(`${API_URL}/productos?${params.toString()}`);
+    if (currentSearchQuery.trim() !== '') {
+      params.append('search', currentSearchQuery.trim());
+    }
+    
+    const res = await fetch(`${API_URL}/productos?${params.toString()}`, {
+      signal: currentFetchController.signal
+    });
     if (!res.ok) throw new Error('Error al cargar catálogo');
     
     const data = await res.json();
@@ -265,7 +278,10 @@ async function fetchProducts() {
     if (window.scrollY > heroHeight) {
       window.scrollTo({ top: heroHeight, behavior: 'smooth' });
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return; // Ignorar errores de cancelación
+    }
     console.error('No se pudo cargar el catálogo:', error);
     const grid = document.getElementById('productsGrid');
     if (grid) grid.innerHTML = '<p style="color:red;text-align:center;width:100%">[ ERROR_CONEXIÓN_CATÁLOGO ]</p>';
@@ -305,8 +321,10 @@ function renderCategories() {
     checkbox.type = 'checkbox';
     checkbox.value = cat;
     checkbox.checked = selectedCategories.has(cat);
-    // Ocultar el checkbox original visualmente
-    checkbox.style.display = 'none';
+    // Ocultar el checkbox original visualmente pero mantener la accesibilidad
+    checkbox.style.position = 'absolute';
+    checkbox.style.opacity = '0';
+    checkbox.style.pointerEvents = 'none';
     
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) {
@@ -355,7 +373,7 @@ function renderPagination() {
 
   pageNumbersContainer.innerHTML = '';
   
-  for (let i = 1; i <= totalPages; i++) {
+  const addPageBtn = (i: number) => {
     const pageBtn = document.createElement('button');
     pageBtn.className = `cyber-btn cyber-btn-sm ${i === currentPage ? 'active' : ''}`;
     pageBtn.style.padding = '0.2rem 0.5rem';
@@ -369,6 +387,21 @@ function renderPagination() {
       fetchProducts();
     };
     pageNumbersContainer.appendChild(pageBtn);
+  };
+
+  const addEllipsis = () => {
+    const span = document.createElement('span');
+    span.textContent = '...';
+    span.style.color = 'var(--text-muted)';
+    pageNumbersContainer.appendChild(span);
+  };
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+      addPageBtn(i);
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+      addEllipsis();
+    }
   }
 }
 
