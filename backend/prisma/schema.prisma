@@ -36,8 +36,9 @@ model SolicitudLibro {
   id           String   @id @default(uuid())
   emailCliente String   @map("email_cliente")
   mensaje      String
-  estado       String   @default("PENDIENTE") // PENDIENTE, NOTIFICANDO, NOTIFICADO
+  estado       String   @default("PENDIENTE") // PENDIENTE, NOTIFICANDO, NOTIFICADO, RESPONDIENDO, RESPONDIDO
   createdAt    DateTime @default(now())
+  outboxes     NotificacionOutbox[]
 
   @@map("solicitudes_libros")
 }
@@ -45,9 +46,14 @@ model SolicitudLibro {
 model NotificacionOutbox {
   id           String   @id @default(uuid())
   solicitudId  String
+  tipo         String   @default("NUEVA_SOLICITUD") // NUEVA_SOLICITUD, AVISO_SUBIDA, RESPUESTA_SOLICITUD
+  payload      String?  // JSON con datos extra (ej: existe: true)
   estado       String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, COMPLETADO, FALLIDO
   intentos     Int      @default(0)
   error        String?
+  lockedUntil  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  solicitud    SolicitudLibro @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
 }

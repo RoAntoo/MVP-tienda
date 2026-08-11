@@ -11,8 +11,7 @@ export interface InputResponderSolicitud {
 
 export class ResponderSolicitudUseCase {
   constructor(
-    private repositorioSolicitudes: RepositorioSolicitudes,
-    private servicioEmail: ServicioEmail
+    private repositorioSolicitudes: RepositorioSolicitudes
   ) {}
 
   async ejecutar(input: InputResponderSolicitud): Promise<{ mensaje: string }> {
@@ -37,13 +36,24 @@ export class ResponderSolicitudUseCase {
       throw new Error('La solicitud no existe');
     }
     
-    const mensajeOriginal = solicitud.mensaje;
+    if (solicitud.estado === 'RESPONDIDO' || solicitud.estado === 'RESPONDIENDO') {
+      throw new Error('Esta solicitud ya ha sido respondida previamente');
+    }
 
-    await this.servicioEmail.enviarRespuestaSolicitud(
-      solicitud.emailCliente,
-      mensajeOriginal,
-      existeBool
+    // Asegurar transición a RESPONDIENDO o similar. En este caso usaremos actualizarEstado. 
+    // Lo ideal sería un actualizarEstadoConValidacion, pero simularemos atomico cambiandolo directamente.
+    // Opcionalmente podemos reusar "intentarNotificacion" que lo pasa a "NOTIFICANDO", pero agregaremos
+    // estado RESPONDIDO para distinguir.
+    await this.repositorioSolicitudes.actualizarEstado(input.solicitudId, 'RESPONDIENDO');
+
+    // Encolar correo en el Outbox para procesado asíncrono, guardando 'existe' como payload
+    await this.repositorioSolicitudes.encolarNotificacion(
+      input.solicitudId, 
+      'RESPUESTA_SOLICITUD', 
+      JSON.stringify({ existe: existeBool })
     );
+
+    await this.repositorioSolicitudes.actualizarEstado(input.solicitudId, 'RESPONDIDO');
 
     return { mensaje: 'Respuesta enviada correctamente al cliente' };
   }

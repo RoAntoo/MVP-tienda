@@ -130,9 +130,9 @@ export async function rutas(servidor: FastifyInstance) {
   const actualizarProductoUseCase = new ActualizarProductoUseCase(repositorioProductos);
   const obtenerProductosUseCase = new ObtenerProductosUseCase(repositorioProductos);
   const solicitarLibrosUseCase = new SolicitarLibrosUseCase(repositorioSolicitudes);
-  const responderSolicitudUseCase = new ResponderSolicitudUseCase(repositorioSolicitudes, servicioEmail);
+  const responderSolicitudUseCase = new ResponderSolicitudUseCase(repositorioSolicitudes);
   const obtenerSolicitudesUseCase = new ObtenerSolicitudesUseCase(repositorioSolicitudes);
-  const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes, servicioEmail);
+  const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', async (peticion, respuesta) => {

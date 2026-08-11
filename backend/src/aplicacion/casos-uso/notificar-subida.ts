@@ -3,8 +3,7 @@ import { RepositorioSolicitudes } from '../../dominio/repositorios/repositorio-s
 
 export class NotificarSubidaUseCase {
   constructor(
-    private repositorioSolicitudes: RepositorioSolicitudes,
-    private servicioEmail: ServicioEmail
+    private repositorioSolicitudes: RepositorioSolicitudes
   ) {}
 
   async ejecutar(idSolicitud: string): Promise<{ mensaje: string }> {
@@ -14,27 +13,21 @@ export class NotificarSubidaUseCase {
       throw new Error('La solicitud no existe');
     }
 
-    if (solicitud.estado === 'NOTIFICADO') {
-      throw new Error('Esta solicitud ya fue notificada');
+    if (solicitud.estado === 'NOTIFICADO' || solicitud.estado === 'NOTIFICANDO') {
+      throw new Error('Esta solicitud ya fue notificada o está en proceso');
     }
 
-    // Actualizar condicionalmente a NOTIFICANDO
+    // Reservar atómicamente la solicitud (cambia de PENDIENTE a NOTIFICANDO)
     const bloqueado = await this.repositorioSolicitudes.intentarNotificacion(idSolicitud);
     if (!bloqueado) {
-      throw new Error('La solicitud ya está siendo notificada o ya fue notificada por otro proceso');
+      throw new Error('La solicitud ya está siendo notificada o fue modificada por otro proceso');
     }
 
-    try {
-      // Enviar email
-      await this.servicioEmail.enviarAvisoSubidaLibro(solicitud.emailCliente, solicitud.mensaje);
-
-      // Actualizar estado en DB a NOTIFICADO
-      await this.repositorioSolicitudes.actualizarEstado(idSolicitud, 'NOTIFICADO');
-    } catch (error) {
-      // Revertir a PENDIENTE si falla el envío
-      await this.repositorioSolicitudes.actualizarEstado(idSolicitud, 'PENDIENTE');
-      throw error;
-    }
+    // Encolar correo en el Outbox para procesado asíncrono
+    await this.repositorioSolicitudes.encolarNotificacion(idSolicitud, 'AVISO_SUBIDA');
+    
+    // Cambiar estado final a NOTIFICADO ya que está asegurado por el Outbox
+    await this.repositorioSolicitudes.actualizarEstado(idSolicitud, 'NOTIFICADO');
 
     return { mensaje: 'Notificación enviada correctamente al cliente' };
   }

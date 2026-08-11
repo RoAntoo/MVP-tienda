@@ -32,12 +32,19 @@ CREATE TABLE "solicitudes_libros" (
 CREATE TABLE "NotificacionOutbox" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "solicitudId" TEXT NOT NULL,
+    "tipo" TEXT NOT NULL DEFAULT 'NUEVA_SOLICITUD',
+    "payload" TEXT,
     "estado" TEXT NOT NULL DEFAULT 'PENDIENTE',
     "intentos" INTEGER NOT NULL DEFAULT 0,
     "error" TEXT,
+    "lockedUntil" DATETIME,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "NotificacionOutbox_solicitudId_fkey" FOREIGN KEY ("solicitudId") REFERENCES "solicitudes_libros" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- CreateIndex
+CREATE INDEX "NotificacionOutbox_solicitudId_idx" ON "NotificacionOutbox"("solicitudId");
 
 -- CreateTable
 CREATE TABLE "_OrdenProductos" (

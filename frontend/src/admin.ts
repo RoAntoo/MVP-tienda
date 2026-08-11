@@ -454,7 +454,11 @@ function configurarDropdown(inputId: string, dropdownId: string) {
 configurarDropdown('prodCategoria', 'customCategorias');
 configurarDropdown('editProdCategoria', 'customCategoriasEdit');
 
+let lastFocusedElementEdicion: HTMLElement | null = null;
+
 function abrirModalEdicion(p: any) {
+  lastFocusedElementEdicion = document.activeElement as HTMLElement;
+
   (document.getElementById('editProdId') as HTMLInputElement).value = p.id;
   (document.getElementById('editProdTitulo') as HTMLInputElement).value = p.titulo;
   (document.getElementById('editProdPrecio') as HTMLInputElement).value = p.precio;
@@ -510,6 +514,9 @@ function abrirModalEdicion(p: any) {
 function cerrarModalEdicion() {
   modalEdicion.classList.add('hidden');
   editarProductoForm.reset();
+  if (lastFocusedElementEdicion && typeof lastFocusedElementEdicion.focus === 'function') {
+    lastFocusedElementEdicion.focus();
+  }
 }
 
 async function manejarEdicionProducto(e: Event) {

@@ -28,6 +28,7 @@ export class RepositorioSolicitudesPrisma implements RepositorioSolicitudes {
       const outbox = await tx.notificacionOutbox.create({
         data: {
           solicitudId: nuevaSolicitud.id,
+          tipo: 'NUEVA_SOLICITUD',
           estado: 'PENDIENTE'
         }
       });
@@ -77,6 +78,17 @@ export class RepositorioSolicitudesPrisma implements RepositorioSolicitudes {
     return this.prisma.solicitudLibro.findFirst({
       where: { emailCliente: email },
       orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async encolarNotificacion(solicitudId: string, tipo: string, payload?: string): Promise<void> {
+    await this.prisma.notificacionOutbox.create({
+      data: {
+        solicitudId,
+        tipo,
+        payload,
+        estado: 'PENDIENTE'
+      }
     });
   }
 }
