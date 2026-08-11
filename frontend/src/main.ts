@@ -8,10 +8,14 @@ interface Product {
   cantidad: number;
 }
 
-// Los productos ahora se cargan dinámicamente desde el backend
+// Estado Global
 let PRODUCTS: Product[] = [];
-let activeCategory: string | null = null;
+let ALL_CATEGORIES: string[] = [];
+let selectedCategories: Set<string> = new Set();
 let currentSearchQuery: string = '';
+let currentPage: number = 1;
+const limitPerPage: number = 10;
+let totalProducts: number = 0;
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -216,38 +220,189 @@ function addToCart(productId: string): boolean {
   return true;
 }
 
-// Renderizar Categorías
+let currentFetchController: AbortController | null = null;
+
+// Función para obtener productos del backend
+async function fetchProducts() {
+  if (currentFetchController) {
+    currentFetchController.abort();
+  }
+  currentFetchController = new AbortController();
+  
+  try {
+    const params = new URLSearchParams();
+    params.append('page', currentPage.toString());
+    params.append('limit', limitPerPage.toString());
+    
+    if (selectedCategories.size > 0) {
+      params.append('categorias', Array.from(selectedCategories).join(','));
+    }
+    
+    if (currentSearchQuery.trim() !== '') {
+      params.append('search', currentSearchQuery.trim());
+    }
+    
+    const res = await fetch(`${API_URL}/productos?${params.toString()}`, {
+      signal: currentFetchController.signal
+    });
+    if (!res.ok) throw new Error('Error al cargar catálogo');
+    
+    const data = await res.json();
+    const productosDb = data.productos || [];
+    totalProducts = data.total || 0;
+
+    PRODUCTS = productosDb.reduce((acc: Product[], p: any) => {
+      let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
+      if (typeof precioValidado !== 'number' || isNaN(precioValidado)) {
+        console.warn(`Producto omitido por precio inválido: ${p.titulo}`);
+        return acc;
+      }
+
+      acc.push({
+        id: p.id,
+        title: p.titulo,
+        price: precioValidado,
+        description: p.descripcion,
+        categoria: p.categoria,
+        imageUrl: p.imagenUrl,
+        cantidad: p.cantidad || 1
+      });
+      return acc;
+    }, []);
+
+    renderProducts();
+    renderPagination();
+    
+    // Hacer scroll arriba
+    const heroHeight = document.querySelector('.hero')?.getBoundingClientRect().height || 0;
+    if (window.scrollY > heroHeight) {
+      window.scrollTo({ top: heroHeight, behavior: 'smooth' });
+    }
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return; // Ignorar errores de cancelación
+    }
+    console.error('No se pudo cargar el catálogo:', error);
+    const grid = document.getElementById('productsGrid');
+    if (grid) grid.innerHTML = '<p style="color:red;text-align:center;width:100%">[ ERROR_CONEXIÓN_CATÁLOGO ]</p>';
+  }
+}
+
+// Función para obtener categorías únicas
+async function fetchCategories() {
+  try {
+    const res = await fetch(`${API_URL}/categorias`);
+    if (res.ok) {
+      ALL_CATEGORIES = await res.json();
+      renderCategories();
+    }
+  } catch (err) {
+    console.error('Error al cargar categorias', err);
+  }
+}
+
+// Renderizar Categorías como Checkboxes (estilo Cyberpunk)
 function renderCategories() {
-  const categories = [...new Set(PRODUCTS.map(p => p.categoria))];
   const filtersContainer = document.getElementById('categoryFilters');
   if (!filtersContainer) return;
 
   filtersContainer.innerHTML = '';
 
-  // Botón Todos
-  const allBtn = document.createElement('button');
-  allBtn.className = `category-btn ${activeCategory === null ? 'active' : ''}`;
-  allBtn.textContent = 'Todos';
-  allBtn.addEventListener('click', () => {
-    activeCategory = null;
-    renderCategories();
-    renderProducts();
-  });
-  filtersContainer.appendChild(allBtn);
+  ALL_CATEGORIES.forEach(cat => {
+    const label = document.createElement('label');
+    // Reutilizamos la clase category-btn que ya tiene los estilos retro/cyberpunk
+    label.className = `category-btn ${selectedCategories.has(cat) ? 'active' : ''}`;
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.gap = '0.5rem';
+    label.style.userSelect = 'none'; // Evitar seleccionar texto al hacer clic rápido
 
-  // Botones por categoría
-  categories.forEach(cat => {
-    const btn = document.createElement('button');
-    btn.className = `category-btn ${activeCategory === cat ? 'active' : ''}`;
-    btn.dataset.category = cat;
-    btn.textContent = cat;
-    btn.addEventListener('click', () => {
-      activeCategory = cat;
-      renderCategories();
-      renderProducts();
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = cat;
+    checkbox.checked = selectedCategories.has(cat);
+    // Ocultar el checkbox original visualmente pero mantener la accesibilidad
+    checkbox.style.position = 'absolute';
+    checkbox.style.opacity = '0';
+    checkbox.style.pointerEvents = 'none';
+    
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        selectedCategories.add(cat);
+        label.classList.add('active');
+      } else {
+        selectedCategories.delete(cat);
+        label.classList.remove('active');
+      }
+      currentPage = 1; // Reiniciar a página 1 al filtrar
+      fetchProducts();
     });
-    filtersContainer.appendChild(btn);
+
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(`[ ${cat.toUpperCase()} ]`));
+    filtersContainer.appendChild(label);
   });
+}
+
+// Renderizar Paginación
+function renderPagination() {
+  const prevBtn = document.getElementById('prevPageBtn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('nextPageBtn') as HTMLButtonElement;
+  const pageNumbersContainer = document.getElementById('pageNumbers');
+  
+  if (!prevBtn || !nextBtn || !pageNumbersContainer) return;
+
+  const totalPages = Math.ceil(totalProducts / limitPerPage);
+  
+  prevBtn.disabled = currentPage <= 1;
+  nextBtn.disabled = currentPage >= totalPages || totalPages === 0;
+
+  prevBtn.onclick = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      fetchProducts();
+    }
+  };
+
+  nextBtn.onclick = () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      fetchProducts();
+    }
+  };
+
+  pageNumbersContainer.innerHTML = '';
+  
+  const addPageBtn = (i: number) => {
+    const pageBtn = document.createElement('button');
+    pageBtn.className = `cyber-btn cyber-btn-sm ${i === currentPage ? 'active' : ''}`;
+    pageBtn.style.padding = '0.2rem 0.5rem';
+    if (i === currentPage) {
+      pageBtn.style.background = 'var(--accent-pink)';
+      pageBtn.style.color = 'var(--bg-color)';
+    }
+    pageBtn.textContent = i.toString();
+    pageBtn.onclick = () => {
+      currentPage = i;
+      fetchProducts();
+    };
+    pageNumbersContainer.appendChild(pageBtn);
+  };
+
+  const addEllipsis = () => {
+    const span = document.createElement('span');
+    span.textContent = '...';
+    span.style.color = 'var(--text-muted)';
+    pageNumbersContainer.appendChild(span);
+  };
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+      addPageBtn(i);
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+      addEllipsis();
+    }
+  }
 }
 
 // Renderizar Productos en Home
@@ -257,12 +412,7 @@ function renderProducts() {
 
   let productosFiltrados = PRODUCTS;
 
-  // Filtrar por categoría
-  if (activeCategory !== null) {
-    productosFiltrados = productosFiltrados.filter(p => p.categoria === activeCategory);
-  }
-
-  // Filtrar por búsqueda
+  // Filtrar por búsqueda localmente (el backend se encarga de paginar/filtrar categorias)
   if (currentSearchQuery.trim() !== '') {
     const q = currentSearchQuery.toLowerCase().trim();
     productosFiltrados = productosFiltrados.filter(p =>
@@ -432,38 +582,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
-
-    const res = await fetch(`${API_URL}/productos`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) throw new Error('Error al cargar catálogo');
-    const productosDb = await res.json();
-
-    // Mapear al formato esperado por el frontend omitiendo precios inválidos
-    PRODUCTS = productosDb.reduce((acc: Product[], p: any) => {
-      let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
-      if (typeof precioValidado !== 'number' || isNaN(precioValidado)) {
-        console.warn(`Producto omitido por precio inválido: ${p.titulo}`);
-        return acc;
-      }
-
-      acc.push({
-        id: p.id,
-        title: p.titulo,
-        price: precioValidado,
-        description: p.descripcion,
-        categoria: p.categoria,
-        imageUrl: p.imagenUrl,
-        cantidad: p.cantidad || 1
-      });
-      return acc;
-    }, []);
-
-    renderCategories();
-    renderProducts();
+  // Carga inicial
+  await fetchCategories();
+  await fetchProducts();
 
     // Event listener para buscador
     if (searchInput) {
@@ -474,11 +595,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-  } catch (error) {
-    console.error('No se pudo cargar el catálogo:', error);
-    const grid = document.getElementById('productsGrid');
-    if (grid) grid.innerHTML = '<p style="color:red;text-align:center;width:100%">[ ERROR_CONEXIÓN_CATÁLOGO ]</p>';
-  }
+
 
   // Eventos de la Vista de Detalles
   const backBtn = document.getElementById('backToCatalogBtn');

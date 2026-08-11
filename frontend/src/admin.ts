@@ -223,7 +223,10 @@ async function cargarProductos() {
     
     if (!res.ok) throw new Error('Error al cargar productos');
 
-    const productos = await res.json();
+    const responseData = await res.json();
+    // Soporte para formato paginado { productos, total } o array directo
+    const productos = Array.isArray(responseData) ? responseData : (responseData.productos || []);
+    
     actualizarDatalistCategorias(productos);
     dibujarProductos(productos);
   } catch (err: any) {

@@ -60,7 +60,14 @@ const EsquemaActualizarProducto = z.object({
 
 const EsquemaConsultarProductosQuery = z.object({
   campo: z.enum(['precio', 'titulo', 'createdAt', 'cantidad']).optional(),
-  direccion: z.enum(['asc', 'desc']).optional()
+  direccion: z.enum(['asc', 'desc']).optional(),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: z.coerce.number().int().positive().max(10000).optional(),
+  categorias: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    const cats = val.split(',').map(s => s.trim()).filter(Boolean);
+    return cats.slice(0, 20);
+  })
 });
 
 export async function rutas(servidor: FastifyInstance) {
@@ -125,7 +132,18 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.get('/productos', async (peticion, respuesta) => {
     try {
       const query = EsquemaConsultarProductosQuery.parse(peticion.query);
-      const productos = await obtenerProductosUseCase.ejecutar(query);
+      const limit = query.limit;
+      const offset = (query.limit && query.page) ? (query.page - 1) * query.limit : undefined;
+      
+      if (offset && offset > Number.MAX_SAFE_INTEGER) {
+        return respuesta.status(400).send({ error: [{ message: 'El offset excede el límite máximo permitido' }] });
+      }
+
+      const productos = await obtenerProductosUseCase.ejecutar({
+        ...query,
+        limit,
+        offset
+      });
       return respuesta.status(200).send(productos);
     } catch (error: any) {
       servidor.log.error(error);
@@ -133,6 +151,21 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(400).send({ error: error.issues });
       }
       return respuesta.status(500).send({ error: 'Error al obtener el catálogo.' });
+    }
+  });
+
+  // Endpoint 1.6: Obtener Categorías Únicas
+  servidor.get('/categorias', async (peticion, respuesta) => {
+    try {
+      const categorias = await prisma.producto.findMany({
+        select: { categoria: true },
+        distinct: ['categoria']
+      });
+      const categoriasArray = categorias.map(c => c.categoria).filter(Boolean);
+      return respuesta.status(200).send(categoriasArray);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener las categorías.' });
     }
   });
 
@@ -259,7 +292,18 @@ export async function rutas(servidor: FastifyInstance) {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const query = EsquemaConsultarProductosQuery.parse(peticion.query);
-      const productos = await obtenerProductosUseCase.ejecutar(query);
+      const limit = query.limit;
+      const offset = (query.limit && query.page) ? (query.page - 1) * query.limit : undefined;
+      
+      if (offset && offset > Number.MAX_SAFE_INTEGER) {
+        return respuesta.status(400).send({ error: [{ message: 'El offset excede el límite máximo permitido' }] });
+      }
+
+      const productos = await obtenerProductosUseCase.ejecutar({
+        ...query,
+        limit,
+        offset
+      });
       return respuesta.status(200).send(productos);
     } catch (error: any) {
       servidor.log.error(error);

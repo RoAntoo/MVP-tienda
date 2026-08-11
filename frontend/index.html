@@ -53,17 +53,25 @@
         <h2 class="section-title" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">&gt;
           RECIENTEMENTE_AÑADIDOS <span class="blink">_</span></h2>
         <div class="search-container" style="position: relative; max-width: 400px; width: 100%; flex-grow: 1;">
-          <input type="text" id="searchInput" class="cyber-input" placeholder="BUSCAR_ARCHIVO..." autocomplete="off"
-            aria-label="Buscar en el catálogo">
+          <input type="text" id="searchInput" class="cyber-input" placeholder="BUSCAR_EN_ESTA_PÁGINA..." autocomplete="off"
+            aria-label="Buscar en la página actual">
         </div>
       </div>
 
-      <div id="categoryFilters" class="category-filters">
+      <div id="categoryFilters" class="category-filters" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; padding: 1rem; background: rgba(20, 20, 30, 0.5); border: 1px solid var(--border-glass); border-radius: 8px;">
         <!-- Filtros de categorias renderizados por JS -->
       </div>
 
       <div id="productsGrid" class="products-grid">
         <!-- Products injected here by TS -->
+      </div>
+      
+      <div id="paginationControls" class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 3rem;">
+        <button id="prevPageBtn" class="cyber-btn cyber-btn-sm" disabled>[ &lt; ANTERIOR ]</button>
+        <div id="pageNumbers" style="display: flex; gap: 0.5rem; align-items: center;">
+          <!-- Números inyectados por TS -->
+        </div>
+        <button id="nextPageBtn" class="cyber-btn cyber-btn-sm">[ SIGUIENTE &gt; ]</button>
       </div>
     </main>
 
