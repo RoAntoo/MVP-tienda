@@ -3,8 +3,13 @@ generator client {
 }
 
 datasource db {
+<<<<<<< Updated upstream
   provider = "postgresql"
   url      = env("DATABASE_URL")
+=======
+  provider = "sqlite"
+  url      = env("SQLITE_URL")
+>>>>>>> Stashed changes
 }
 
 model Producto {
