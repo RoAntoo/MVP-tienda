@@ -140,4 +140,111 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       html: htmlContent,
     });
   }
+  async enviarSolicitudLibros(emailAdmin: string, emailCliente: string, mensaje: string, backendUrl: string): Promise<void> {
+    const safeEmailCliente = escapeHtml(emailCliente);
+    const safeMensaje = escapeHtml(mensaje);
+    const safeBackendUrl = getSafeUrl(backendUrl);
+
+    // We reuse the token generation with emailCliente as the "id" to secure the response links
+    const token = generarTokenAprobacion(emailCliente, this.apiKey);
+
+    const htmlContent = `
+      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
+        <h2 style="color: #ff2a85;">> NUEVA_SOLICITUD_LIBROS</h2>
+        <p>Un cliente está buscando libros que no encontró en el catálogo.</p>
+        <div style="border: 1px solid #00f0ff; padding: 15px; margin: 20px 0;">
+          <h3 style="color: #00f0ff; margin-top: 0;">DATOS DE LA SOLICITUD</h3>
+          <ul>
+            <li><strong>Cliente:</strong> ${safeEmailCliente}</li>
+          </ul>
+          <h4>Mensaje / Libros buscados:</h4>
+          <p style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 4px;">
+            ${safeMensaje}
+          </p>
+        </div>
+        
+        <p>¿Tienes estos libros disponibles? Responde rápidamente con un clic:</p>
+        
+        <div style="text-align: center; margin: 30px 0; display: flex; gap: 10px; justify-content: center;">
+          <a href="${escapeHtml(safeBackendUrl)}/admin/solicitudes/responder?email=${encodeURIComponent(emailCliente)}&existe=true&token=${escapeHtml(token)}" 
+             style="background-color: #00f0ff; color: #0d0d12; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+            [ SÍ, LOS TENEMOS ]
+          </a>
+          <a href="${escapeHtml(safeBackendUrl)}/admin/solicitudes/responder?email=${encodeURIComponent(emailCliente)}&existe=false&token=${escapeHtml(token)}" 
+             style="background-color: #ff2a85; color: white; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+            [ NO, RECHAZAR ]
+          </a>
+        </div>
+        
+        <p style="color: #a0a0b0;">© 2026 EbooksPack Admin System</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: '"EbooksPack System" <no-reply@ebookspack.com>',
+      to: emailAdmin,
+      replyTo: emailCliente,
+      subject: `Nueva solicitud de libros de ${safeEmailCliente}`,
+      html: htmlContent,
+    });
+  }
+
+  async enviarRespuestaSolicitud(emailCliente: string, mensajeOriginal: string, existe: boolean): Promise<void> {
+    const safeMensajeOriginal = escapeHtml(mensajeOriginal);
+    const color = existe ? '#00f0ff' : '#ff2a85';
+    const titulo = existe ? '¡EXCELENTES NOTICIAS!' : 'LO SENTIMOS...';
+    const mensaje = existe
+      ? '¡Buenas noticias! Tenemos los libros que pediste. Necesitamos un ratito para cargarlos en la web (un día como máximo), pero no te preocupes: te enviaremos un correo apenas estén listos en EbooksPack para que puedas disfrutarlos.'
+      : 'Lamentablemente no contamos con los libros que solicitaste en este momento. Hemos guardado tu sugerencia para el futuro.';
+
+    const htmlContent = `
+      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
+        <h2 style="color: ${color};">> ${titulo}</h2>
+        <p>Hola,</p>
+        <p>${mensaje}</p>
+        
+        <div style="border: 1px solid rgba(255,255,255,0.2); padding: 15px; margin: 20px 0;">
+          <h4 style="color: #a0a0b0; margin-top: 0;">Tu solicitud original:</h4>
+          <p style="font-style: italic; color: #d0d0d0;">"${safeMensajeOriginal}"</p>
+        </div>
+        
+        <p>¡Gracias por usar EbooksPack!</p>
+        <p style="color: #a0a0b0;">© 2026 EbooksPack System</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: '"EbooksPack Team" <no-reply@ebookspack.com>',
+      to: emailCliente,
+      subject: existe ? '¡Tenemos los libros que buscabas!' : 'Sobre tu solicitud de libros en EbooksPack',
+      html: htmlContent,
+    });
+  }
+
+  async enviarAvisoSubidaLibro(emailCliente: string, mensajeOriginal: string): Promise<void> {
+    const safeMensajeOriginal = escapeHtml(mensajeOriginal);
+
+    const htmlContent = `
+      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
+        <h2 style="color: #00f0ff;">> ¡NOTICIA_CATÁLOGO!</h2>
+        <p>Hola,</p>
+        <p>¡Buenas noticias! Los libros que nos pediste ya fueron subidos a EbooksPack. Puedes ingresar a la tienda y buscarlos ahora mismo.</p>
+        
+        <div style="border: 1px solid rgba(255,255,255,0.2); padding: 15px; margin: 20px 0;">
+          <h4 style="color: #a0a0b0; margin-top: 0;">Tu solicitud original:</h4>
+          <p style="font-style: italic; color: #d0d0d0;">"${safeMensajeOriginal}"</p>
+        </div>
+        
+        <p>¡Gracias por usar EbooksPack y sugerir contenido!</p>
+        <p style="color: #a0a0b0;">© 2026 EbooksPack System</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: '"EbooksPack Team" <no-reply@ebookspack.com>',
+      to: emailCliente,
+      subject: '¡Los libros que pediste ya están disponibles!',
+      html: htmlContent,
+    });
+  }
 }

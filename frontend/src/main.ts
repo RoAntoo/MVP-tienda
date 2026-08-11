@@ -630,5 +630,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Lógica del Request Modal
+  const requestBtn = document.getElementById('requestBtn');
+  const requestModal = document.getElementById('requestModal');
+  const closeRequestModalBtn = document.getElementById('closeRequestModal');
+  const requestForm = document.getElementById('requestForm') as HTMLFormElement;
+  const requestFeedback = document.getElementById('requestFeedback');
+  const submitRequestBtn = document.getElementById('submitRequestBtn') as HTMLButtonElement;
+
+  if (requestBtn && requestModal && closeRequestModalBtn && requestForm && requestFeedback && submitRequestBtn) {
+    const openRequestModal = () => {
+      requestModal.classList.remove('hidden');
+      requestFeedback.style.display = 'none';
+      requestForm.reset();
+    };
+
+    const closeRequestModal = () => {
+      requestModal.classList.add('hidden');
+    };
+
+    requestBtn.addEventListener('click', openRequestModal);
+    closeRequestModalBtn.addEventListener('click', closeRequestModal);
+    requestModal.addEventListener('click', (e) => {
+      if (e.target === requestModal) closeRequestModal();
+    });
+
+    requestForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = (document.getElementById('requestEmail') as HTMLInputElement).value;
+      const message = (document.getElementById('requestMessage') as HTMLTextAreaElement).value;
+
+      submitRequestBtn.innerText = '[ ENVIANDO... ]';
+      submitRequestBtn.disabled = true;
+      requestFeedback.style.display = 'none';
+
+      try {
+        const response = await fetch(`${API_URL}/solicitudes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emailCliente: email, mensaje: message })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Error al enviar la solicitud');
+        }
+
+        requestFeedback.innerText = '> SOLICITUD_ENVIADA_CON_ÉXITO';
+        requestFeedback.style.color = '#4CAF50';
+        requestFeedback.style.borderColor = '#4CAF50';
+        requestFeedback.style.display = 'block';
+        requestForm.reset();
+        
+        setTimeout(() => {
+          closeRequestModal();
+        }, 3000);
+      } catch (error: any) {
+        requestFeedback.innerText = `> ERROR: ${error.message}`;
+        requestFeedback.style.color = '#F44336';
+        requestFeedback.style.borderColor = '#F44336';
+        requestFeedback.style.display = 'block';
+      } finally {
+        submitRequestBtn.innerText = 'ENVIAR_SOLICITUD';
+        submitRequestBtn.disabled = false;
+      }
+    });
+  }
+
   renderCart();
 });

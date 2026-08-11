@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../base-datos/prisma-cliente.js';
 import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-prisma.js';
 import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-prisma.js';
+import { RepositorioSolicitudesPrisma } from '../base-datos/repositorio-solicitudes-prisma.js';
 import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.js';
 import { ServicioEmailDummy } from '../servicios/servicio-email-dummy.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
@@ -12,6 +13,10 @@ import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
 import { ActualizarProductoUseCase } from '../../aplicacion/casos-uso/actualizar-producto.js';
 import { ObtenerProductosUseCase } from '../../aplicacion/casos-uso/obtener-productos.js';
+import { SolicitarLibrosUseCase } from '../../aplicacion/casos-uso/solicitar-libros.js';
+import { ResponderSolicitudUseCase } from '../../aplicacion/casos-uso/responder-solicitud.js';
+import { ObtenerSolicitudesUseCase } from '../../aplicacion/casos-uso/obtener-solicitudes.js';
+import { NotificarSubidaUseCase } from '../../aplicacion/casos-uso/notificar-subida.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 
@@ -70,6 +75,11 @@ const EsquemaConsultarProductosQuery = z.object({
   })
 });
 
+const EsquemaSolicitudLibro = z.object({
+  emailCliente: z.string().email('Debe ser un correo electrónico válido'),
+  mensaje: z.string().min(5, 'El mensaje debe tener al menos 5 caracteres').max(1000, 'Mensaje muy largo')
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // --- VALIDACIÓN DE VARIABLES CRÍTICAS (FAIL-FAST) ---
   const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
@@ -87,10 +97,11 @@ export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios y Servicios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
+  const repositorioSolicitudes = new RepositorioSolicitudesPrisma(prisma);
 
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
-  const adminEmail = process.env.ADMIN_EMAIL || emailUser;
+  const adminEmail = process.env.ADMIN_EMAIL || emailUser || 'admin@localhost';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
   const servicioEmail = (emailUser && emailPass)
@@ -109,6 +120,10 @@ export async function rutas(servidor: FastifyInstance) {
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
   const actualizarProductoUseCase = new ActualizarProductoUseCase(repositorioProductos);
   const obtenerProductosUseCase = new ObtenerProductosUseCase(repositorioProductos);
+  const solicitarLibrosUseCase = new SolicitarLibrosUseCase(repositorioSolicitudes, servicioEmail, adminEmail, backendUrl);
+  const responderSolicitudUseCase = new ResponderSolicitudUseCase(repositorioSolicitudes, servicioEmail);
+  const obtenerSolicitudesUseCase = new ObtenerSolicitudesUseCase(repositorioSolicitudes);
+  const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes, servicioEmail);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', async (peticion, respuesta) => {
@@ -166,6 +181,21 @@ export async function rutas(servidor: FastifyInstance) {
     } catch (error: any) {
       servidor.log.error(error);
       return respuesta.status(500).send({ error: 'Error al obtener las categorías.' });
+    }
+  });
+
+  // Endpoint 1.7: Solicitar Libros
+  servidor.post('/solicitudes', async (peticion, respuesta) => {
+    try {
+      const cuerpo = EsquemaSolicitudLibro.parse(peticion.body);
+      const resultado = await solicitarLibrosUseCase.ejecutar(cuerpo);
+      return respuesta.status(200).send(resultado);
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
+      return respuesta.status(500).send({ error: 'Error al enviar la solicitud.' });
     }
   });
 
@@ -275,6 +305,42 @@ export async function rutas(servidor: FastifyInstance) {
     }
   });
 
+  // Endpoint 2.7: Responder a Solicitud de Libro desde Email (Admin)
+  servidor.get('/admin/solicitudes/responder', async (peticion, respuesta) => {
+    try {
+      const { email, existe, token } = peticion.query as { email?: string, existe?: string, token?: string };
+      
+      if (!email || !existe || !token) {
+        return respuesta.status(400).send({ error: 'Faltan parámetros en la URL' });
+      }
+
+      await responderSolicitudUseCase.ejecutar({
+        emailCliente: email,
+        existe: existe,
+        token: token,
+        apiKeySecret: TOKEN_SIGNING_SECRET
+      });
+
+      respuesta.type('text/html');
+      return respuesta.send(`
+        <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+          <h2 style="color: #4CAF50;">✅ Respuesta enviada con éxito a ${escapeHtml(email)}</h2>
+          <p>El cliente recibirá un correo electrónico notificándole.</p>
+          <a href="${backendUrl}" style="text-decoration: none; color: blue;">Volver al Inicio</a>
+        </div>
+      `);
+    } catch (error: any) {
+      servidor.log.error(error);
+      respuesta.type('text/html');
+      return respuesta.status(400).send(`
+        <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+          <h2 style="color: #F44336;">❌ Error al responder a la solicitud</h2>
+          <p>${escapeHtml(error.message || 'El enlace puede haber expirado o es inválido.')}</p>
+        </div>
+      `);
+    }
+  });
+
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', async (peticion, respuesta) => {
     try {
@@ -377,6 +443,35 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(404).send({ error: 'Producto no encontrado' });
       }
       return respuesta.status(500).send({ error: 'Error al actualizar el producto.' });
+    }
+  });
+
+  // Endpoint 7: Obtener Todas las Solicitudes (Admin)
+  servidor.get('/admin/solicitudes', async (peticion, respuesta) => {
+    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+    try {
+      const query = peticion.query as { limit?: string, offset?: string };
+      const limit = query.limit ? parseInt(query.limit, 10) : 10;
+      const offset = query.offset ? parseInt(query.offset, 10) : 0;
+      
+      const resultado = await obtenerSolicitudesUseCase.ejecutar(limit, offset);
+      return respuesta.status(200).send(resultado);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener las solicitudes.' });
+    }
+  });
+
+  // Endpoint 8: Notificar Subida de Libro (Admin)
+  servidor.post('/admin/solicitudes/:id/notificar', async (peticion, respuesta) => {
+    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+    try {
+      const { id } = peticion.params as { id: string };
+      const resultado = await notificarSubidaUseCase.ejecutar(id);
+      return respuesta.status(200).send(resultado);
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(400).send({ error: error.message || 'Error al notificar subida.' });
     }
   });
 }

@@ -6,4 +6,7 @@ export interface ServicioEmail {
   enviarInstruccionesPago(emailCliente: string, total: Prisma.Decimal | number, cantidad: number): Promise<void>;
   enviarLinksDescarga(emailCliente: string, productos: Producto[]): Promise<void>;
   notificarNuevaOrdenAdmin(emailAdmin: string, orden: Orden, productos: Producto[]): Promise<void>;
+  enviarSolicitudLibros(emailAdmin: string, emailCliente: string, mensaje: string, backendUrl: string): Promise<void>;
+  enviarRespuestaSolicitud(emailCliente: string, mensajeOriginal: string, existe: boolean): Promise<void>;
+  enviarAvisoSubidaLibro(emailCliente: string, mensajeOriginal: string): Promise<void>;
 }
