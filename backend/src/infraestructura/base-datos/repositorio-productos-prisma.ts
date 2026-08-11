@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Producto } from '../../dominio/entidades/producto.js';
-import { RepositorioProductos, OpcionesOrdenamiento } from '../../dominio/repositorios/repositorio-productos.js';
+import { RepositorioProductos, FiltrosProductos, ResultadoPaginado } from '../../dominio/repositorios/repositorio-productos.js';
 
 export class RepositorioProductosPrisma implements RepositorioProductos {
   constructor(private prisma: PrismaClient) {}
@@ -38,12 +38,27 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     return productosDb.map(p => this.mapearProducto(p));
   }
 
-  async obtenerTodos(opciones?: OpcionesOrdenamiento): Promise<Producto[]> {
-    const orden = opciones ? { [opciones.campo]: opciones.direccion } : { createdAt: 'desc' as const };
+  async obtenerTodos(filtros?: FiltrosProductos): Promise<ResultadoPaginado<Producto>> {
+    const orden = (filtros?.campo && filtros?.direccion) ? { [filtros.campo]: filtros.direccion } : { createdAt: 'desc' as const };
+    
+    let where: Prisma.ProductoWhereInput = {};
+    if (filtros?.categorias && filtros.categorias.length > 0) {
+      where.categoria = { in: filtros.categorias };
+    }
+
+    const total = await this.prisma.producto.count({ where });
+    
     const productosDb = await this.prisma.producto.findMany({
-      orderBy: orden
+      where,
+      orderBy: orden,
+      take: filtros?.limit,
+      skip: filtros?.offset
     });
-    return productosDb.map(p => this.mapearProducto(p));
+    
+    return {
+      productos: productosDb.map(p => this.mapearProducto(p)),
+      total
+    };
   }
 
   async crear(producto: Omit<Producto, 'id'>): Promise<Producto> {
