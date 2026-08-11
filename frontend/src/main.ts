@@ -36,6 +36,44 @@ const searchInput = document.getElementById('searchInput') as HTMLInputElement |
 let lastFocusedElement: HTMLElement | null = null;
 let lastFocusedBeforeModal: HTMLElement | null = null;
 
+function setupFocusTrap(modalElement: HTMLElement) {
+  const focusableElements = modalElement.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusableElements.length > 0) {
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    
+    firstElement.focus();
+    
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    
+    modalElement.addEventListener('keydown', trapFocus);
+    // Limpiar al ocultarse
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class' && modalElement.classList.contains('hidden')) {
+          modalElement.removeEventListener('keydown', trapFocus);
+          observer.disconnect();
+        }
+      });
+    });
+    observer.observe(modalElement, { attributes: true });
+  }
+}
+
 function toggleCart() {
   if (cartSidebar && cartOverlay) {
     const isHidden = cartSidebar.classList.contains('hidden');
@@ -96,6 +134,7 @@ function openProductDetails(id: string) {
   hero.classList.add('hidden');
   catalog.classList.add('hidden');
   detailView.classList.remove('hidden');
+  setupFocusTrap(detailView);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const backBtn = document.getElementById('backToCatalogBtn');
@@ -520,7 +559,11 @@ if (checkoutForm) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Fallo de conexión encriptada');
+        let errorMessage = errorData.error;
+        if (Array.isArray(errorMessage)) {
+          errorMessage = errorMessage.map((e: any) => e.message).join(', ');
+        }
+        throw new Error(errorMessage || 'Fallo de conexión encriptada');
       }
 
       // Vaciar carrito
@@ -534,6 +577,7 @@ if (checkoutForm) {
       if (successModal) {
         lastFocusedBeforeModal = document.activeElement as HTMLElement;
         successModal.classList.remove('hidden');
+        setupFocusTrap(successModal);
         if (closeSuccessBtn) closeSuccessBtn.focus();
       }
 
@@ -567,7 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!sessionStorage.getItem('promoVisto')) {
       focusBeforePromo = document.activeElement as HTMLElement;
       promoModal.classList.remove('hidden');
-      promoModal.focus();
+      setupFocusTrap(promoModal);
     }
 
     closePromoBtn.addEventListener('click', cerrarPromo);
@@ -643,6 +687,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       requestModal.classList.remove('hidden');
       requestFeedback.style.display = 'none';
       requestForm.reset();
+      setupFocusTrap(requestModal);
     };
 
     const closeRequestModal = () => {
@@ -674,7 +719,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Error al enviar la solicitud');
+          let errorMessage = errorData.error;
+          if (Array.isArray(errorMessage)) {
+            errorMessage = errorMessage.map((e: any) => e.message).join(', ');
+          }
+          throw new Error(errorMessage || 'Error al enviar la solicitud');
         }
 
         requestFeedback.innerText = '> SOLICITUD_ENVIADA_CON_ÉXITO';

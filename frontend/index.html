@@ -177,9 +177,9 @@
 
   <!-- Cart Overlay & Sidebar Modal -->
   <div id="cartOverlay" class="cart-overlay hidden"></div>
-  <aside id="cartSidebar" class="cart-sidebar hidden">
+  <aside id="cartSidebar" class="cart-sidebar hidden" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
     <div class="cart-header">
-      <h2>&gt; SISTEMA_CARRITO</h2>
+      <h2 id="cartTitle">&gt; SISTEMA_CARRITO</h2>
       <button id="closeCartBtn" class="cyber-btn">[ X ]</button>
     </div>
 
@@ -204,9 +204,9 @@
   </aside>
 
   <!-- Modal Solicitar Libros -->
-  <div id="requestModal" class="cyber-modal-overlay hidden">
+  <div id="requestModal" class="cyber-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="requestModalTitle">
     <div class="cyber-modal" style="max-width: 500px;">
-      <h2 style="color: var(--accent-cyan); margin-top: 0; font-family: var(--font-retro); font-size: 1.5rem;">> SOLICITAR_LIBRO_S <span class="blink">_</span></h2>
+      <h2 id="requestModalTitle" style="color: var(--accent-cyan); margin-top: 0; font-family: var(--font-retro); font-size: 1.5rem;">> SOLICITAR_LIBRO_S <span class="blink">_</span></h2>
       <p style="color: var(--text-secondary); margin-bottom: 2rem;">
         ¿No encontraste lo que buscabas? Dinos qué libro, cómic o manga necesitas y te avisaremos por correo.
       </p>

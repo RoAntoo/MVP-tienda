@@ -8,10 +8,7 @@ export interface InputSolicitarLibros {
 
 export class SolicitarLibrosUseCase {
   constructor(
-    private repositorioSolicitudes: RepositorioSolicitudes,
-    private servicioEmail: ServicioEmail,
-    private adminEmail: string,
-    private backendUrl: string
+    private repositorioSolicitudes: RepositorioSolicitudes
   ) {}
 
   async ejecutar(input: InputSolicitarLibros): Promise<{ mensaje: string }> {
@@ -19,18 +16,11 @@ export class SolicitarLibrosUseCase {
       throw new Error('Email y mensaje son requeridos');
     }
 
-    await this.repositorioSolicitudes.guardar({
+    await this.repositorioSolicitudes.guardarConOutbox({
       emailCliente: input.emailCliente,
       mensaje: input.mensaje,
       estado: 'PENDIENTE'
     });
-
-    await this.servicioEmail.enviarSolicitudLibros(
-      this.adminEmail,
-      input.emailCliente,
-      input.mensaje,
-      this.backendUrl
-    );
 
     return { mensaje: 'Solicitud enviada correctamente' };
   }

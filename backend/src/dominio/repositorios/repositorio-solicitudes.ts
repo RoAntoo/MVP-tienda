@@ -13,8 +13,10 @@ export interface ResultadoPaginadoSolicitudes {
 
 export interface RepositorioSolicitudes {
   guardar(solicitud: Omit<SolicitudLibro, 'id' | 'createdAt'>): Promise<SolicitudLibro>;
+  guardarConOutbox(solicitud: Omit<SolicitudLibro, 'id' | 'createdAt'>): Promise<{ solicitud: SolicitudLibro, outboxId: string }>;
   obtenerTodas(limit: number, offset: number): Promise<ResultadoPaginadoSolicitudes>;
   actualizarEstado(id: string, estado: string): Promise<SolicitudLibro>;
+  intentarNotificacion(id: string): Promise<boolean>;
   obtenerPorId(id: string): Promise<SolicitudLibro | null>;
   obtenerUltimaPorEmail(email: string): Promise<SolicitudLibro | null>;
 }

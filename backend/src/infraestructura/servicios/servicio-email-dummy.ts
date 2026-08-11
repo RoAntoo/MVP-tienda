@@ -16,15 +16,15 @@ export class ServicioEmailDummy implements ServicioEmail {
     console.warn(`[ServicioEmailDummy] Simulación: Alerta de nueva orden al admin ${emailAdmin}`);
   }
 
-  async enviarSolicitudLibros(emailAdmin: string, emailCliente: string, mensaje: string, backendUrl: string): Promise<void> {
-    console.warn(`[ServicioEmailDummy] Simulación: Solicitud de libros de ${emailCliente} para ${emailAdmin}. Mensaje: "${mensaje}"`);
+  async enviarSolicitudLibros(emailAdmin: string, emailCliente: string, mensaje: string, backendUrl: string, solicitudId: string): Promise<void> {
+    console.log(`[DUMMY EMAIL] Enviando solicitud de libro (ID: ${solicitudId}) al admin.`);
   }
 
   async enviarRespuestaSolicitud(emailCliente: string, mensajeOriginal: string, existe: boolean): Promise<void> {
-    console.warn(`[ServicioEmailDummy] Simulación: Respuesta a solicitud de ${emailCliente}. Existe: ${existe}. Mensaje original: "${mensajeOriginal}"`);
+    console.log(`[DUMMY EMAIL] Enviando respuesta de solicitud (existe: ${existe}) al cliente.`);
   }
 
   async enviarAvisoSubidaLibro(emailCliente: string, mensajeOriginal: string): Promise<void> {
-    console.warn(`[ServicioEmailDummy] Simulación: Aviso de subida enviado a ${emailCliente}. Mensaje original: "${mensajeOriginal}"`);
+    console.log(`[DUMMY EMAIL] Enviando aviso de subida de libro al cliente.`);
   }
 }

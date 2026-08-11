@@ -15,6 +15,27 @@ export class RepositorioSolicitudesPrisma implements RepositorioSolicitudes {
     return nuevaSolicitud;
   }
 
+  async guardarConOutbox(solicitud: Omit<SolicitudLibro, 'id' | 'createdAt'>): Promise<{ solicitud: SolicitudLibro, outboxId: string }> {
+    return await this.prisma.$transaction(async (tx) => {
+      const nuevaSolicitud = await tx.solicitudLibro.create({
+        data: {
+          emailCliente: solicitud.emailCliente,
+          mensaje: solicitud.mensaje,
+          estado: solicitud.estado,
+        }
+      });
+      
+      const outbox = await tx.notificacionOutbox.create({
+        data: {
+          solicitudId: nuevaSolicitud.id,
+          estado: 'PENDIENTE'
+        }
+      });
+      
+      return { solicitud: nuevaSolicitud, outboxId: outbox.id };
+    });
+  }
+
   async obtenerTodas(limit: number, offset: number): Promise<ResultadoPaginadoSolicitudes> {
     const total = await this.prisma.solicitudLibro.count();
     const solicitudes = await this.prisma.solicitudLibro.findMany({
@@ -31,6 +52,19 @@ export class RepositorioSolicitudesPrisma implements RepositorioSolicitudes {
       where: { id },
       data: { estado }
     });
+  }
+
+  async intentarNotificacion(id: string): Promise<boolean> {
+    const result = await this.prisma.solicitudLibro.updateMany({
+      where: { 
+        id, 
+        estado: 'PENDIENTE' 
+      },
+      data: { 
+        estado: 'NOTIFICANDO' 
+      }
+    });
+    return result.count > 0;
   }
 
   async obtenerPorId(id: string): Promise<SolicitudLibro | null> {

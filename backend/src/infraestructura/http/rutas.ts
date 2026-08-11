@@ -17,6 +17,7 @@ import { SolicitarLibrosUseCase } from '../../aplicacion/casos-uso/solicitar-lib
 import { ResponderSolicitudUseCase } from '../../aplicacion/casos-uso/responder-solicitud.js';
 import { ObtenerSolicitudesUseCase } from '../../aplicacion/casos-uso/obtener-solicitudes.js';
 import { NotificarSubidaUseCase } from '../../aplicacion/casos-uso/notificar-subida.js';
+import { OutboxProcessor } from '../trabajos/outbox-processor.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 
@@ -112,6 +113,14 @@ export async function rutas(servidor: FastifyInstance) {
     console.warn('⚠️ No se encontraron EMAIL_USER o EMAIL_PASS. Los correos no se enviarán de forma real.');
   }
 
+  const outboxProcessor = new OutboxProcessor(prisma, servicioEmail, adminEmail, backendUrl);
+  outboxProcessor.start(10000);
+
+  servidor.addHook('onClose', (instance, done) => {
+    outboxProcessor.stop();
+    done();
+  });
+
   // 2. Inicializar Casos de Uso
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail, adminEmail);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
@@ -120,7 +129,7 @@ export async function rutas(servidor: FastifyInstance) {
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
   const actualizarProductoUseCase = new ActualizarProductoUseCase(repositorioProductos);
   const obtenerProductosUseCase = new ObtenerProductosUseCase(repositorioProductos);
-  const solicitarLibrosUseCase = new SolicitarLibrosUseCase(repositorioSolicitudes, servicioEmail, adminEmail, backendUrl);
+  const solicitarLibrosUseCase = new SolicitarLibrosUseCase(repositorioSolicitudes);
   const responderSolicitudUseCase = new ResponderSolicitudUseCase(repositorioSolicitudes, servicioEmail);
   const obtenerSolicitudesUseCase = new ObtenerSolicitudesUseCase(repositorioSolicitudes);
   const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes, servicioEmail);
@@ -308,36 +317,96 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 2.7: Responder a Solicitud de Libro desde Email (Admin)
   servidor.get('/admin/solicitudes/responder', async (peticion, respuesta) => {
     try {
-      const { email, existe, token } = peticion.query as { email?: string, existe?: string, token?: string };
+      const { solicitudId, existe, token } = peticion.query as { solicitudId?: string, existe?: string, token?: string };
       
-      if (!email || !existe || !token) {
+      if (!solicitudId || !existe || !token) {
         return respuesta.status(400).send({ error: 'Faltan parámetros en la URL' });
       }
 
-      await responderSolicitudUseCase.ejecutar({
-        emailCliente: email,
-        existe: existe,
-        token: token,
-        apiKeySecret: TOKEN_SIGNING_SECRET
-      });
-
+      // No ejecutamos la mutación en GET, solo devolvemos una página de confirmación con script
       respuesta.type('text/html');
       return respuesta.send(`
-        <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-          <h2 style="color: #4CAF50;">✅ Respuesta enviada con éxito a ${escapeHtml(email)}</h2>
-          <p>El cliente recibirá un correo electrónico notificándole.</p>
-          <a href="${backendUrl}" style="text-decoration: none; color: blue;">Volver al Inicio</a>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Confirmar Respuesta</title>
+          <style>
+            body { font-family: sans-serif; text-align: center; margin-top: 50px; background: #0d0d12; color: #fff; }
+            .btn { padding: 12px 24px; font-size: 16px; background-color: #00f0ff; color: #0d0d12; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; }
+            .btn:hover { background-color: #00c0cc; }
+            #status { margin-top: 20px; color: #4CAF50; font-size: 18px; }
+            .error { color: #ff2a85 !important; }
+          </style>
+        </head>
+        <body>
+          <h2>¿Deseas enviar esta respuesta al cliente?</h2>
+          <p>La solicitud original del cliente será respondida con: <strong>${existe === 'true' ? 'SÍ LO TENEMOS' : 'NO LO TENEMOS'}</strong></p>
+          <button id="confirmBtn" class="btn">Confirmar y Enviar</button>
+          <p id="status"></p>
+          <script>
+            document.getElementById('confirmBtn').addEventListener('click', async () => {
+              const btn = document.getElementById('confirmBtn');
+              const statusEl = document.getElementById('status');
+              btn.disabled = true;
+              btn.innerText = 'Enviando...';
+              
+              try {
+                const res = await fetch('/admin/solicitudes/responder', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    solicitudId: '${escapeHtml(solicitudId)}',
+                    existe: '${escapeHtml(existe)}',
+                    token: '${escapeHtml(token)}'
+                  })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  statusEl.innerText = '✅ ' + data.mensaje;
+                  btn.style.display = 'none';
+                } else {
+                  statusEl.innerText = '❌ ' + (data.error || 'Error desconocido');
+                  statusEl.classList.add('error');
+                  btn.disabled = false;
+                  btn.innerText = 'Reintentar';
+                }
+              } catch (err) {
+                statusEl.innerText = '❌ Error de red';
+                statusEl.classList.add('error');
+                btn.disabled = false;
+                btn.innerText = 'Reintentar';
+              }
+            });
+          </script>
+        </body>
+        </html>
       `);
     } catch (error: any) {
       servidor.log.error(error);
-      respuesta.type('text/html');
-      return respuesta.status(400).send(`
-        <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-          <h2 style="color: #F44336;">❌ Error al responder a la solicitud</h2>
-          <p>${escapeHtml(error.message || 'El enlace puede haber expirado o es inválido.')}</p>
-        </div>
-      `);
+      return respuesta.status(500).send('Error interno');
+    }
+  });
+
+  servidor.post('/admin/solicitudes/responder', async (peticion, respuesta) => {
+    try {
+      const { solicitudId, existe, token } = peticion.body as { solicitudId?: string, existe?: string, token?: string };
+      
+      if (!solicitudId || !existe || !token) {
+        return respuesta.status(400).send({ error: 'Faltan parámetros' });
+      }
+
+      await responderSolicitudUseCase.ejecutar({
+        solicitudId,
+        existe,
+        token,
+        apiKeySecret: TOKEN_SIGNING_SECRET
+      });
+
+      return respuesta.status(200).send({ mensaje: 'Respuesta enviada con éxito al cliente.' });
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(400).send({ error: error.message || 'El enlace puede haber expirado o es inválido.' });
     }
   });
 
@@ -450,14 +519,20 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.get('/admin/solicitudes', async (peticion, respuesta) => {
     if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
     try {
-      const query = peticion.query as { limit?: string, offset?: string };
-      const limit = query.limit ? parseInt(query.limit, 10) : 10;
-      const offset = query.offset ? parseInt(query.offset, 10) : 0;
+      const EsquemaPaginacion = z.object({
+        limit: z.coerce.number().int().positive().max(100).default(10),
+        offset: z.coerce.number().int().nonnegative().default(0)
+      }).strict();
+      
+      const { limit, offset } = EsquemaPaginacion.parse(peticion.query);
       
       const resultado = await obtenerSolicitudesUseCase.ejecutar(limit, offset);
       return respuesta.status(200).send(resultado);
     } catch (error: any) {
       servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
       return respuesta.status(500).send({ error: 'Error al obtener las solicitudes.' });
     }
   });

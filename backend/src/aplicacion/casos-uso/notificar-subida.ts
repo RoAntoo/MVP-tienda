@@ -18,11 +18,23 @@ export class NotificarSubidaUseCase {
       throw new Error('Esta solicitud ya fue notificada');
     }
 
-    // Actualizar estado en DB
-    await this.repositorioSolicitudes.actualizarEstado(idSolicitud, 'NOTIFICADO');
+    // Actualizar condicionalmente a NOTIFICANDO
+    const bloqueado = await this.repositorioSolicitudes.intentarNotificacion(idSolicitud);
+    if (!bloqueado) {
+      throw new Error('La solicitud ya está siendo notificada o ya fue notificada por otro proceso');
+    }
 
-    // Enviar email
-    await this.servicioEmail.enviarAvisoSubidaLibro(solicitud.emailCliente, solicitud.mensaje);
+    try {
+      // Enviar email
+      await this.servicioEmail.enviarAvisoSubidaLibro(solicitud.emailCliente, solicitud.mensaje);
+
+      // Actualizar estado en DB a NOTIFICADO
+      await this.repositorioSolicitudes.actualizarEstado(idSolicitud, 'NOTIFICADO');
+    } catch (error) {
+      // Revertir a PENDIENTE si falla el envío
+      await this.repositorioSolicitudes.actualizarEstado(idSolicitud, 'PENDIENTE');
+      throw error;
+    }
 
     return { mensaje: 'Notificación enviada correctamente al cliente' };
   }

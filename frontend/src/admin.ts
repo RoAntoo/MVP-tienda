@@ -128,7 +128,10 @@ document.addEventListener('keydown', (e) => {
 });
 
 // --- LÓGICA DE SOLICITUDES ---
+let currentTabFetchId = 0;
+
 async function cargarSolicitudes() {
+  const fetchId = ++currentTabFetchId;
   try {
     solicitudesBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Cargando...</td></tr>';
     const offset = (solicitudesCurrentPage - 1) * solicitudesLimit;
@@ -140,6 +143,8 @@ async function cargarSolicitudes() {
     const data = await res.json();
     const solicitudes = data.solicitudes || [];
     const total = data.total || 0;
+
+    if (fetchId !== currentTabFetchId) return;
 
     solicitudesBody.innerHTML = '';
 
@@ -342,6 +347,7 @@ async function validarYEntrar(key: string): Promise<boolean> {
 }
 
 async function cargarOrdenes() {
+  const fetchId = ++currentTabFetchId;
   ordenesBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/ordenes`, {
@@ -354,8 +360,10 @@ async function cargarOrdenes() {
     }
 
     const ordenes = await res.json();
+    if (fetchId !== currentTabFetchId) return;
     dibujarOrdenes(ordenes);
   } catch (err: any) {
+    if (fetchId !== currentTabFetchId) return;
     if (err.message === 'API Key Inválida') {
       logoutBtn.click();
       loginError.classList.remove('hidden');
@@ -367,6 +375,7 @@ async function cargarOrdenes() {
 }
 
 async function cargarProductos() {
+  const fetchId = ++currentTabFetchId;
   productosBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     let query = '';
@@ -385,12 +394,14 @@ async function cargarProductos() {
     if (!res.ok) throw new Error('Error al cargar productos');
 
     const responseData = await res.json();
+    if (fetchId !== currentTabFetchId) return;
     // Soporte para formato paginado { productos, total } o array directo
     const productos = Array.isArray(responseData) ? responseData : (responseData.productos || []);
 
     actualizarDatalistCategorias(productos);
     dibujarProductos(productos);
   } catch (err: any) {
+    if (fetchId !== currentTabFetchId) return;
     productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
   }
 }
@@ -453,6 +464,43 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
   (document.getElementById('editProdCantidad') as HTMLInputElement).value = p.cantidad || 1;
   modalEdicion.classList.remove('hidden');
+
+  // Focus trap para accesibilidad
+  const focusableElements = modalEdicion.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusableElements.length > 0) {
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    
+    firstElement.focus();
+    
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+    
+    modalEdicion.addEventListener('keydown', trapFocus);
+    // Limpiar al cerrar
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class' && modalEdicion.classList.contains('hidden')) {
+          modalEdicion.removeEventListener('keydown', trapFocus);
+          observer.disconnect();
+        }
+      });
+    });
+    observer.observe(modalEdicion, { attributes: true });
+  }
 
   setTimeout(() => {
     modalEdicion.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -546,9 +594,9 @@ function dibujarProductos(productos: any[]) {
 
   productosBody.innerHTML = productos.map(prod => `
     <tr>
-      <td>${prod.titulo}</td>
-      <td>$${Number(prod.precio).toLocaleString('es-AR')}</td>
-      <td>${prod.cantidad || 1}</td>
+      <td>${escapeHtml(prod.titulo)}</td>
+      <td>$${escapeHtml(Number(prod.precio).toLocaleString('es-AR'))}</td>
+      <td>${escapeHtml(String(prod.cantidad || 1))}</td>
       <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
       <td>
         <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod='${JSON.stringify(prod).replace(/'/g, "&apos;")}'>EDITAR</button>

@@ -140,13 +140,13 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       html: htmlContent,
     });
   }
-  async enviarSolicitudLibros(emailAdmin: string, emailCliente: string, mensaje: string, backendUrl: string): Promise<void> {
+  async enviarSolicitudLibros(emailAdmin: string, emailCliente: string, mensaje: string, backendUrl: string, solicitudId: string): Promise<void> {
     const safeEmailCliente = escapeHtml(emailCliente);
     const safeMensaje = escapeHtml(mensaje);
     const safeBackendUrl = getSafeUrl(backendUrl);
 
-    // We reuse the token generation with emailCliente as the "id" to secure the response links
-    const token = generarTokenAprobacion(emailCliente, this.apiKey);
+    // Generar token usando solicitudId para asegurar la respuesta
+    const token = generarTokenAprobacion(solicitudId, this.apiKey);
 
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
@@ -166,11 +166,11 @@ export class ServicioEmailNodemailer implements ServicioEmail {
         <p>¿Tienes estos libros disponibles? Responde rápidamente con un clic:</p>
         
         <div style="text-align: center; margin: 30px 0; display: flex; gap: 10px; justify-content: center;">
-          <a href="${escapeHtml(safeBackendUrl)}/admin/solicitudes/responder?email=${encodeURIComponent(emailCliente)}&existe=true&token=${escapeHtml(token)}" 
+          <a href="${escapeHtml(safeBackendUrl)}/admin/solicitudes/responder?solicitudId=${encodeURIComponent(solicitudId)}&existe=true&token=${escapeHtml(token)}" 
              style="background-color: #00f0ff; color: #0d0d12; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
             [ SÍ, LOS TENEMOS ]
           </a>
-          <a href="${escapeHtml(safeBackendUrl)}/admin/solicitudes/responder?email=${encodeURIComponent(emailCliente)}&existe=false&token=${escapeHtml(token)}" 
+          <a href="${escapeHtml(safeBackendUrl)}/admin/solicitudes/responder?solicitudId=${encodeURIComponent(solicitudId)}&existe=false&token=${escapeHtml(token)}" 
              style="background-color: #ff2a85; color: white; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
             [ NO, RECHAZAR ]
           </a>
