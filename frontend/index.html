@@ -22,7 +22,16 @@
       <div class="logo">
         <span class="glitch" data-text="EbooksPack">EbooksPack</span>
       </div>
-      <button id="cartBtn" class="cyber-btn" style="display: flex; align-items: center; gap: 0.5rem;">
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <button id="requestBtn" class="cyber-btn cyber-btn-sm" style="display: flex; align-items: center; gap: 0.5rem; border-color: #00f0ff; color: #00f0ff;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+            <path d="M12 8v6"></path>
+            <path d="M9 11h6"></path>
+          </svg>
+          Solicitar libro/s
+        </button>
+        <button id="cartBtn" class="cyber-btn" style="display: flex; align-items: center; gap: 0.5rem;">
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 64 64" width="20" height="20">
           <g transform="translate(-3188 -248)">
             <g transform="translate(0 -3)">
@@ -33,7 +42,8 @@
           </g>
         </svg>
         <span>Carrito (<span id="cartCount">0</span>)</span>
-      </button>
+        </button>
+      </div>
     </nav>
 
     <!-- Hero Section -->
@@ -167,9 +177,9 @@
 
   <!-- Cart Overlay & Sidebar Modal -->
   <div id="cartOverlay" class="cart-overlay hidden"></div>
-  <aside id="cartSidebar" class="cart-sidebar hidden">
+  <aside id="cartSidebar" class="cart-sidebar hidden" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
     <div class="cart-header">
-      <h2>&gt; SISTEMA_CARRITO</h2>
+      <h2 id="cartTitle">&gt; SISTEMA_CARRITO</h2>
       <button id="closeCartBtn" class="cyber-btn">[ X ]</button>
     </div>
 
@@ -193,7 +203,35 @@
     </div>
   </aside>
 
+  <!-- Modal Solicitar Libros -->
+  <div id="requestModal" class="cyber-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="requestModalTitle">
+    <div class="cyber-modal" style="max-width: 500px;">
+      <h2 id="requestModalTitle" style="color: var(--accent-cyan); margin-top: 0; font-family: var(--font-retro); font-size: 1.5rem;">> SOLICITAR_LIBRO_S <span class="blink">_</span></h2>
+      <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+        ¿No encontraste lo que buscabas? Dinos qué libro, cómic o manga necesitas y te avisaremos por correo.
+      </p>
+
+      <form id="requestForm" style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="form-group">
+          <label style="display: block; margin-bottom: 0.5rem; color: var(--cyber-accent);">EMAIL_CONTACTO</label>
+          <input type="email" id="requestEmail" class="cyber-input" required placeholder="tu@email.com">
+        </div>
+        
+        <div class="form-group">
+          <label style="display: block; margin-bottom: 0.5rem; color: var(--cyber-accent);">LIBROS_BUSCADOS (Detalles)</label>
+          <textarea id="requestMessage" class="cyber-input" required rows="4" placeholder="Título, autor, edición, etc..."></textarea>
+        </div>
+
+        <div id="requestFeedback" style="display: none; padding: 1rem; border-radius: 4px; border: 1px solid;"></div>
+
+        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+          <button type="button" id="closeRequestModal" class="cyber-btn cyber-btn-pink cyber-btn-sm">CANCELAR</button>
+          <button type="submit" id="submitRequestBtn" class="cyber-btn cyber-btn-sm">ENVIAR_SOLICITUD</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
-
 </html>
