@@ -200,6 +200,9 @@ function renderCart() {
 
   // Actualizar contador
   cartCountElement.textContent = cartItems.length.toString();
+  if (cartBtn) {
+    cartBtn.setAttribute('aria-label', `Carrito con ${cartItems.length} elemento${cartItems.length !== 1 ? 's' : ''}`);
+  }
 
   // Actualizar total
   const total = calculateTotal();
