@@ -542,6 +542,18 @@ body {
     width: 100%;
     border-left: none;
   }
+
+  .hide-on-mobile {
+    display: none;
+  }
+
+  .navbar {
+    padding: 1rem 0.5rem;
+  }
+
+  .navbar .cyber-btn {
+    padding: 0.5rem;
+  }
 }
 
 /* Footer */
