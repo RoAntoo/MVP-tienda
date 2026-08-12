@@ -228,7 +228,10 @@ function renderCart() {
     img.src = item.imageUrl;
     img.alt = item.title;
     img.className = 'cart-item-img';
-    img.onerror = () => { img.src = 'https://placehold.co/60x80/14141e/ff2a85?text=?'; };
+    img.onerror = function() {
+      this.onerror = null;
+      this.src = 'https://placehold.co/60x80/14141e/ff2a85?text=?';
+    };
 
     const info = document.createElement('div');
     info.className = 'cart-item-info';
@@ -479,12 +482,13 @@ function renderProducts() {
 
   let productosFiltrados = PRODUCTS;
 
-  // Filtrar por búsqueda localmente (el backend se encarga de paginar/filtrar categorias)
+  // Filtrar por búsqueda localmente
   if (currentSearchQuery.trim() !== '') {
     const q = currentSearchQuery.toLowerCase().trim();
     productosFiltrados = productosFiltrados.filter(p =>
       p.title.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q)
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.categoria && p.categoria.toLowerCase().includes(q))
     );
   }
 
@@ -507,7 +511,10 @@ function renderProducts() {
     img.src = product.imageUrl;
     img.alt = product.title;
     img.className = 'product-image';
-    img.onerror = () => { img.src = 'https://placehold.co/400x600/14141e/ff2a85?text=NO+IMAGE'; };
+    img.onerror = function() {
+      this.onerror = null;
+      this.src = 'https://placehold.co/400x600/14141e/ff2a85?text=NO+IMAGE';
+    };
 
     const overlay = document.createElement('div');
     overlay.className = 'card-overlay';
@@ -554,8 +561,9 @@ function renderProducts() {
     const btn = document.createElement('button');
     btn.className = 'cyber-btn cyber-btn-primary add-to-cart-btn';
     btn.setAttribute('data-id', product.id);
+    btn.setAttribute('aria-label', `Añadir ${product.title} al carrito`);
     // Usar SVG de carrito
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
+    btn.innerHTML = `<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
     
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -789,4 +797,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   renderCart();
+
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const mobileMenu = document.getElementById('mobileMenu');
+  if (mobileMenuToggle && mobileMenu) {
+    mobileMenuToggle.addEventListener('click', () => {
+      const isExpanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
+      mobileMenuToggle.setAttribute('aria-expanded', String(!isExpanded));
+      mobileMenu.classList.toggle('active');
+    });
+  }
 });

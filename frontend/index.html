@@ -22,19 +22,24 @@
       <div class="logo">
         <a href="#" style="text-decoration: none;"><span class="glitch" data-text="EbooksPack">EbooksPack</span></a>
       </div>
-      
-      <div class="nav-links hide-on-mobile">
-        <a href="#" class="nav-link">Inicio</a>
-        <span class="nav-separator">|</span>
-        <a href="#catalogo" class="nav-link">Explorar</a>
-        <span class="nav-separator">|</span>
-        <a href="#catalogo" class="nav-link">Géneros</a>
+      <button id="mobileMenuToggle" class="cyber-btn-text hide-on-desktop" aria-label="Menú" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+
+      <div id="mobileMenu" class="nav-menu">
+        <div class="nav-links">
+          <a href="#" class="nav-link">Inicio</a>
+          <span class="nav-separator hide-on-mobile">|</span>
+          <a href="#catalogo" class="nav-link">Explorar</a>
+          <span class="nav-separator hide-on-mobile">|</span>
+          <a href="#catalogo" class="nav-link">Géneros</a>
+        </div>
+        <button id="requestBtn" class="cyber-btn-text" aria-label="Solicitar libros">
+          Solicitar libro/s
+        </button>
       </div>
 
       <div class="nav-actions">
-        <button id="requestBtn" class="cyber-btn-text hide-on-mobile" aria-label="Solicitar libros">
-          Solicitar libro/s
-        </button>
         <button id="cartBtn" class="cyber-btn cyber-btn-primary" style="display: flex; align-items: center; gap: 0.5rem;" aria-label="Ver carrito">
           <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 64 64" width="20" height="20">
             <g transform="translate(-3188 -248)">
@@ -58,7 +63,7 @@
         <div class="hero-search-wrapper">
           <div class="search-container hero-search">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" id="searchInput" class="cyber-input" placeholder="Buscar por título, autor, género..." autocomplete="off" aria-label="Buscar libros">
+            <input type="text" id="searchInput" class="cyber-input" placeholder="Buscar por título, género, palabras clave..." autocomplete="off" aria-label="Buscar libros">
           </div>
         </div>
       </div>
