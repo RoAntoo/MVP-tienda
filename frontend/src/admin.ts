@@ -170,7 +170,7 @@ async function cargarSolicitudes() {
             </span>
           </td>
           <td>
-            ${sol.estado === 'PENDIENTE'
+            ${sol.estado !== 'NOTIFICADO'
             ? `<button class="cyber-btn cyber-btn-sm" onclick="notificarSubida('${sol.id}')">Avisar Subida</button>`
             : '-'
           }
