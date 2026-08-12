@@ -583,23 +583,88 @@ footer {
 }
 
 /* --- FILTROS DE CATEGORÍAS --- */
+.category-filters-wrapper {
+  position: relative;
+  margin-bottom: 2rem;
+  background: rgba(20, 20, 30, 0.5);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Sombras oscuras en los bordes para indicar que hay scroll oculto */
+.category-filters-wrapper::before,
+.category-filters-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.category-filters-wrapper::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(20, 20, 30, 0.95), transparent);
+}
+
+.category-filters-wrapper::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(20, 20, 30, 0.95), transparent);
+}
+
 .category-filters {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
-  justify-content: center;
-  flex-wrap: wrap;
+  padding: 1rem 2rem; /* Espacio para respirar debajo de las sombras */
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--accent-cyan) rgba(13, 13, 18, 0.8);
+  padding-bottom: 1.5rem; /* Dar un pequeño margen para que la barra no toque los botones */
+}
+
+/* Estilizar barra de scroll para Chrome/Edge/Safari (PC) */
+.category-filters::-webkit-scrollbar {
+  height: 6px;
+}
+
+.category-filters::-webkit-scrollbar-track {
+  background: rgba(13, 13, 18, 0.5);
+  border-radius: 4px;
+}
+
+.category-filters::-webkit-scrollbar-thumb {
+  background: var(--accent-cyan);
+  border-radius: 4px;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+}
+
+.category-filters::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-pink);
 }
 
 .category-btn {
   background: transparent;
   color: var(--text-main);
   border: 1px solid var(--border-glass);
-  padding: 0.5rem 1.5rem;
+  padding: 0.4rem 1.2rem;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
+  
+  /* Arreglo para que no se rompan las palabras (evitar saltos de línea molestos) */
+  white-space: nowrap;
+  
+  /* Hacer que mantengan un tamaño uniforme */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  flex: 0 0 auto;
 }
 
 .category-btn:hover {
@@ -618,4 +683,75 @@ footer {
 .category-btn:has(input:focus-visible) {
   outline: 2px solid var(--accent-pink);
   outline-offset: 2px;
+}
+
+/* --- TOAST NOTIFICATIONS --- */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(13, 13, 18, 0.95);
+  border: 1px solid var(--accent-cyan);
+  color: var(--text-main);
+  padding: 1rem 1.5rem;
+  border-radius: 4px;
+  font-family: var(--font-retro);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+  transform: translateX(120%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  max-width: 350px;
+  overflow-wrap: break-word;
+}
+
+.toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast.success {
+  border-color: #00f0ff;
+  color: #00f0ff;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+}
+
+.toast.error {
+  border-color: #ff2a85;
+  color: #ff2a85;
+  box-shadow: 0 0 15px rgba(255, 42, 133, 0.2);
+}
+
+/* --- TOAST RESPONSIVENESS (MOBILE) --- */
+@media (max-width: 480px) {
+  .toast-container {
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    align-items: center;
+  }
+  
+  .toast {
+    max-width: 100%;
+    width: 100%;
+    font-size: 0.9rem;
+    justify-content: center;
+    /* En móviles preferimos que suba desde abajo en vez de entrar por la derecha */
+    transform: translateY(120%);
+  }
+
+  .toast.show {
+    transform: translateY(0);
+  }
 }

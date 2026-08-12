@@ -32,9 +32,32 @@ const checkoutForm = document.getElementById('checkoutForm');
 const cartCountElement = document.getElementById('cartCount');
 const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
 
+// Sistema de Notificaciones (Toasts)
+function showToast(message: string, type: 'success' | 'error' = 'success') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = `> ${message}`;
+  toast.setAttribute("role", type === 'success' ? 'status' : 'alert');
+
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    toast.addEventListener('transitionend', () => {
+      toast.remove();
+    });
+  }, 3000);
+}
+
 // Funciones del Modal
 let lastFocusedElement: HTMLElement | null = null;
-let lastFocusedBeforeModal: HTMLElement | null = null;
 
 function setupFocusTrap(modalElement: HTMLElement) {
   const focusableElements = modalElement.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
@@ -535,7 +558,7 @@ if (checkoutForm) {
   checkoutForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (cartItems.length === 0) {
-      alert("⚠️ Error: El carrito está vacío.");
+      showToast("Error: El carrito está vacío.", "error");
       return;
     }
 
@@ -571,18 +594,10 @@ if (checkoutForm) {
       renderCart();
       toggleCart();
 
-      // Mostrar Modal de Éxito
-      const successModal = document.getElementById('checkoutSuccessModal');
-      const closeSuccessBtn = document.getElementById('closeSuccessBtn');
-      if (successModal) {
-        lastFocusedBeforeModal = document.activeElement as HTMLElement;
-        successModal.classList.remove('hidden');
-        setupFocusTrap(successModal);
-        if (closeSuccessBtn) closeSuccessBtn.focus();
-      }
+      showToast("SOLICITUD_COMPLETADA_: Revisa tu correo con las instrucciones.", "success");
 
     } catch (error: any) {
-      alert(`⚠️ ERROR EN EL ENLACE: ${error.message}`);
+      showToast(`ERROR EN EL ENLACE: ${error.message}`, "error");
     } finally {
       submitBtn.innerText = originalBtnText;
       submitBtn.disabled = false;
@@ -661,19 +676,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const closeSuccessBtn = document.getElementById('closeSuccessBtn');
-  if (closeSuccessBtn) {
-    closeSuccessBtn.addEventListener('click', () => {
-      const successModal = document.getElementById('checkoutSuccessModal');
-      if (successModal) {
-        successModal.classList.add('hidden');
-        if (lastFocusedBeforeModal) {
-          lastFocusedBeforeModal.focus();
-        }
-      }
-    });
-  }
-
   // Lógica del Request Modal
   const requestBtn = document.getElementById('requestBtn');
   const requestModal = document.getElementById('requestModal');
@@ -726,20 +728,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           throw new Error(errorMessage || 'Error al enviar la solicitud');
         }
 
-        requestFeedback.innerText = '> SOLICITUD_ENVIADA_CON_ÉXITO';
-        requestFeedback.style.color = '#4CAF50';
-        requestFeedback.style.borderColor = '#4CAF50';
-        requestFeedback.style.display = 'block';
+        showToast("SOLICITUD_ENVIADA_CON_ÉXITO", "success");
         requestForm.reset();
         
         setTimeout(() => {
           closeRequestModal();
-        }, 3000);
+        }, 1000);
       } catch (error: any) {
-        requestFeedback.innerText = `> ERROR: ${error.message}`;
-        requestFeedback.style.color = '#F44336';
-        requestFeedback.style.borderColor = '#F44336';
-        requestFeedback.style.display = 'block';
+        showToast(`ERROR: ${error.message}`, "error");
       } finally {
         submitRequestBtn.innerText = 'ENVIAR_SOLICITUD';
         submitRequestBtn.disabled = false;
