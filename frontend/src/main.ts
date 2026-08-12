@@ -596,6 +596,7 @@ function renderProducts() {
 
     card.addEventListener('click', handleCardAction);
     card.addEventListener('keydown', (e) => {
+      if (e.target !== card) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         handleCardAction(e);
