@@ -7,9 +7,9 @@
   "scripts": {
     "dev": "tsx watch src/infraestructura/http/servidor.ts",
     "build": "tsc",
-    "start": "export SQLITE_URL=${SQLITE_URL:-\"file:./dev.db\"} && node dist/infraestructura/http/servidor.js",
+    "start": "node dist/infraestructura/http/servidor.js",
     "test": "vitest run",
-    "heroku-postbuild": "export SQLITE_URL=${SQLITE_URL:-\"file:./dev.db\"} && npx prisma generate && npx prisma migrate deploy"
+    "heroku-postbuild": "npx prisma generate && npx prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
