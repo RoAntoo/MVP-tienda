@@ -375,7 +375,6 @@ function renderCategories() {
 
   ALL_CATEGORIES.forEach(cat => {
     const label = document.createElement('label');
-    // Reutilizamos la clase category-btn que ya tiene los estilos retro/cyberpunk
     label.className = `category-btn ${selectedCategories.has(cat) ? 'active' : ''}`;
     label.style.display = 'flex';
     label.style.alignItems = 'center';
@@ -404,7 +403,10 @@ function renderCategories() {
     });
 
     label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(`[ ${cat.toUpperCase()} ]`));
+    
+    // Capitalizar la primera letra
+    const displayName = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+    label.appendChild(document.createTextNode(displayName));
     filtersContainer.appendChild(label);
   });
 }
@@ -497,29 +499,66 @@ function renderProducts() {
     const card = document.createElement('div');
     card.className = 'product-card';
 
+    // Image Container
+    const imgContainer = document.createElement('div');
+    imgContainer.className = 'product-image-container';
+
     const img = document.createElement('img');
     img.src = product.imageUrl;
     img.alt = product.title;
     img.className = 'product-image';
-    img.onerror = () => { img.src = 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE+FOUND'; };
+    img.onerror = () => { img.src = 'https://placehold.co/400x600/14141e/ff2a85?text=NO+IMAGE'; };
 
+    const overlay = document.createElement('div');
+    overlay.className = 'card-overlay';
+    const viewBtn = document.createElement('span');
+    viewBtn.className = 'cyber-btn cyber-btn-primary';
+    viewBtn.textContent = 'Ver Detalles';
+    overlay.appendChild(viewBtn);
+
+    imgContainer.appendChild(img);
+    imgContainer.appendChild(overlay);
+
+    // Info Container
     const infoDiv = document.createElement('div');
     infoDiv.className = 'product-info';
+
+    // Metadata
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'product-metadata';
+    
+    const tagEpub = document.createElement('span');
+    tagEpub.className = 'format-tag';
+    tagEpub.textContent = 'EPUB';
+    metaDiv.appendChild(tagEpub);
+
+    if (product.categoria) {
+      const tagCat = document.createElement('span');
+      tagCat.className = 'product-author'; // Reusing this class for subtle text
+      tagCat.textContent = product.categoria.charAt(0).toUpperCase() + product.categoria.slice(1).toLowerCase();
+      metaDiv.appendChild(tagCat);
+    }
 
     const title = document.createElement('h3');
     title.className = 'product-title';
     title.textContent = product.title;
+
+    // Bottom section
+    const bottomDiv = document.createElement('div');
+    bottomDiv.className = 'card-bottom';
 
     const price = document.createElement('p');
     price.className = 'product-price';
     price.textContent = `$${product.price.toLocaleString('es-AR')}`;
 
     const btn = document.createElement('button');
-    btn.className = 'cyber-btn cyber-btn-pink add-to-cart-btn';
+    btn.className = 'cyber-btn cyber-btn-primary add-to-cart-btn';
     btn.setAttribute('data-id', product.id);
-    btn.textContent = '[ AGREGAR_AL_CARRITO ]';
-
+    // Usar SVG de carrito
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
+    
     btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const target = e.currentTarget as HTMLButtonElement;
       const added = addToCart(product.id);
 
@@ -528,11 +567,14 @@ function renderProducts() {
       }
     });
 
-    infoDiv.appendChild(title);
-    infoDiv.appendChild(price);
-    infoDiv.appendChild(btn);
+    bottomDiv.appendChild(price);
+    bottomDiv.appendChild(btn);
 
-    card.appendChild(img);
+    infoDiv.appendChild(metaDiv);
+    infoDiv.appendChild(title);
+    infoDiv.appendChild(bottomDiv);
+
+    card.appendChild(imgContainer);
     card.appendChild(infoDiv);
 
     card.style.cursor = 'pointer';
