@@ -713,7 +713,7 @@ footer {
   gap: 10px;
   pointer-events: auto;
   max-width: 350px;
-  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .toast.show {

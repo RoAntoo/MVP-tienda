@@ -39,7 +39,8 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `> ${message}`;
+  toast.textContent = `> ${message}`;
+  toast.setAttribute("role", type === 'success' ? 'status' : 'alert');
 
   container.appendChild(toast);
 
@@ -57,7 +58,6 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
 
 // Funciones del Modal
 let lastFocusedElement: HTMLElement | null = null;
-let lastFocusedBeforeModal: HTMLElement | null = null;
 
 function setupFocusTrap(modalElement: HTMLElement) {
   const focusableElements = modalElement.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
