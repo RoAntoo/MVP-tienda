@@ -28,6 +28,7 @@ describe('ResponderSolicitudUseCase', () => {
       'RESPUESTA_SOLICITUD',
       JSON.stringify({ existe: true })
     );
+    expect(tokens.validarTokenAprobacion).toHaveBeenCalledWith('token123', '1', 'secret');
     expect(result.mensaje).toBe('Respuesta enviada correctamente al cliente');
   });
 
