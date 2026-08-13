@@ -57,6 +57,12 @@ body {
   align-items: center;
 }
 
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .nav-link {
   color: var(--text-muted);
   text-decoration: none;
