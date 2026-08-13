@@ -802,10 +802,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mobileMenuToggle = document.getElementById('mobileMenuToggle');
   const mobileMenu = document.getElementById('mobileMenu');
   if (mobileMenuToggle && mobileMenu) {
-    mobileMenuToggle.addEventListener('click', () => {
+    // Toggle on button click
+    mobileMenuToggle.addEventListener('click', (e) => {
+      e.stopPropagation(); // Evitar que el clic en el botón dispare el evento del document
       const isExpanded = mobileMenuToggle.getAttribute('aria-expanded') === 'true';
       mobileMenuToggle.setAttribute('aria-expanded', String(!isExpanded));
       mobileMenu.classList.toggle('active');
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (mobileMenu.classList.contains('active')) {
+        const target = e.target as Node;
+        // Si el clic no fue ni en el menú ni en el botón que lo abre
+        if (!mobileMenu.contains(target) && !mobileMenuToggle.contains(target)) {
+          mobileMenu.classList.remove('active');
+          mobileMenuToggle.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+
+    // Option: also close when clicking a link inside the menu
+    const navLinks = mobileMenu.querySelectorAll('a, button');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        mobileMenu.classList.remove('active');
+        mobileMenuToggle.setAttribute('aria-expanded', 'false');
+      });
     });
   }
 });
