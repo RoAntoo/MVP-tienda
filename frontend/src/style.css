@@ -759,6 +759,25 @@ body {
   .navbar .cyber-btn {
     padding: 0.5rem;
   }
+
+  .trust-container {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 0.5rem;
+    gap: 2rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .trust-container::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .trust-item {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
 }
 
 /* Footer */
