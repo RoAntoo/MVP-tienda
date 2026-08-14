@@ -135,7 +135,7 @@ function showAddedFeedback(button: HTMLButtonElement) {
 }
 
 let lastFocusedFromCatalog: HTMLElement | null = null;
-let lastScrollPosition: number = 0;
+let lastScrollPosition: number | null = null;
 
 // Vista de Detalles
 function openProductDetails(id: string) {
@@ -182,12 +182,44 @@ function closeProductDetails() {
   hero.classList.remove('hidden');
   catalog.classList.remove('hidden');
 
-  if (lastScrollPosition) {
-    window.scrollTo({ top: lastScrollPosition, behavior: 'smooth' });
+  if (lastScrollPosition !== null) {
+    window.scrollTo({ top: lastScrollPosition, behavior: 'auto' });
   }
 
   if (lastFocusedFromCatalog && typeof lastFocusedFromCatalog.focus === 'function') {
-    lastFocusedFromCatalog.focus();
+    lastFocusedFromCatalog.focus({ preventScroll: true });
+  }
+}
+
+// Modal Solicitar Libros
+let lastFocusedFromRequestModal: HTMLElement | null = null;
+
+function openRequestModal() {
+  const requestModal = document.getElementById('requestModal');
+  const requestFeedback = document.getElementById('requestFeedback');
+  const requestForm = document.getElementById('requestForm') as HTMLFormElement | null;
+  const closeRequestModalTop = document.getElementById('closeRequestModalTop');
+  if (!requestModal) return;
+
+  lastFocusedFromRequestModal = document.activeElement as HTMLElement;
+  requestModal.classList.remove('hidden');
+  if (requestFeedback) requestFeedback.style.display = 'none';
+  if (requestForm) requestForm.reset();
+
+  setupFocusTrap(requestModal, true);
+  if (closeRequestModalTop) {
+    closeRequestModalTop.focus();
+  }
+}
+
+function closeRequestModal() {
+  const requestModal = document.getElementById('requestModal');
+  if (!requestModal || requestModal.classList.contains('hidden')) return;
+
+  requestModal.classList.add('hidden');
+
+  if (lastFocusedFromRequestModal && typeof lastFocusedFromRequestModal.focus === 'function') {
+    lastFocusedFromRequestModal.focus({ preventScroll: true });
   }
 }
 
@@ -195,7 +227,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     const requestModal = document.getElementById('requestModal');
     if (requestModal && !requestModal.classList.contains('hidden')) {
-      requestModal.classList.add('hidden');
+      closeRequestModal();
       return;
     }
     const detailView = document.getElementById('productDetailView');
@@ -781,21 +813,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const submitRequestBtn = document.getElementById('submitRequestBtn') as HTMLButtonElement;
 
   if (requestBtn && requestModal && closeRequestModalBtn && requestForm && requestFeedback && submitRequestBtn) {
-    const openRequestModal = () => {
-      // Quitar foco de cualquier elemento activo previo para que el celular no abra el teclado
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-      requestModal.classList.remove('hidden');
-      requestFeedback.style.display = 'none';
-      requestForm.reset();
-      setupFocusTrap(requestModal, false);
-    };
-
-    const closeRequestModal = () => {
-      requestModal.classList.add('hidden');
-    };
-
     requestBtn.addEventListener('click', openRequestModal);
     closeRequestModalBtn.addEventListener('click', closeRequestModal);
     if (closeRequestModalTop) {
