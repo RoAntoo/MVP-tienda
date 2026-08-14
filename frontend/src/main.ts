@@ -59,13 +59,16 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
 // Funciones del Modal
 let lastFocusedElement: HTMLElement | null = null;
 
-function setupFocusTrap(modalElement: HTMLElement) {
-  const focusableElements = modalElement.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+function setupFocusTrap(modalElement: HTMLElement, autoFocus: boolean = true) {
+  const focusableElements = modalElement.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
   if (focusableElements.length > 0) {
-    const firstElement = focusableElements[0] as HTMLElement;
-    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
     
-    firstElement.focus();
+    // Evitar hacer focus automático si el elemento es un input o textarea (para no abrir el teclado en móviles)
+    if (autoFocus && !(firstElement instanceof HTMLInputElement || firstElement instanceof HTMLTextAreaElement)) {
+      firstElement.focus();
+    }
     
     const trapFocus = (e: KeyboardEvent) => {
       if (e.key === 'Tab') {
@@ -132,6 +135,8 @@ function showAddedFeedback(button: HTMLButtonElement) {
 }
 
 let lastFocusedFromCatalog: HTMLElement | null = null;
+let lastScrollPosition: number | null = null;
+
 // Vista de Detalles
 function openProductDetails(id: string) {
   const p = PRODUCTS.find(prod => prod.id === id);
@@ -143,6 +148,7 @@ function openProductDetails(id: string) {
 
   if (!catalog || !detailView || !hero) return;
 
+  lastScrollPosition = window.scrollY;
   lastFocusedFromCatalog = document.activeElement as HTMLElement;
   
   (document.getElementById('detailImage') as HTMLImageElement).src = p.imageUrl || 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE';
@@ -170,18 +176,68 @@ function closeProductDetails() {
   const detailView = document.getElementById('productDetailView');
 
   if (!catalog || !detailView || !hero) return;
+  if (detailView.classList.contains('hidden')) return;
 
   detailView.classList.add('hidden');
   hero.classList.remove('hidden');
   catalog.classList.remove('hidden');
 
+  if (lastScrollPosition !== null) {
+    window.scrollTo({ top: lastScrollPosition, behavior: 'auto' });
+  }
+
   if (lastFocusedFromCatalog && typeof lastFocusedFromCatalog.focus === 'function') {
-    lastFocusedFromCatalog.focus();
+    lastFocusedFromCatalog.focus({ preventScroll: true });
   }
 }
+
+// Modal Solicitar Libros
+let lastFocusedFromRequestModal: HTMLElement | null = null;
+
+function openRequestModal() {
+  const requestModal = document.getElementById('requestModal');
+  const requestFeedback = document.getElementById('requestFeedback');
+  const requestForm = document.getElementById('requestForm') as HTMLFormElement | null;
+  const closeRequestModalTop = document.getElementById('closeRequestModalTop');
+  if (!requestModal) return;
+
+  lastFocusedFromRequestModal = document.activeElement as HTMLElement;
+  requestModal.classList.remove('hidden');
+  if (requestFeedback) requestFeedback.style.display = 'none';
+  if (requestForm) requestForm.reset();
+
+  setupFocusTrap(requestModal, true);
+  if (closeRequestModalTop) {
+    closeRequestModalTop.focus();
+  }
+}
+
+function closeRequestModal() {
+  const requestModal = document.getElementById('requestModal');
+  if (!requestModal || requestModal.classList.contains('hidden')) return;
+
+  requestModal.classList.add('hidden');
+
+  if (lastFocusedFromRequestModal && typeof lastFocusedFromRequestModal.focus === 'function') {
+    lastFocusedFromRequestModal.focus({ preventScroll: true });
+  }
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && cartSidebar && !cartSidebar.classList.contains('hidden')) {
-    toggleCart();
+  if (e.key === 'Escape') {
+    const requestModal = document.getElementById('requestModal');
+    if (requestModal && !requestModal.classList.contains('hidden')) {
+      closeRequestModal();
+      return;
+    }
+    const detailView = document.getElementById('productDetailView');
+    if (detailView && !detailView.classList.contains('hidden')) {
+      closeProductDetails();
+      return;
+    }
+    if (cartSidebar && !cartSidebar.classList.contains('hidden')) {
+      toggleCart();
+    }
   }
 });
 
@@ -591,6 +647,7 @@ function renderProducts() {
 
     const handleCardAction = (e: Event) => {
       if ((e.target as HTMLElement).closest('.add-to-cart-btn')) return;
+      e.stopPropagation();
       openProductDetails(product.id);
     };
 
@@ -716,6 +773,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     backBtn.addEventListener('click', closeProductDetails);
   }
 
+  const detailView = document.getElementById('productDetailView');
+  if (detailView) {
+    document.addEventListener('click', (e) => {
+      if (detailView.classList.contains('hidden')) return;
+      const target = e.target as HTMLElement;
+
+      // Si el clic fue dentro de la caja de detalles (.detail-content), no cerrar
+      if (target.closest('.detail-content')) return;
+
+      // Si el clic fue en una card de producto o en el botón de volver, no cerrar aquí
+      if (target.closest('.product-card') || target.closest('#backToCatalogBtn')) return;
+
+      closeProductDetails();
+    });
+  }
+
   const detailAddBtn = document.getElementById('detailAddToCartBtn');
   if (detailAddBtn) {
     detailAddBtn.addEventListener('click', (e) => {
@@ -734,24 +807,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const requestBtn = document.getElementById('requestBtn');
   const requestModal = document.getElementById('requestModal');
   const closeRequestModalBtn = document.getElementById('closeRequestModal');
+  const closeRequestModalTop = document.getElementById('closeRequestModalTop');
   const requestForm = document.getElementById('requestForm') as HTMLFormElement;
   const requestFeedback = document.getElementById('requestFeedback');
   const submitRequestBtn = document.getElementById('submitRequestBtn') as HTMLButtonElement;
 
   if (requestBtn && requestModal && closeRequestModalBtn && requestForm && requestFeedback && submitRequestBtn) {
-    const openRequestModal = () => {
-      requestModal.classList.remove('hidden');
-      requestFeedback.style.display = 'none';
-      requestForm.reset();
-      setupFocusTrap(requestModal);
-    };
-
-    const closeRequestModal = () => {
-      requestModal.classList.add('hidden');
-    };
-
     requestBtn.addEventListener('click', openRequestModal);
     closeRequestModalBtn.addEventListener('click', closeRequestModal);
+    if (closeRequestModalTop) {
+      closeRequestModalTop.addEventListener('click', closeRequestModal);
+    }
     requestModal.addEventListener('click', (e) => {
       if (e.target === requestModal) closeRequestModal();
     });
