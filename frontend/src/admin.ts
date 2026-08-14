@@ -277,7 +277,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
 
   const payload = {
     titulo: (document.getElementById('prodTitulo') as HTMLInputElement).value,
-    precio: parseInt((document.getElementById('prodPrecio') as HTMLInputElement).value, 10),
+    precio: Number((document.getElementById('prodPrecio') as HTMLInputElement).value),
     categoria: (document.getElementById('prodCategoria') as HTMLInputElement).value,
     imagenUrl: (document.getElementById('prodImagen') as HTMLInputElement).value,
     driveUrl: (document.getElementById('prodDrive') as HTMLInputElement).value,
@@ -380,14 +380,17 @@ async function cargarProductos() {
   const fetchId = ++currentTabFetchId;
   productosBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
-    let query = '';
+    let params = new URLSearchParams();
+    params.set('limit', '100');
     const sortSelect = document.getElementById('sortProductos') as HTMLSelectElement;
     if (sortSelect && sortSelect.value) {
       const [campo, direccion] = sortSelect.value.split('-');
       if (campo && direccion) {
-        query = `?campo=${campo}&direccion=${direccion}`;
+        params.set('campo', campo);
+        params.set('direccion', direccion);
       }
     }
+    const query = `?${params.toString()}`;
 
     const res = await fetch(`${API_URL}/admin/productos${query}`, {
       headers: { 'x-api-key': apiKey }
@@ -445,7 +448,7 @@ function renderizarSugerenciasPrecio(inputId: string, chipsContainerId: string, 
 
   if (datalist) {
     datalist.innerHTML = preciosFrecuentes
-      .map(item => `<option value="${item.precio}">$${item.precio.toLocaleString('es-AR')}</option>`)
+      .map(item => `<option value="${item.precio}" label="$${item.precio.toLocaleString('es-AR')}"></option>`)
       .join('');
   }
 
@@ -466,9 +469,11 @@ function renderizarSugerenciasPrecio(inputId: string, chipsContainerId: string, 
       chip.textContent = formattedPrice;
     }
 
-    if (!isNaN(valorActual) && valorActual === item.precio) {
+    const isActive = !isNaN(valorActual) && valorActual === item.precio;
+    if (isActive) {
       chip.classList.add('active');
     }
+    chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
 
     chip.addEventListener('click', () => {
       if (input) {
@@ -492,10 +497,13 @@ function sincronizarChipsActivos(inputId: string, chipsContainerId: string) {
   const chips = chipsContainer.querySelectorAll<HTMLButtonElement>('.price-chip');
   chips.forEach(chip => {
     const chipPrice = Number(chip.getAttribute('data-price'));
-    if (!isNaN(valorActual) && valorActual === chipPrice) {
+    const isActive = !isNaN(valorActual) && valorActual === chipPrice;
+    if (isActive) {
       chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
     } else {
       chip.classList.remove('active');
+      chip.setAttribute('aria-pressed', 'false');
     }
   });
 }
