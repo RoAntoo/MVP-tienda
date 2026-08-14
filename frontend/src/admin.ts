@@ -261,6 +261,7 @@ cancelarFormBtn.addEventListener('click', () => {
   nuevoProductoFormContainer.classList.add('hidden');
   mostrarFormBtn.classList.remove('hidden');
   nuevoProductoForm.reset();
+  sincronizarChipsActivos('prodPrecio', 'prodPriceChips');
 });
 
 cancelarEditBtn.addEventListener('click', cerrarModalEdicion);
@@ -308,6 +309,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
     }
 
     nuevoProductoForm.reset();
+    sincronizarChipsActivos('prodPrecio', 'prodPriceChips');
     nuevoProductoFormContainer.classList.add('hidden');
     mostrarFormBtn.classList.remove('hidden');
     cargarProductos(); // Recargar tabla
@@ -399,12 +401,117 @@ async function cargarProductos() {
     const productos = Array.isArray(responseData) ? responseData : (responseData.productos || []);
 
     actualizarDatalistCategorias(productos);
+    actualizarPreciosFrecuentes(productos);
     dibujarProductos(productos);
   } catch (err: any) {
     if (fetchId !== currentTabFetchId) return;
     productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
   }
 }
+
+// --- SUGERENCIAS DE PRECIOS FRECUENTES ---
+let preciosFrecuentes: { precio: number; count: number }[] = [];
+
+function actualizarPreciosFrecuentes(productos: any[]) {
+  const counts = new Map<number, number>();
+  productos.forEach(p => {
+    const precio = Number(p.precio);
+    if (!isNaN(precio) && precio > 0) {
+      counts.set(precio, (counts.get(precio) || 0) + 1);
+    }
+  });
+
+  if (counts.size > 0) {
+    // Ordenar por frecuencia descendente y luego por precio ascendente
+    preciosFrecuentes = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+      .slice(0, 6)
+      .map(([precio, count]) => ({ precio, count }));
+  } else {
+    // Sugerencias por defecto si aún no hay productos en base de datos
+    preciosFrecuentes = [2000, 3500, 5000, 7500, 10000].map(precio => ({ precio, count: 0 }));
+  }
+
+  renderizarSugerenciasPrecio('prodPrecio', 'prodPriceChips', 'prodPreciosList');
+  renderizarSugerenciasPrecio('editProdPrecio', 'editProdPriceChips', 'editProdPreciosList');
+}
+
+function renderizarSugerenciasPrecio(inputId: string, chipsContainerId: string, datalistId: string) {
+  const input = document.getElementById(inputId) as HTMLInputElement | null;
+  const chipsContainer = document.getElementById(chipsContainerId) as HTMLDivElement | null;
+  const datalist = document.getElementById(datalistId) as HTMLDataListElement | null;
+
+  if (!chipsContainer) return;
+
+  if (datalist) {
+    datalist.innerHTML = preciosFrecuentes
+      .map(item => `<option value="${item.precio}">$${item.precio.toLocaleString('es-AR')}</option>`)
+      .join('');
+  }
+
+  chipsContainer.innerHTML = '';
+
+  const valorActual = input ? Number(input.value) : NaN;
+
+  preciosFrecuentes.forEach(item => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'price-chip';
+    chip.setAttribute('data-price', String(item.precio));
+
+    const formattedPrice = `$${item.precio.toLocaleString('es-AR')}`;
+    if (item.count > 1) {
+      chip.innerHTML = `${formattedPrice} <span class="chip-count">${item.count}x</span>`;
+    } else {
+      chip.textContent = formattedPrice;
+    }
+
+    if (!isNaN(valorActual) && valorActual === item.precio) {
+      chip.classList.add('active');
+    }
+
+    chip.addEventListener('click', () => {
+      if (input) {
+        input.value = String(item.precio);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.focus();
+      }
+    });
+
+    chipsContainer.appendChild(chip);
+  });
+}
+
+function sincronizarChipsActivos(inputId: string, chipsContainerId: string) {
+  const input = document.getElementById(inputId) as HTMLInputElement | null;
+  const chipsContainer = document.getElementById(chipsContainerId) as HTMLDivElement | null;
+  if (!input || !chipsContainer) return;
+
+  const valorActual = Number(input.value);
+  const chips = chipsContainer.querySelectorAll<HTMLButtonElement>('.price-chip');
+  chips.forEach(chip => {
+    const chipPrice = Number(chip.getAttribute('data-price'));
+    if (!isNaN(valorActual) && valorActual === chipPrice) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+}
+
+function inicializarEventosPrecios(inputId: string, chipsContainerId: string) {
+  const input = document.getElementById(inputId) as HTMLInputElement | null;
+  if (!input) return;
+
+  input.addEventListener('input', () => sincronizarChipsActivos(inputId, chipsContainerId));
+  input.addEventListener('change', () => sincronizarChipsActivos(inputId, chipsContainerId));
+}
+
+// Inicializar listeners y valores base para sugerencias de precio
+inicializarEventosPrecios('prodPrecio', 'prodPriceChips');
+inicializarEventosPrecios('editProdPrecio', 'editProdPriceChips');
+actualizarPreciosFrecuentes([]);
 
 function actualizarDatalistCategorias(productos: any[]) {
   categoriasDisponibles = [...new Set(productos.map(p => p.categoria).filter(Boolean))] as string[];
@@ -467,6 +574,7 @@ function abrirModalEdicion(p: any) {
   (document.getElementById('editProdDrive') as HTMLInputElement).value = p.driveUrl || '';
   (document.getElementById('editProdDesc') as HTMLTextAreaElement).value = p.descripcion || '';
   (document.getElementById('editProdCantidad') as HTMLInputElement).value = p.cantidad || 1;
+  sincronizarChipsActivos('editProdPrecio', 'editProdPriceChips');
   modalEdicion.classList.remove('hidden');
 
   // Focus trap para accesibilidad
@@ -514,6 +622,7 @@ function abrirModalEdicion(p: any) {
 function cerrarModalEdicion() {
   modalEdicion.classList.add('hidden');
   editarProductoForm.reset();
+  sincronizarChipsActivos('editProdPrecio', 'editProdPriceChips');
   if (lastFocusedElementEdicion && typeof lastFocusedElementEdicion.focus === 'function') {
     lastFocusedElementEdicion.focus();
   }
