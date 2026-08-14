@@ -270,6 +270,12 @@ editarProductoForm.addEventListener('submit', manejarEdicionProducto);
 nuevoProductoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
+  const precio = Number((document.getElementById('prodPrecio') as HTMLInputElement).value);
+  if (!Number.isFinite(precio) || precio <= 0) {
+    await cyberAlert('El precio debe ser un número válido mayor a cero.');
+    return;
+  }
+
   const submitBtn = nuevoProductoForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   const originalText = submitBtn.innerText;
   submitBtn.innerText = 'GUARDANDO...';
@@ -277,7 +283,7 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
 
   const payload = {
     titulo: (document.getElementById('prodTitulo') as HTMLInputElement).value,
-    precio: Number((document.getElementById('prodPrecio') as HTMLInputElement).value),
+    precio,
     categoria: (document.getElementById('prodCategoria') as HTMLInputElement).value,
     imagenUrl: (document.getElementById('prodImagen') as HTMLInputElement).value,
     driveUrl: (document.getElementById('prodDrive') as HTMLInputElement).value,
@@ -639,10 +645,16 @@ function cerrarModalEdicion() {
 async function manejarEdicionProducto(e: Event) {
   e.preventDefault();
 
+  const precio = Number((document.getElementById('editProdPrecio') as HTMLInputElement).value);
+  if (!Number.isFinite(precio) || precio <= 0) {
+    await cyberAlert('El precio debe ser un número válido mayor a cero.');
+    return;
+  }
+
   const id = (document.getElementById('editProdId') as HTMLInputElement).value;
   const productoEditado = {
     titulo: (document.getElementById('editProdTitulo') as HTMLInputElement).value.trim(),
-    precio: Number((document.getElementById('editProdPrecio') as HTMLInputElement).value),
+    precio,
     categoria: (document.getElementById('editProdCategoria') as HTMLInputElement).value.trim(),
     imagenUrl: (document.getElementById('editProdImagen') as HTMLInputElement).value.trim(),
     driveUrl: (document.getElementById('editProdDrive') as HTMLInputElement).value.trim(),
