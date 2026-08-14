@@ -82,7 +82,14 @@
             </div>
             <div class="form-group">
               <label for="prodPrecio">PRECIO (ARS)</label>
-              <input type="number" id="prodPrecio" required step="1" min="1" placeholder="Ej: 5000" />
+              <input type="number" id="prodPrecio" required step="any" min="0" placeholder="Ej: 5000" list="prodPreciosList" />
+              <datalist id="prodPreciosList"></datalist>
+              <div id="prodPriceSuggestions" class="price-suggestions-container">
+                <div class="price-suggestions-header">
+                  <span class="price-suggestions-tag">&gt; PRECIOS_FRECUENTES:</span>
+                </div>
+                <div id="prodPriceChips" class="price-chips-wrapper"></div>
+              </div>
             </div>
             <div class="form-group">
               <label for="prodCantidad">CANTIDAD (ARCHIVOS INCLUIDOS)</label>
@@ -174,7 +181,14 @@
           </div>
           <div class="form-group">
             <label for="editProdPrecio">PRECIO (ARS)</label>
-            <input type="number" id="editProdPrecio" required step="1" min="1" />
+            <input type="number" id="editProdPrecio" required step="any" min="0" list="editProdPreciosList" />
+            <datalist id="editProdPreciosList"></datalist>
+            <div id="editProdPriceSuggestions" class="price-suggestions-container">
+              <div class="price-suggestions-header">
+                <span class="price-suggestions-tag">&gt; PRECIOS_FRECUENTES:</span>
+              </div>
+              <div id="editProdPriceChips" class="price-chips-wrapper"></div>
+            </div>
           </div>
           <div class="form-group">
             <label for="editProdCantidad">CANTIDAD (ARCHIVOS INCLUIDOS)</label>

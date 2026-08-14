@@ -290,3 +290,86 @@ tr:hover td {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* --- SUGERENCIAS DE PRECIOS FRECUENTES --- */
+.price-suggestions-container {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.price-suggestions-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-suggestions-tag {
+  font-size: 0.75rem;
+  color: rgba(0, 243, 255, 0.7);
+  letter-spacing: 0.5px;
+}
+
+.price-chips-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.price-chip {
+  background: rgba(0, 243, 255, 0.05);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  line-height: 1;
+}
+
+.price-chip:hover {
+  background: rgba(0, 243, 255, 0.2);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.price-chip:active {
+  transform: translateY(0);
+}
+
+.price-chip.active {
+  background: var(--accent-cyan);
+  color: var(--bg-dark);
+  border-color: var(--accent-cyan);
+  font-weight: bold;
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.5);
+}
+
+.price-chip .chip-count {
+  font-size: 0.68rem;
+  opacity: 0.8;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+
+.price-chip.active .chip-count {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--bg-dark);
+}
+
+@media (max-width: 600px) {
+  .price-chip {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}
