@@ -264,13 +264,14 @@ export async function rutas(servidor: FastifyInstance) {
           <h1 style="color: #ff2a85;">> CONFIRMAR APROBACIÓN</h1>
           <h2>Orden #${safeOrdenId.substring(0, 8)}</h2>
           <p>¿Estás seguro de que deseas aprobar esta orden y enviar los libros?</p>
-          <button id="btn" onclick="confirmar()" style="background-color: #ff2a85; color: white; padding: 15px 30px; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px;">
+          <button id="btn" style="background-color: #ff2a85; color: white; padding: 15px 30px; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; font-size: 16px;">
             [ CONFIRMAR APROBACIÓN DE ORDEN ]
           </button>
           <script>
-            function confirmar() {
-              document.getElementById('btn').innerText = 'PROCESANDO...';
-              document.getElementById('btn').disabled = true;
+            document.getElementById('btn').addEventListener('click', function () {
+              const btn = document.getElementById('btn');
+              btn.innerText = 'PROCESANDO...';
+              btn.disabled = true;
               fetch('/admin/ordenes/aprobar-magico', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -281,7 +282,7 @@ export async function rutas(servidor: FastifyInstance) {
                 document.body.innerHTML = html;
               })
               .catch(err => alert('Error: ' + err));
-            }
+            });
           </script>
         </div>
       `;
