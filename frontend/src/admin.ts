@@ -72,6 +72,10 @@ const ordenesTab = document.getElementById('ordenesTab')!;
 const productosTab = document.getElementById('productosTab')!;
 const solicitudesTab = document.getElementById('solicitudesTab')!;
 const ordenesBody = document.getElementById('ordenesBody')!;
+const ordenesBulkActions = document.getElementById('ordenesBulkActions')!;
+const ordenesSelectedCount = document.getElementById('ordenesSelectedCount')!;
+const seleccionarTodasOrdenes = document.getElementById('seleccionarTodasOrdenes') as HTMLInputElement;
+const eliminarOrdenesBtn = document.getElementById('eliminarOrdenesBtn') as HTMLButtonElement;
 const productosBody = document.getElementById('productosBody')!;
 const solicitudesBody = document.getElementById('solicitudesBody')!;
 
@@ -356,7 +360,7 @@ async function validarYEntrar(key: string): Promise<boolean> {
 
 async function cargarOrdenes() {
   const fetchId = ++currentTabFetchId;
-  ordenesBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+  ordenesBody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/ordenes`, {
       headers: { 'x-api-key': apiKey }
@@ -377,7 +381,7 @@ async function cargarOrdenes() {
       loginError.classList.remove('hidden');
       loginError.textContent = 'Acceso Denegado';
     } else {
-      ordenesBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
+      ordenesBody.innerHTML = `<tr><td colspan="6" style="color:red">${err.message}</td></tr>`;
     }
   }
 }
@@ -695,12 +699,13 @@ async function manejarEdicionProducto(e: Event) {
 // --- RENDER ---
 function dibujarOrdenes(ordenes: any[]) {
   if (ordenes.length === 0) {
-    ordenesBody.innerHTML = '<tr><td colspan="5">No hay órdenes registradas.</td></tr>';
+    ordenesBody.innerHTML = '<tr><td colspan="6">No hay órdenes registradas.</td></tr>';
     return;
   }
 
   ordenesBody.innerHTML = ordenes.map(orden => `
     <tr>
+      <td><input class="orden-checkbox" type="checkbox" data-id="${orden.id}" aria-label="Seleccionar orden ${orden.id.substring(0, 8)}"></td>
       <td>${orden.id.substring(0, 8)}</td>
       <td>${escapeHtml(orden.emailCliente)}</td>
       <td>$${Number(orden.total).toLocaleString('es-AR')}</td>
@@ -713,6 +718,11 @@ function dibujarOrdenes(ordenes: any[]) {
       </td>
     </tr>
   `).join('');
+
+  actualizarSeleccionOrdenes();
+  document.querySelectorAll('.orden-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', actualizarSeleccionOrdenes);
+  });
 
   // Eventos para botones aprobar
   document.querySelectorAll('.btn-aprobar').forEach(btn => {
@@ -734,6 +744,29 @@ function dibujarOrdenes(ordenes: any[]) {
     });
   });
 }
+
+function actualizarSeleccionOrdenes() {
+  const seleccionadas = document.querySelectorAll<HTMLInputElement>('.orden-checkbox:checked');
+  const total = document.querySelectorAll<HTMLInputElement>('.orden-checkbox').length;
+  ordenesSelectedCount.textContent = `${seleccionadas.length} seleccionada${seleccionadas.length === 1 ? '' : 's'}`;
+  ordenesBulkActions.classList.toggle('hidden', seleccionadas.length === 0);
+  seleccionarTodasOrdenes.checked = total > 0 && seleccionadas.length === total;
+  seleccionarTodasOrdenes.indeterminate = seleccionadas.length > 0 && seleccionadas.length < total;
+}
+
+seleccionarTodasOrdenes.addEventListener('change', () => {
+  document.querySelectorAll<HTMLInputElement>('.orden-checkbox').forEach(checkbox => {
+    checkbox.checked = seleccionarTodasOrdenes.checked;
+  });
+  actualizarSeleccionOrdenes();
+});
+
+eliminarOrdenesBtn.addEventListener('click', async () => {
+  const ids = [...document.querySelectorAll<HTMLInputElement>('.orden-checkbox:checked')]
+    .map(checkbox => checkbox.dataset.id).filter((id): id is string => Boolean(id));
+  if (ids.length === 0 || !(await cyberConfirm(`¿Eliminar ${ids.length} orden${ids.length === 1 ? '' : 'es'} seleccionada${ids.length === 1 ? '' : 's'}? Esta acción no se puede deshacer.`))) return;
+  eliminarOrdenes(ids);
+});
 
 function dibujarProductos(productos: any[]) {
   if (productos.length === 0) {
@@ -830,6 +863,25 @@ async function eliminarOrden(ordenId: string, botonRef?: HTMLButtonElement | nul
       botonRef.disabled = false;
       botonRef.innerText = 'ELIMINAR';
     }
+  }
+}
+
+async function eliminarOrdenes(ordenIds: string[]) {
+  eliminarOrdenesBtn.disabled = true;
+  eliminarOrdenesBtn.innerText = 'ELIMINANDO...';
+  try {
+    const res = await fetch(`${API_URL}/admin/ordenes/eliminar-multiples`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify({ ids: ordenIds })
+    });
+    if (!res.ok) throw new Error('Falló eliminación múltiple');
+    await cargarOrdenes();
+  } catch (error) {
+    await cyberAlert('Error al eliminar las órdenes seleccionadas');
+  } finally {
+    eliminarOrdenesBtn.disabled = false;
+    eliminarOrdenesBtn.innerText = 'ELIMINAR SELECCIONADAS';
   }
 }
 

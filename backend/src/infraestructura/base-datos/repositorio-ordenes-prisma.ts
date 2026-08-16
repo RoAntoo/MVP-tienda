@@ -88,4 +88,11 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
     });
     return count > 0 ? 'eliminada' : 'no_encontrada';
   }
+
+  async eliminarVarias(ids: string[]): Promise<number> {
+    const { count } = await this.prisma.orden.deleteMany({
+      where: { id: { in: ids } },
+    });
+    return count;
+  }
 }

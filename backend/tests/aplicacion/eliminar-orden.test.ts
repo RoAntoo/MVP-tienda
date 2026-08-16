@@ -10,7 +10,8 @@ describe('EliminarOrdenUseCase', () => {
       crear: vi.fn(),
       obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn(),
-      eliminar: vi.fn().mockResolvedValue('no_encontrada')
+      eliminar: vi.fn().mockResolvedValue('no_encontrada'),
+      eliminarVarias: vi.fn()
     };
 
     const useCase = new EliminarOrdenUseCase(mockRepoOrdenes);
@@ -25,7 +26,8 @@ describe('EliminarOrdenUseCase', () => {
       crear: vi.fn(),
       obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn(),
-      eliminar: vi.fn().mockResolvedValue('eliminada')
+      eliminar: vi.fn().mockResolvedValue('eliminada'),
+      eliminarVarias: vi.fn()
     };
 
     const useCase = new EliminarOrdenUseCase(mockRepoOrdenes);
@@ -34,5 +36,26 @@ describe('EliminarOrdenUseCase', () => {
     expect(mockRepoOrdenes.eliminar).toHaveBeenCalledWith('orden-123');
     // Una sola operación atómica: no debe hacer obtenerPorId antes de borrar
     expect(mockRepoOrdenes.obtenerPorId).not.toHaveBeenCalled();
+  });
+
+  it('elimina varias órdenes en una sola operación y quita IDs repetidos', async () => {
+    const mockRepoOrdenes: RepositorioOrdenes = {
+      obtenerPorId: vi.fn(), crear: vi.fn(), obtenerTodas: vi.fn(), actualizarEstado: vi.fn(),
+      eliminar: vi.fn(), eliminarVarias: vi.fn().mockResolvedValue(2)
+    };
+    const useCase = new EliminarOrdenUseCase(mockRepoOrdenes);
+
+    await expect(useCase.ejecutarVarias(['orden-1', 'orden-2', 'orden-1'])).resolves.toBe(2);
+    expect(mockRepoOrdenes.eliminarVarias).toHaveBeenCalledWith(['orden-1', 'orden-2']);
+  });
+
+  it('rechaza una selección vacía', async () => {
+    const mockRepoOrdenes: RepositorioOrdenes = {
+      obtenerPorId: vi.fn(), crear: vi.fn(), obtenerTodas: vi.fn(), actualizarEstado: vi.fn(),
+      eliminar: vi.fn(), eliminarVarias: vi.fn()
+    };
+    const useCase = new EliminarOrdenUseCase(mockRepoOrdenes);
+    await expect(useCase.ejecutarVarias([])).rejects.toThrow('Debe seleccionar al menos una orden');
+    expect(mockRepoOrdenes.eliminarVarias).not.toHaveBeenCalled();
   });
 });

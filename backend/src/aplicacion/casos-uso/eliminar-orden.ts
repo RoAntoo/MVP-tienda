@@ -12,4 +12,12 @@ export class EliminarOrdenUseCase {
       throw new Error('Orden no encontrada');
     }
   }
+
+  async ejecutarVarias(ordenIds: string[]): Promise<number> {
+    const idsUnicos = [...new Set(ordenIds)];
+    if (idsUnicos.length === 0) {
+      throw new Error('Debe seleccionar al menos una orden');
+    }
+    return this.repositorioOrdenes.eliminarVarias(idsUnicos);
+  }
 }

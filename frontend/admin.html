@@ -42,12 +42,19 @@
     </div>
 
     <main class="tab-content">
-      <section id="ordenesTab">
-        <h3>Últimas Órdenes</h3>
+        <section id="ordenesTab">
+        <div class="orders-heading">
+          <h3>Últimas Órdenes</h3>
+          <div id="ordenesBulkActions" class="bulk-actions hidden" aria-live="polite">
+            <span id="ordenesSelectedCount">0 seleccionadas</span>
+            <button id="eliminarOrdenesBtn" class="cyber-btn cyber-btn-sm cyber-btn-pink">ELIMINAR SELECCIONADAS</button>
+          </div>
+        </div>
         <div class="table-wrapper">
           <table id="ordenesTable">
             <thead>
               <tr>
+                <th><input id="seleccionarTodasOrdenes" type="checkbox" aria-label="Seleccionar todas las órdenes"></th>
                 <th>ID_CORTADO</th>
                 <th>CLIENTE</th>
                 <th>TOTAL</th>
