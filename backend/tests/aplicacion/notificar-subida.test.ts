@@ -13,7 +13,7 @@ describe('NotificarSubidaUseCase', () => {
     const result = await useCase.ejecutar('1');
 
     expect(mockRepo.obtenerPorId).toHaveBeenCalledWith('1');
-    expect(mockRepo.reservarYEncolar).toHaveBeenCalledWith('1', ['PENDIENTE'], 'NOTIFICADO', 'AVISO_SUBIDA');
+    expect(mockRepo.reservarYEncolar).toHaveBeenCalledWith('1', ['PENDIENTE', 'RESPONDIDO', 'RESPONDIENDO'], 'NOTIFICADO', 'AVISO_SUBIDA');
     expect(result.mensaje).toBe('Notificación enviada correctamente al cliente');
   });
 

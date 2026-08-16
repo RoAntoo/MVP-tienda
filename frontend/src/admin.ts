@@ -702,7 +702,7 @@ function dibujarOrdenes(ordenes: any[]) {
   ordenesBody.innerHTML = ordenes.map(orden => `
     <tr>
       <td>${orden.id.substring(0, 8)}</td>
-      <td>${orden.emailCliente}</td>
+      <td>${escapeHtml(orden.emailCliente)}</td>
       <td>$${Number(orden.total).toLocaleString('es-AR')}</td>
       <td><span class="status-badge status-${orden.estado}">${orden.estado}</span></td>
       <td>
@@ -733,9 +733,9 @@ function dibujarProductos(productos: any[]) {
       <td>${escapeHtml(prod.titulo)}</td>
       <td>$${escapeHtml(Number(prod.precio).toLocaleString('es-AR'))}</td>
       <td>${escapeHtml(String(prod.cantidad || 1))}</td>
-      <td style="font-size:0.8rem">${prod.driveUrl || 'N/A'}</td>
+      <td style="font-size:0.8rem">${escapeHtml(prod.driveUrl || 'N/A')}</td>
       <td>
-        <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod='${JSON.stringify(prod).replace(/'/g, "&apos;")}'>EDITAR</button>
+        <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod="${escapeHtml(JSON.stringify(prod))}">EDITAR</button>
         <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-prod" data-id="${prod.id}">ELIMINAR</button>
       </td>
     </tr>
