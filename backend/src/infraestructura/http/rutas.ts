@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import * as crypto from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../base-datos/prisma-cliente.js';
 import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-prisma.js';
@@ -26,13 +27,23 @@ function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string
   const rawKey = peticion.headers['x-api-key'];
   const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
 
-  if (apiKey !== adminApiKey) {
+  // Comparación en tiempo constante para no filtrar la clave por timing
+  const recibida = Buffer.from(apiKey || '', 'utf8');
+  const esperada = Buffer.from(adminApiKey, 'utf8');
+  const esValida = recibida.length === esperada.length && crypto.timingSafeEqual(recibida, esperada);
+
+  if (!esValida) {
     respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
     return false;
   }
-  
+
   return true;
 }
+
+// Límites de rate limiting por tipo de endpoint (anti-spam / anti-fuerza-bruta)
+const limiteCompras = { rateLimit: { max: 10, timeWindow: '1 minute' } };
+const limiteSolicitudesPublico = { rateLimit: { max: 5, timeWindow: '1 minute' } };
+const limiteAdmin = { rateLimit: { max: 30, timeWindow: '1 minute' } };
 
 // Esquemas de validación Zod
 const EsquemaIniciarCompra = z.object({
@@ -135,7 +146,7 @@ export async function rutas(servidor: FastifyInstance) {
   const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes);
 
   // Endpoint 1: Iniciar Compra (Carrito)
-  servidor.post('/compras', async (peticion, respuesta) => {
+  servidor.post('/compras', { config: limiteCompras }, async (peticion, respuesta) => {
     try {
       const cuerpo = EsquemaIniciarCompra.parse(peticion.body);
       const resultado = await iniciarCompraUseCase.ejecutar(cuerpo);
@@ -194,7 +205,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 1.7: Solicitar Libros
-  servidor.post('/solicitudes', async (peticion, respuesta) => {
+  servidor.post('/solicitudes', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
     try {
       const cuerpo = EsquemaSolicitudLibro.parse(peticion.body);
       const resultado = await solicitarLibrosUseCase.ejecutar(cuerpo);
@@ -209,7 +220,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 2: Aprobar Orden Manual (Admin)
-  servidor.post('/admin/ordenes/aprobar', async (peticion, respuesta) => {
+  servidor.post('/admin/ordenes/aprobar', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
 
@@ -411,7 +422,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
-  servidor.get('/admin/ordenes', async (peticion, respuesta) => {
+  servidor.get('/admin/ordenes', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const ordenes = await repositorioOrdenes.obtenerTodas();
@@ -423,7 +434,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 4: Obtener Todos los Productos (Admin)
-  servidor.get('/admin/productos', async (peticion, respuesta) => {
+  servidor.get('/admin/productos', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const query = EsquemaConsultarProductosQuery.parse(peticion.query);
@@ -450,7 +461,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 5: Crear Producto (Admin)
-  servidor.post('/admin/productos', async (peticion, respuesta) => {
+  servidor.post('/admin/productos', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
@@ -466,7 +477,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 6: Eliminar Producto (Admin)
-  servidor.delete('/admin/productos/:id', async (peticion, respuesta) => {
+  servidor.delete('/admin/productos/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const EsquemaParams = z.object({
@@ -492,7 +503,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 7: Actualizar Producto (Admin)
-  servidor.put('/admin/productos/:id', async (peticion, respuesta) => {
+  servidor.put('/admin/productos/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
       const EsquemaParams = z.object({
@@ -516,7 +527,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 7: Obtener Todas las Solicitudes (Admin)
-  servidor.get('/admin/solicitudes', async (peticion, respuesta) => {
+  servidor.get('/admin/solicitudes', { config: limiteAdmin }, async (peticion, respuesta) => {
     if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
     try {
       const EsquemaPaginacion = z.object({
@@ -538,7 +549,7 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 8: Notificar Subida de Libro (Admin)
-  servidor.post('/admin/solicitudes/:id/notificar', async (peticion, respuesta) => {
+  servidor.post('/admin/solicitudes/:id/notificar', { config: limiteAdmin }, async (peticion, respuesta) => {
     if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
     try {
       const { id } = peticion.params as { id: string };

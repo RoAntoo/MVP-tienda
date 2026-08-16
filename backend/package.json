@@ -9,13 +9,15 @@
     "build": "tsc",
     "start": "node dist/infraestructura/http/servidor.js",
     "test": "vitest run",
-    "heroku-postbuild": "npx prisma generate && npx prisma migrate deploy"
+    "heroku-postbuild": "npx prisma generate && npx prisma db push --accept-data-loss"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.0",
+    "@fastify/rate-limit": "^11.2.0",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
     "escape-html": "^1.0.3",
