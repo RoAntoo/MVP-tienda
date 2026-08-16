@@ -19,13 +19,15 @@ body {
 
 .hidden { display: none !important; }
 
-.orders-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.orders-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.orders-sort { width: auto; min-width: 12rem; padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer; }
 .bulk-actions { display: flex; align-items: center; gap: 1rem; color: var(--accent-cyan); font-size: 0.85rem; }
 input[type="checkbox"] { width: 1.15rem; height: 1.15rem; accent-color: var(--accent-cyan); cursor: pointer; }
 #ordenesTable th:first-child, #ordenesTable td:first-child { width: 3rem; text-align: center; }
 
 @media (max-width: 640px) {
   .orders-heading { align-items: flex-start; flex-direction: column; }
+  .orders-sort { width: 100%; }
   .bulk-actions { width: 100%; justify-content: space-between; }
   .bulk-actions .cyber-btn { font-size: 0.75rem; padding: 0.5rem; }
 }

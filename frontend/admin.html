@@ -45,6 +45,13 @@
         <section id="ordenesTab">
         <div class="orders-heading">
           <h3>Últimas Órdenes</h3>
+          <select id="sortOrdenes" class="cyber-input orders-sort" aria-label="Ordenar órdenes">
+            <option value="default">Orden original</option>
+            <option value="email-asc">Cliente (A-Z)</option>
+            <option value="email-desc">Cliente (Z-A)</option>
+            <option value="total-desc">Monto mayor a menor</option>
+            <option value="total-asc">Monto menor a mayor</option>
+          </select>
           <div id="ordenesBulkActions" class="bulk-actions hidden" aria-live="polite">
             <span id="ordenesSelectedCount">0 seleccionadas</span>
             <button id="eliminarOrdenesBtn" class="cyber-btn cyber-btn-sm cyber-btn-pink">ELIMINAR SELECCIONADAS</button>

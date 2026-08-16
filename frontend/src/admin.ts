@@ -74,6 +74,7 @@ const solicitudesTab = document.getElementById('solicitudesTab')!;
 const ordenesBody = document.getElementById('ordenesBody')!;
 const ordenesBulkActions = document.getElementById('ordenesBulkActions')!;
 const ordenesSelectedCount = document.getElementById('ordenesSelectedCount')!;
+const sortOrdenesSelect = document.getElementById('sortOrdenes') as HTMLSelectElement;
 const seleccionarTodasOrdenes = document.getElementById('seleccionarTodasOrdenes') as HTMLInputElement;
 const eliminarOrdenesBtn = document.getElementById('eliminarOrdenesBtn') as HTMLButtonElement;
 const productosBody = document.getElementById('productosBody')!;
@@ -100,6 +101,7 @@ const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButton
 // Estado
 let apiKey = '';
 let categoriasDisponibles: string[] = [];
+let ordenesActuales: any[] = [];
 
 // --- INICIALIZACIÓN ---
 // (Eliminado el auto-login con localStorage por seguridad)
@@ -348,6 +350,7 @@ async function validarYEntrar(key: string): Promise<boolean> {
     dashboardSection.classList.remove('hidden');
 
     const ordenes = await res.json();
+    ordenesActuales = ordenes;
     dibujarOrdenes(ordenes);
     return true;
   } catch (err: any) {
@@ -373,6 +376,7 @@ async function cargarOrdenes() {
 
     const ordenes = await res.json();
     if (fetchId !== currentTabFetchId) return;
+    ordenesActuales = ordenes;
     dibujarOrdenes(ordenes);
   } catch (err: any) {
     if (fetchId !== currentTabFetchId) return;
@@ -698,12 +702,26 @@ async function manejarEdicionProducto(e: Event) {
 
 // --- RENDER ---
 function dibujarOrdenes(ordenes: any[]) {
-  if (ordenes.length === 0) {
+  const ordenSeleccion = sortOrdenesSelect.value;
+  const ordenesOrdenadas = [...ordenes].sort((a, b) => {
+    if (ordenSeleccion === 'email-asc' || ordenSeleccion === 'email-desc') {
+      const comparacion = String(a.emailCliente).localeCompare(String(b.emailCliente));
+      return ordenSeleccion === 'email-asc' ? comparacion : -comparacion;
+    }
+    if (ordenSeleccion === 'total-asc' || ordenSeleccion === 'total-desc') {
+      const comparacion = Number(a.total) - Number(b.total);
+      return ordenSeleccion === 'total-asc' ? comparacion : -comparacion;
+    }
+    return 0;
+  });
+
+  if (ordenesOrdenadas.length === 0) {
     ordenesBody.innerHTML = '<tr><td colspan="6">No hay órdenes registradas.</td></tr>';
+    actualizarSeleccionOrdenes();
     return;
   }
 
-  ordenesBody.innerHTML = ordenes.map(orden => `
+  ordenesBody.innerHTML = ordenesOrdenadas.map(orden => `
     <tr>
       <td><input class="orden-checkbox" type="checkbox" data-id="${orden.id}" aria-label="Seleccionar orden ${orden.id.substring(0, 8)}"></td>
       <td>${orden.id.substring(0, 8)}</td>
@@ -744,6 +762,18 @@ function dibujarOrdenes(ordenes: any[]) {
     });
   });
 }
+
+sortOrdenesSelect.addEventListener('change', () => {
+  const seleccionadas = new Set(
+    [...document.querySelectorAll<HTMLInputElement>('.orden-checkbox:checked')]
+      .map(checkbox => checkbox.dataset.id)
+  );
+  dibujarOrdenes(ordenesActuales);
+  document.querySelectorAll<HTMLInputElement>('.orden-checkbox').forEach(checkbox => {
+    checkbox.checked = seleccionadas.has(checkbox.dataset.id);
+  });
+  actualizarSeleccionOrdenes();
+});
 
 function actualizarSeleccionOrdenes() {
   const seleccionadas = document.querySelectorAll<HTMLInputElement>('.orden-checkbox:checked');
