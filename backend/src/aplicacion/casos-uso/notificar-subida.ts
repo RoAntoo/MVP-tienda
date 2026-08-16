@@ -16,7 +16,7 @@ export class NotificarSubidaUseCase {
     // Reservar atómicamente la solicitud (cambia de PENDIENTE a NOTIFICADO)
     const reservado = await this.repositorioSolicitudes.reservarYEncolar(
       idSolicitud,
-      ['PENDIENTE'], // Solo notificar subida si está pendiente
+      ['PENDIENTE', 'RESPONDIDO', 'RESPONDIENDO'], // Se puede notificar subida incluso si ya se le respondió al cliente
       'NOTIFICADO',
       'AVISO_SUBIDA'
     );
