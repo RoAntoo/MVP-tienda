@@ -7,7 +7,20 @@ import { prisma } from '../base-datos/prisma-cliente.js';
 import { rutas } from './rutas.js';
 
 export const iniciarServidor = async () => {
+  const trustProxyConfig = process.env.TRUST_PROXY
+    ? process.env.TRUST_PROXY === 'true'
+      ? true
+      : process.env.TRUST_PROXY === 'false'
+      ? false
+      : !isNaN(Number(process.env.TRUST_PROXY))
+      ? Number(process.env.TRUST_PROXY)
+      : process.env.TRUST_PROXY.includes(',')
+      ? process.env.TRUST_PROXY.split(',').map((ip) => ip.trim())
+      : process.env.TRUST_PROXY
+    : true;
+
   const servidor = fastify({
+    trustProxy: trustProxyConfig,
     logger: {
       // Nunca loguear cabeceras de autenticación
       redact: {
