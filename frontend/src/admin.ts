@@ -717,6 +717,7 @@ function dibujarOrdenes(ordenes: any[]) {
 
   if (ordenesOrdenadas.length === 0) {
     ordenesBody.innerHTML = '<tr><td colspan="6">No hay órdenes registradas.</td></tr>';
+    actualizarSeleccionOrdenes();
     return;
   }
 
