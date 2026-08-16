@@ -9,6 +9,7 @@ import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.
 import { ServicioEmailDummy } from '../servicios/servicio-email-dummy.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
 import { AprobarOrdenUseCase } from '../../aplicacion/casos-uso/aprobar-orden.js';
+import { EliminarOrdenUseCase } from '../../aplicacion/casos-uso/eliminar-orden.js';
 import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-producto.js';
 import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.js';
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
@@ -135,6 +136,7 @@ export async function rutas(servidor: FastifyInstance) {
   // 2. Inicializar Casos de Uso
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail, adminEmail);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
+  const eliminarOrdenUseCase = new EliminarOrdenUseCase(repositorioOrdenes);
   const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
@@ -431,6 +433,29 @@ export async function rutas(servidor: FastifyInstance) {
     } catch (error: any) {
       servidor.log.error(error);
       return respuesta.status(500).send({ error: 'Error al obtener las órdenes.' });
+    }
+  });
+
+  // Endpoint 3.5: Eliminar Orden (Admin)
+  servidor.delete('/admin/ordenes/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      const EsquemaParams = z.object({
+        id: z.string().uuid('ID de orden inválido')
+      });
+      const { id } = EsquemaParams.parse(peticion.params);
+
+      await eliminarOrdenUseCase.ejecutar(id);
+      return respuesta.status(204).send(); // 204 No Content
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: 'ID de orden inválido' });
+      }
+      if (error.code === 'P2025' || error.message === 'Orden no encontrada') {
+        return respuesta.status(404).send({ error: 'Orden no encontrada' });
+      }
+      return respuesta.status(500).send({ error: 'Error al eliminar la orden.' });
     }
   });
 

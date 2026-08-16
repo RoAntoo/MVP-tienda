@@ -78,4 +78,14 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
       modificada: count > 0,
     };
   }
+
+  async eliminar(id: string): Promise<'eliminada' | 'no_encontrada'> {
+    // Eliminación atómica: un solo statement condicional sobre la PK.
+    // Si la orden deja de existir concurrentemente, count es 0 -> 'no_encontrada'.
+    // Prisma elimina automáticamente las filas de la tabla intermedia _OrdenProductos.
+    const { count } = await this.prisma.orden.deleteMany({
+      where: { id },
+    });
+    return count > 0 ? 'eliminada' : 'no_encontrada';
+  }
 }
