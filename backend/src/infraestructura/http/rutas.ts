@@ -56,6 +56,10 @@ const EsquemaAprobarOrden = z.object({
   ordenId: z.string().uuid('ID de orden inválido'),
 });
 
+const EsquemaEliminarOrdenes = z.object({
+  ids: z.array(z.string().uuid('IDs de orden inválidos')).min(1).max(100),
+});
+
 const EsquemaCrearProducto = z.object({
   titulo: z.string().min(1, 'El título es requerido'),
   precio: z.number().positive('El precio debe ser positivo'),
@@ -456,6 +460,21 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(404).send({ error: 'Orden no encontrada' });
       }
       return respuesta.status(500).send({ error: 'Error al eliminar la orden.' });
+    }
+  });
+
+  servidor.post('/admin/ordenes/eliminar-multiples', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      const { ids } = EsquemaEliminarOrdenes.parse(peticion.body);
+      const eliminadas = await eliminarOrdenUseCase.ejecutarVarias(ids);
+      return respuesta.status(200).send({ eliminadas });
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: 'La selección de órdenes no es válida' });
+      }
+      return respuesta.status(500).send({ error: 'Error al eliminar las órdenes.' });
     }
   });
 
