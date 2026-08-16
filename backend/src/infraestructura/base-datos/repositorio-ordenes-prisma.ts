@@ -78,4 +78,11 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
       modificada: count > 0,
     };
   }
+
+  async eliminar(id: string): Promise<void> {
+    // Prisma elimina automáticamente las filas de la tabla intermedia _OrdenProductos
+    await this.prisma.orden.delete({
+      where: { id },
+    });
+  }
 }

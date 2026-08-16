@@ -707,8 +707,9 @@ function dibujarOrdenes(ordenes: any[]) {
       <td><span class="status-badge status-${orden.estado}">${orden.estado}</span></td>
       <td>
         ${orden.estado === 'PENDIENTE'
-      ? `<button class="cyber-btn cyber-btn-sm btn-aprobar" data-id="${orden.id}">APROBAR</button>`
-      : `<span style="color:#666">PROCESADO</span>`}
+      ? `<button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-aprobar" data-id="${orden.id}">APROBAR</button>`
+      : `<span style="color:#666; display:block; margin-bottom: 0.5rem;">PROCESADO</span>`}
+        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-orden" data-id="${orden.id}">ELIMINAR</button>
       </td>
     </tr>
   `).join('');
@@ -718,6 +719,16 @@ function dibujarOrdenes(ordenes: any[]) {
     btn.addEventListener('click', async (e) => {
       const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
       if (id) aprobarOrden(id, e.currentTarget as HTMLButtonElement);
+    });
+  });
+
+  // Eventos para botones eliminar
+  document.querySelectorAll('.btn-eliminar-orden').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+      if (id && (await cyberConfirm('¿Estás seguro de eliminar esta orden? Esta acción no se puede deshacer.'))) {
+        eliminarOrden(id, e.currentTarget as HTMLButtonElement);
+      }
     });
   });
 }
@@ -785,6 +796,29 @@ async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
     await cyberAlert('Error al aprobar orden');
     botonRef.disabled = false;
     botonRef.innerText = 'APROBAR';
+  }
+}
+
+async function eliminarOrden(ordenId: string, botonRef: HTMLButtonElement) {
+  botonRef.disabled = true;
+  botonRef.innerText = 'ELIMINANDO...';
+
+  try {
+    const res = await fetch(`${API_URL}/admin/ordenes/${ordenId}`, {
+      method: 'DELETE',
+      headers: {
+        'x-api-key': apiKey
+      }
+    });
+
+    if (!res.ok) throw new Error('Falló eliminación');
+
+    // Recargar tabla de órdenes
+    cargarOrdenes();
+  } catch (error) {
+    await cyberAlert('Error al eliminar orden');
+    botonRef.disabled = false;
+    botonRef.innerText = 'ELIMINAR';
   }
 }
 
