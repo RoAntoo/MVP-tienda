@@ -3,35 +3,36 @@ import { EliminarOrdenUseCase } from '../../src/aplicacion/casos-uso/eliminar-or
 import { RepositorioOrdenes } from '../../src/dominio/repositorios/repositorio-ordenes.js';
 
 describe('EliminarOrdenUseCase', () => {
-  it('debe lanzar error cuando obtenerPorId devuelve null', async () => {
+  it('debe lanzar error cuando la eliminación atómica devuelve no_encontrada', async () => {
+    // Cubre también el caso concurrente: la orden dejó de existir entre el clic y la mutación
     const mockRepoOrdenes: RepositorioOrdenes = {
-      obtenerPorId: vi.fn().mockResolvedValue(null),
+      obtenerPorId: vi.fn(),
       crear: vi.fn(),
       obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn(),
-      eliminar: vi.fn()
+      eliminar: vi.fn().mockResolvedValue('no_encontrada')
     };
 
     const useCase = new EliminarOrdenUseCase(mockRepoOrdenes);
 
     await expect(useCase.ejecutar('orden-123')).rejects.toThrow('Orden no encontrada');
-    expect(mockRepoOrdenes.eliminar).not.toHaveBeenCalled();
+    expect(mockRepoOrdenes.eliminar).toHaveBeenCalledWith('orden-123');
   });
 
-  it('debe llamar a repositorioOrdenes.eliminar cuando la orden existe', async () => {
+  it('debe resolver cuando la eliminación atómica devuelve eliminada, sin lectura previa', async () => {
     const mockRepoOrdenes: RepositorioOrdenes = {
-      obtenerPorId: vi.fn().mockResolvedValue({ id: 'orden-123', emailCliente: 'cliente@test.com', estado: 'PENDIENTE', total: 100 }),
+      obtenerPorId: vi.fn(),
       crear: vi.fn(),
       obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn(),
-      eliminar: vi.fn().mockResolvedValue(undefined)
+      eliminar: vi.fn().mockResolvedValue('eliminada')
     };
 
     const useCase = new EliminarOrdenUseCase(mockRepoOrdenes);
 
-    await useCase.ejecutar('orden-123');
-
-    expect(mockRepoOrdenes.obtenerPorId).toHaveBeenCalledWith('orden-123');
+    await expect(useCase.ejecutar('orden-123')).resolves.toBeUndefined();
     expect(mockRepoOrdenes.eliminar).toHaveBeenCalledWith('orden-123');
+    // Una sola operación atómica: no debe hacer obtenerPorId antes de borrar
+    expect(mockRepoOrdenes.obtenerPorId).not.toHaveBeenCalled();
   });
 });

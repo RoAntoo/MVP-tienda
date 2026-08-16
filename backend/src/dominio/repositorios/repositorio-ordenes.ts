@@ -5,5 +5,5 @@ export interface RepositorioOrdenes {
   obtenerPorId(id: string): Promise<Orden | null>;
   obtenerTodas(): Promise<Orden[]>;
   actualizarEstado(id: string, estadoOrigen: EstadoOrden, nuevoEstado: EstadoOrden): Promise<{ orden: Orden; modificada: boolean } | null>;
-  eliminar(id: string): Promise<void>;
+  eliminar(id: string): Promise<'eliminada' | 'no_encontrada'>;
 }

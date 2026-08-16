@@ -4,11 +4,12 @@ export class EliminarOrdenUseCase {
   constructor(private repositorioOrdenes: RepositorioOrdenes) {}
 
   async ejecutar(ordenId: string): Promise<void> {
-    const ordenExistente = await this.repositorioOrdenes.obtenerPorId(ordenId);
-    if (!ordenExistente) {
+    // Una única operación atómica condicional: evita la condición de carrera
+    // de leer (obtenerPorId) y luego borrar, donde la orden podría cambiar en medio.
+    const resultado = await this.repositorioOrdenes.eliminar(ordenId);
+
+    if (resultado === 'no_encontrada') {
       throw new Error('Orden no encontrada');
     }
-
-    await this.repositorioOrdenes.eliminar(ordenId);
   }
 }
