@@ -717,17 +717,19 @@ function dibujarOrdenes(ordenes: any[]) {
   // Eventos para botones aprobar
   document.querySelectorAll('.btn-aprobar').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-      if (id) aprobarOrden(id, e.currentTarget as HTMLButtonElement);
+      const btnEl = e.currentTarget as HTMLButtonElement;
+      const id = btnEl?.getAttribute('data-id');
+      if (id && btnEl) aprobarOrden(id, btnEl);
     });
   });
 
   // Eventos para botones eliminar
   document.querySelectorAll('.btn-eliminar-orden').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-      if (id && (await cyberConfirm('¿Estás seguro de eliminar esta orden? Esta acción no se puede deshacer.'))) {
-        eliminarOrden(id, e.currentTarget as HTMLButtonElement);
+      const btnEl = e.currentTarget as HTMLButtonElement;
+      const id = btnEl?.getAttribute('data-id');
+      if (id && btnEl && (await cyberConfirm('¿Estás seguro de eliminar esta orden? Esta acción no se puede deshacer.'))) {
+        eliminarOrden(id, btnEl);
       }
     });
   });
@@ -765,18 +767,21 @@ function dibujarProductos(productos: any[]) {
   // Eventos para botones eliminar
   document.querySelectorAll('.btn-eliminar-prod').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-      if (id && (await cyberConfirm('¿Estás seguro de eliminar este producto?'))) {
-        eliminarProducto(id, e.currentTarget as HTMLButtonElement);
+      const btnEl = e.currentTarget as HTMLButtonElement;
+      const id = btnEl?.getAttribute('data-id');
+      if (id && btnEl && (await cyberConfirm('¿Estás seguro de eliminar este producto?'))) {
+        eliminarProducto(id, btnEl);
       }
     });
   });
 }
 
 // --- ACCIONES ---
-async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
-  botonRef.disabled = true;
-  botonRef.innerText = 'PROCESANDO...';
+async function aprobarOrden(ordenId: string, botonRef?: HTMLButtonElement | null) {
+  if (botonRef) {
+    botonRef.disabled = true;
+    botonRef.innerText = 'PROCESANDO...';
+  }
 
   try {
     const res = await fetch(`${API_URL}/admin/ordenes/aprobar`, {
@@ -794,14 +799,18 @@ async function aprobarOrden(ordenId: string, botonRef: HTMLButtonElement) {
     cargarOrdenes();
   } catch (error) {
     await cyberAlert('Error al aprobar orden');
-    botonRef.disabled = false;
-    botonRef.innerText = 'APROBAR';
+    if (botonRef) {
+      botonRef.disabled = false;
+      botonRef.innerText = 'APROBAR';
+    }
   }
 }
 
-async function eliminarOrden(ordenId: string, botonRef: HTMLButtonElement) {
-  botonRef.disabled = true;
-  botonRef.innerText = 'ELIMINANDO...';
+async function eliminarOrden(ordenId: string, botonRef?: HTMLButtonElement | null) {
+  if (botonRef) {
+    botonRef.disabled = true;
+    botonRef.innerText = 'ELIMINANDO...';
+  }
 
   try {
     const res = await fetch(`${API_URL}/admin/ordenes/${ordenId}`, {
@@ -817,14 +826,18 @@ async function eliminarOrden(ordenId: string, botonRef: HTMLButtonElement) {
     cargarOrdenes();
   } catch (error) {
     await cyberAlert('Error al eliminar orden');
-    botonRef.disabled = false;
-    botonRef.innerText = 'ELIMINAR';
+    if (botonRef) {
+      botonRef.disabled = false;
+      botonRef.innerText = 'ELIMINAR';
+    }
   }
 }
 
-async function eliminarProducto(productoId: string, botonRef: HTMLButtonElement) {
-  botonRef.disabled = true;
-  botonRef.innerText = 'ELIMINANDO...';
+async function eliminarProducto(productoId: string, botonRef?: HTMLButtonElement | null) {
+  if (botonRef) {
+    botonRef.disabled = true;
+    botonRef.innerText = 'ELIMINANDO...';
+  }
 
   try {
     const res = await fetch(`${API_URL}/admin/productos/${productoId}`, {
@@ -840,7 +853,9 @@ async function eliminarProducto(productoId: string, botonRef: HTMLButtonElement)
     cargarProductos();
   } catch (error) {
     await cyberAlert('Error al eliminar producto');
-    botonRef.disabled = false;
-    botonRef.innerText = 'ELIMINAR';
+    if (botonRef) {
+      botonRef.disabled = false;
+      botonRef.innerText = 'ELIMINAR';
+    }
   }
 }
