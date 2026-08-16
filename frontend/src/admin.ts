@@ -360,7 +360,7 @@ async function validarYEntrar(key: string): Promise<boolean> {
 
 async function cargarOrdenes() {
   const fetchId = ++currentTabFetchId;
-  ordenesBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+  ordenesBody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/admin/ordenes`, {
       headers: { 'x-api-key': apiKey }
@@ -381,7 +381,7 @@ async function cargarOrdenes() {
       loginError.classList.remove('hidden');
       loginError.textContent = 'Acceso Denegado';
     } else {
-      ordenesBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
+      ordenesBody.innerHTML = `<tr><td colspan="6" style="color:red">${err.message}</td></tr>`;
     }
   }
 }

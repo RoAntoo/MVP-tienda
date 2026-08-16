@@ -22,7 +22,7 @@ body {
 .orders-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .bulk-actions { display: flex; align-items: center; gap: 1rem; color: var(--accent-cyan); font-size: 0.85rem; }
 input[type="checkbox"] { width: 1.15rem; height: 1.15rem; accent-color: var(--accent-cyan); cursor: pointer; }
-th:first-child, td:first-child { width: 3rem; text-align: center; }
+#ordenesTable th:first-child, #ordenesTable td:first-child { width: 3rem; text-align: center; }
 
 @media (max-width: 640px) {
   .orders-heading { align-items: flex-start; flex-direction: column; }
