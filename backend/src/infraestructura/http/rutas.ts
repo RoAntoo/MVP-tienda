@@ -85,11 +85,19 @@ const EsquemaConsultarProductosQuery = z.object({
   direccion: z.enum(['asc', 'desc']).optional(),
   limit: z.coerce.number().int().positive().max(100).default(10),
   page: z.coerce.number().int().positive().max(10000).optional(),
+  busqueda: z.string().trim().max(100).optional(),
   categorias: z.string().optional().transform(val => {
     if (!val) return undefined;
     const cats = val.split(',').map(s => s.trim()).filter(Boolean);
     return cats.slice(0, 20);
   })
+});
+
+const EsquemaConsultarOrdenesQuery = z.object({
+  campo: z.enum(['email', 'total', 'id']).optional(),
+  direccion: z.enum(['asc', 'desc']).optional(),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: z.coerce.number().int().positive().max(10000).default(1),
 });
 
 const EsquemaSolicitudLibro = z.object({
@@ -183,7 +191,8 @@ export async function rutas(servidor: FastifyInstance) {
       const productos = await obtenerProductosUseCase.ejecutar({
         ...query,
         limit,
-        offset
+        offset,
+        busqueda: query.busqueda
       });
       return respuesta.status(200).send(productos);
     } catch (error: any) {
@@ -432,8 +441,15 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.get('/admin/ordenes', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
-      const ordenes = await repositorioOrdenes.obtenerTodas();
-      return respuesta.status(200).send(ordenes);
+      const query = EsquemaConsultarOrdenesQuery.parse(peticion.query);
+      const offset = (query.page - 1) * query.limit;
+      const resultado = await repositorioOrdenes.obtenerTodas({
+        campo: query.campo,
+        direccion: query.direccion,
+        limit: query.limit,
+        offset,
+      });
+      return respuesta.status(200).send(resultado);
     } catch (error: any) {
       servidor.log.error(error);
       return respuesta.status(500).send({ error: 'Error al obtener las órdenes.' });
