@@ -20,3 +20,54 @@ CREATE INDEX "_PromocionProductos_B_index" ON "_PromocionProductos"("B");
 
 ALTER TABLE "_PromocionProductos" ADD CONSTRAINT "_PromocionProductos_A_fkey" FOREIGN KEY ("A") REFERENCES "Promocion"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "_PromocionProductos" ADD CONSTRAINT "_PromocionProductos_B_fkey" FOREIGN KEY ("B") REFERENCES "productos"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE OR REPLACE FUNCTION validar_exclusividad_promocion(promocion_id TEXT)
+RETURNS VOID AS $$
+DECLARE
+    producto_id TEXT;
+BEGIN
+    FOR producto_id IN
+        SELECT "B" FROM "_PromocionProductos" WHERE "A" = promocion_id ORDER BY "B"
+    LOOP
+        PERFORM pg_advisory_xact_lock(hashtextextended(producto_id, 0));
+
+        IF EXISTS (
+            SELECT 1
+            FROM "_PromocionProductos" propia
+            JOIN "_PromocionProductos" otra ON otra."B" = propia."B" AND otra."A" <> propia."A"
+            JOIN "Promocion" actual ON actual."id" = propia."A"
+            JOIN "Promocion" existente ON existente."id" = otra."A"
+            WHERE propia."A" = promocion_id
+              AND actual."activa"
+              AND existente."activa"
+              AND actual."fechaInicio" <= COALESCE(existente."fechaFin", 'infinity'::timestamp)
+              AND existente."fechaInicio" <= COALESCE(actual."fechaFin", 'infinity'::timestamp)
+        ) THEN
+            RAISE EXCEPTION 'El producto ya tiene una promoción activa superpuesta';
+        END IF;
+    END LOOP;
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION disparar_validacion_exclusividad_promocion()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_TABLE_NAME = '_PromocionProductos' THEN
+        PERFORM validar_exclusividad_promocion(NEW."A");
+    ELSE
+        PERFORM validar_exclusividad_promocion(NEW."id");
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER "PromocionProductos_exclusividad"
+AFTER INSERT OR UPDATE ON "_PromocionProductos"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION disparar_validacion_exclusividad_promocion();
+
+CREATE CONSTRAINT TRIGGER "Promocion_exclusividad"
+AFTER UPDATE OF "activa", "fechaInicio", "fechaFin" ON "Promocion"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION disparar_validacion_exclusividad_promocion();

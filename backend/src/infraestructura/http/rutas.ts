@@ -88,7 +88,11 @@ const EsquemaConsultarProductosQuery = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
   page: z.coerce.number().int().positive().max(10000).optional(),
   busqueda: z.string().trim().max(100).optional(),
-  soloPromociones: z.coerce.boolean().optional(),
+  soloPromociones: z.preprocess(value => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  }, z.boolean().optional()),
   categorias: z.string().optional().transform(val => {
     if (!val) return undefined;
     const cats = val.split(',').map(s => s.trim()).filter(Boolean);
@@ -502,7 +506,10 @@ export async function rutas(servidor: FastifyInstance) {
   servidor.get('/promociones/activas', async (_peticion, respuesta) => {
     try {
       const promociones = await gestionarPromocionesUseCase.listar();
-      return respuesta.status(200).send(promociones.filter(promocion => promocion.activa));
+      const ahora = new Date();
+      return respuesta.status(200).send(promociones.filter(promocion => promocion.activa
+        && promocion.fechaInicio <= ahora
+        && (!promocion.fechaFin || promocion.fechaFin >= ahora)));
     } catch (error: any) {
       servidor.log.error(error);
       return respuesta.status(500).send({ error: 'Error al obtener las promociones activas.' });

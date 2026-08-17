@@ -507,6 +507,13 @@ async function cargarPromociones() {
     const promociones = await promocionesRes.json();
     const productosData = await productosRes.json();
     promoProductosDisponibles = productosData.productos || [];
+    const totalPaginas = Math.ceil((productosData.total || promoProductosDisponibles.length) / 100);
+    for (let pagina = 2; pagina <= totalPaginas; pagina++) {
+      const respuestaPagina = await fetch(`${API_URL}/admin/productos?limit=100&page=${pagina}&campo=titulo&direccion=asc`, { headers: { 'x-api-key': apiKey } });
+      if (!respuestaPagina.ok) throw new Error('Error al cargar todos los productos');
+      const datosPagina = await respuestaPagina.json();
+      promoProductosDisponibles.push(...(datosPagina.productos || []));
+    }
     renderizarPromoProductos();
     renderizarPromociones(promociones);
   } catch (error: any) {

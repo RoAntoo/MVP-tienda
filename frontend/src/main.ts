@@ -394,7 +394,12 @@ async function fetchProducts() {
       const promotionsRes = await fetch(`${API_URL}/promociones/activas`);
       if (promotionsRes.ok) {
         const promociones = await promotionsRes.json();
-        activePromotionNames = promociones.map((promocion: any) => promocion.nombre);
+        const ahora = Date.now();
+        activePromotionNames = promociones
+          .filter((promocion: any) => promocion.activa
+            && new Date(promocion.fechaInicio).getTime() <= ahora
+            && (!promocion.fechaFin || new Date(promocion.fechaFin).getTime() >= ahora))
+          .map((promocion: any) => promocion.nombre);
         activePromotionsLoaded = true;
       }
     }
@@ -602,11 +607,11 @@ function renderProducts() {
 
   // Filtrar por búsqueda localmente
   if (currentSearchQuery.trim() !== '') {
-    const q = currentSearchQuery.toLowerCase().trim();
+    const q = normalizarTexto(currentSearchQuery);
     productosFiltrados = productosFiltrados.filter(p =>
-      p.title.toLowerCase().includes(q) ||
-      (p.description && p.description.toLowerCase().includes(q)) ||
-      (p.categoria && p.categoria.toLowerCase().includes(q))
+      normalizarTexto(p.title).includes(q) ||
+      (p.description && normalizarTexto(p.description).includes(q)) ||
+      (p.categoria && normalizarTexto(p.categoria).includes(q))
     );
   }
 
@@ -737,6 +742,10 @@ function renderProducts() {
 
     grid.appendChild(card);
   });
+}
+
+function normalizarTexto(texto: string): string {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
 // Evento de Checkout (Conectado a la API)

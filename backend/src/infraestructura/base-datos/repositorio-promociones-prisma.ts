@@ -6,13 +6,12 @@ export class RepositorioPromocionesPrisma implements RepositorioPromociones {
   constructor(private prisma: PrismaClient) {}
 
   private mapear(promocion: any): Promocion {
-    const ahora = new Date();
     return {
       id: promocion.id,
       nombre: promocion.nombre,
       tipo: promocion.tipo,
       valor: Number(promocion.valor),
-      activa: promocion.activa && promocion.fechaInicio <= ahora && (!promocion.fechaFin || promocion.fechaFin >= ahora),
+      activa: promocion.activa,
       fechaInicio: promocion.fechaInicio,
       fechaFin: promocion.fechaFin,
       productoIds: promocion.productos.map((producto: { id: string }) => producto.id),
