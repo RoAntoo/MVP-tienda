@@ -41,6 +41,8 @@ describe('IniciarCompraUseCase', () => {
       obtenerPorId: vi.fn(),
       actualizarEstado: vi.fn(),
       obtenerTodas: vi.fn(),
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
 
     const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
@@ -92,6 +94,8 @@ describe('IniciarCompraUseCase', () => {
       crear: vi.fn().mockResolvedValue({ id: 'ord-123' }),
       actualizarEstado: vi.fn(),
       obtenerTodas: vi.fn(),
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
     const mockRepoProductos: RepositorioProductos = {
       obtenerPorId: vi.fn(),

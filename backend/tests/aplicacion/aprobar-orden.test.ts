@@ -20,6 +20,8 @@ describe('AprobarOrdenUseCase', () => {
       obtenerPorId: vi.fn(),
       obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn().mockResolvedValue(null), // Null indica que no se encontró o no se actualizó
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
     
     const useCase = new AprobarOrdenUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
@@ -42,6 +44,8 @@ describe('AprobarOrdenUseCase', () => {
         orden: ordenMock,
         modificada: false // Significa que ya tenía estado APROBADO o superior
       }),
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
     
     const useCase = new AprobarOrdenUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
@@ -65,6 +69,8 @@ describe('AprobarOrdenUseCase', () => {
         orden: ordenMock,
         modificada: true // Significa que sí se cambió de PENDIENTE a APROBADO
       }),
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
     
     const useCase = new AprobarOrdenUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
