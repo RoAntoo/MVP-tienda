@@ -15,6 +15,7 @@ describe('DespacharProductoUseCase', () => {
       crear: vi.fn(),
       actualizarEstado: vi.fn(),
       obtenerPorId: vi.fn().mockResolvedValue(null),
+      obtenerTodas: vi.fn(),
     };
 
     const useCase = new DespacharProductoUseCase(mockRepoOrdenes);
@@ -33,6 +34,7 @@ describe('DespacharProductoUseCase', () => {
       crear: vi.fn(),
       actualizarEstado: vi.fn(),
       obtenerPorId: vi.fn().mockResolvedValue(ordenMock),
+      obtenerTodas: vi.fn(),
     };
 
     const useCase = new DespacharProductoUseCase(mockRepoOrdenes);
@@ -53,6 +55,7 @@ describe('DespacharProductoUseCase', () => {
       crear: vi.fn(),
       actualizarEstado: vi.fn(),
       obtenerPorId: vi.fn().mockResolvedValue(ordenMock),
+      obtenerTodas: vi.fn(),
     };
 
     const useCase = new DespacharProductoUseCase(mockRepoOrdenes);
@@ -71,6 +74,7 @@ describe('DespacharProductoUseCase', () => {
     const mockRepoOrdenes: RepositorioOrdenes = {
       crear: vi.fn(),
       obtenerPorId: vi.fn().mockResolvedValue(ordenMock),
+      obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn().mockResolvedValue({
         orden: { ...ordenMock, estado: 'DESPACHADO' },
         modificada: true

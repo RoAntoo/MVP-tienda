@@ -55,9 +55,12 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
     const total = await this.prisma.orden.count();
     const campo = filtros?.campo === 'email' ? 'emailCliente' : (filtros?.campo || 'id');
     const direccion = filtros?.direccion || 'desc';
+    const orden = campo === 'id'
+      ? { id: direccion }
+      : [{ [campo]: direccion }, { id: 'desc' as const }];
     const ordenesDb = await this.prisma.orden.findMany({
       include: { productos: true },
-      orderBy: { [campo]: direccion },
+      orderBy: orden,
       take: filtros?.limit,
       skip: filtros?.offset,
     });

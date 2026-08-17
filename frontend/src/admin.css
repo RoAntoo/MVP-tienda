@@ -13,7 +13,7 @@
 body {
   background: radial-gradient(circle at 82% 0%, rgba(255, 42, 133, 0.11), transparent 28rem), radial-gradient(circle at 0% 40%, rgba(0, 240, 255, 0.06), transparent 24rem), var(--bg-dark);
   color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  font-family: Inter, sans-serif;
   min-height: 100vh;
   padding: 2.5rem clamp(1rem, 4vw, 4rem);
 }

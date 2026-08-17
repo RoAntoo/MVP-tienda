@@ -18,6 +18,7 @@ describe('AprobarOrdenUseCase', () => {
     const mockRepoOrdenes: RepositorioOrdenes = {
       crear: vi.fn(),
       obtenerPorId: vi.fn(),
+      obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn().mockResolvedValue(null), // Null indica que no se encontró o no se actualizó
     };
     
@@ -36,6 +37,7 @@ describe('AprobarOrdenUseCase', () => {
     const mockRepoOrdenes: RepositorioOrdenes = {
       crear: vi.fn(),
       obtenerPorId: vi.fn(),
+      obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn().mockResolvedValue({
         orden: ordenMock,
         modificada: false // Significa que ya tenía estado APROBADO o superior
@@ -58,6 +60,7 @@ describe('AprobarOrdenUseCase', () => {
     const mockRepoOrdenes: RepositorioOrdenes = {
       crear: vi.fn(),
       obtenerPorId: vi.fn(),
+      obtenerTodas: vi.fn(),
       actualizarEstado: vi.fn().mockResolvedValue({
         orden: ordenMock,
         modificada: true // Significa que sí se cambió de PENDIENTE a APROBADO

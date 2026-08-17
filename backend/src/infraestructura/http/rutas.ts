@@ -452,6 +452,9 @@ export async function rutas(servidor: FastifyInstance) {
       return respuesta.status(200).send(resultado);
     } catch (error: any) {
       servidor.log.error(error);
+      if (error instanceof z.ZodError || error?.name === 'ZodError') {
+        return respuesta.status(400).send({ error: error.issues });
+      }
       return respuesta.status(500).send({ error: 'Error al obtener las órdenes.' });
     }
   });
