@@ -218,6 +218,11 @@ input[type="password"]:focus {
 
 .admin-pagination { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1rem; color: var(--accent-cyan); font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; }
 .admin-pagination .cyber-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+.page-numbers { display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
+.page-number { min-width: 2rem; height: 2rem; padding: 0 0.45rem; border: 1px solid var(--border-glass); border-radius: 5px; background: rgba(255,255,255,0.03); color: var(--text-muted); cursor: pointer; font-family: inherit; transition: 180ms ease; }
+.page-number:hover, .page-number.active { border-color: var(--accent-pink); background: rgba(255,42,133,0.14); color: white; }
+.page-number.active { background: var(--accent-pink); box-shadow: 0 0 14px rgba(255,42,133,0.2); }
+.page-ellipsis { color: var(--text-muted); padding: 0 0.15rem; }
 
 table {
   width: 100%;
@@ -436,6 +441,10 @@ tr:hover td {
   .catalog-controls { width: 100%; flex-direction: column; align-items: stretch; }
   .product-search { min-width: 0; }
   .catalog-controls select { width: 100%; }
+  .admin-pagination { gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+  .admin-pagination .page-numbers { width: 100%; min-width: 0; overflow-x: auto; justify-content: flex-start; padding: 0.15rem 0.1rem 0.35rem; }
+  .admin-pagination .cyber-btn { padding-left: 0.55rem; padding-right: 0.55rem; font-size: 0.7rem; }
+  .page-number { min-width: 1.8rem; }
   th, td { padding: 0.8rem; }
   .price-chip {
     font-size: 0.75rem;

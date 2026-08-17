@@ -49,8 +49,8 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     }
     if (filtros?.busqueda) {
       where.OR = [
-        { titulo: { contains: filtros.busqueda } },
-        { categoria: { contains: filtros.busqueda } },
+        { titulo: { contains: filtros.busqueda, mode: 'insensitive' } },
+        { categoria: { contains: filtros.busqueda, mode: 'insensitive' } },
       ];
     }
 

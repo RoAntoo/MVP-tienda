@@ -815,7 +815,10 @@ function dibujarOrdenes(ordenes: any[]) {
 function actualizarPaginacionOrdenes() {
   const hayPaginaAnterior = ordenesCurrentPage > 1;
   const hayPaginaSiguiente = ordenesCurrentPage * ordenesLimit < ordenesTotal;
-  ordenesPageInfo.textContent = `PÁGINA ${ordenesCurrentPage}`;
+  renderizarNumerosPagina(ordenesPageInfo, ordenesCurrentPage, Math.ceil(ordenesTotal / ordenesLimit), (pagina) => {
+    ordenesCurrentPage = pagina;
+    cargarOrdenes();
+  });
   prevOrdenesBtn.disabled = !hayPaginaAnterior;
   nextOrdenesBtn.disabled = !hayPaginaSiguiente;
 }
@@ -823,9 +826,43 @@ function actualizarPaginacionOrdenes() {
 function actualizarPaginacionProductos() {
   const hayPaginaAnterior = productosCurrentPage > 1;
   const hayPaginaSiguiente = productosCurrentPage * productosLimit < productosTotal;
-  productosPageInfo.textContent = `PÁGINA ${productosCurrentPage}`;
+  renderizarNumerosPagina(productosPageInfo, productosCurrentPage, Math.ceil(productosTotal / productosLimit), (pagina) => {
+    productosCurrentPage = pagina;
+    cargarProductos();
+  });
   prevProductosBtn.disabled = !hayPaginaAnterior;
   nextProductosBtn.disabled = !hayPaginaSiguiente;
+}
+
+function renderizarNumerosPagina(
+  contenedor: HTMLElement,
+  paginaActual: number,
+  totalPaginas: number,
+  cambiarPagina: (pagina: number) => void
+) {
+  if (totalPaginas <= 0) {
+    contenedor.innerHTML = '';
+    return;
+  }
+
+  const paginas = new Set<number>([1, totalPaginas]);
+  for (let pagina = paginaActual - 3; pagina <= paginaActual + 3; pagina++) {
+    if (pagina >= 1 && pagina <= totalPaginas) paginas.add(pagina);
+  }
+
+  const paginasOrdenadas = [...paginas].sort((a, b) => a - b);
+  let html = '';
+  paginasOrdenadas.forEach((pagina, indice) => {
+    if (indice > 0 && pagina - paginasOrdenadas[indice - 1] > 1) {
+      html += '<span class="page-ellipsis" aria-hidden="true">...</span>';
+    }
+    html += `<button class="page-number${pagina === paginaActual ? ' active' : ''}" type="button" data-page="${pagina}" aria-label="Ir a la página ${pagina}"${pagina === paginaActual ? ' aria-current="page"' : ''}>${pagina}</button>`;
+  });
+
+  contenedor.innerHTML = html;
+  contenedor.querySelectorAll<HTMLButtonElement>('.page-number').forEach((boton) => {
+    boton.addEventListener('click', () => cambiarPagina(Number(boton.dataset.page)));
+  });
 }
 
 sortOrdenesSelect.addEventListener('change', () => {
