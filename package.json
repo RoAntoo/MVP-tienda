@@ -6,7 +6,8 @@
     "node": "22.x"
   },
   "scripts": {
-    "heroku-postbuild": "cd backend && npm install --include=dev && npm run build && npm run heroku-postbuild",
+    "heroku-postbuild": "cd backend && npm install --include=dev && npm run build && npx prisma generate",
+    "release": "cd backend && npx prisma db push --accept-data-loss && npx prisma db execute --schema prisma/schema.prisma --file prisma/promociones-triggers.sql",
     "start": "cd backend && npm start"
   },
   "dependencies": {
