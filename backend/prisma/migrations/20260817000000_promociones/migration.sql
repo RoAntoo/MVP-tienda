@@ -62,11 +62,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM "_PromocionProductos" primera_relacion
+        JOIN "_PromocionProductos" segunda_relacion
+          ON segunda_relacion."B" = primera_relacion."B"
+         AND segunda_relacion."A" > primera_relacion."A"
+        JOIN "Promocion" primera ON primera."id" = primera_relacion."A"
+        JOIN "Promocion" segunda ON segunda."id" = segunda_relacion."A"
+        WHERE primera."activa"
+          AND segunda."activa"
+          AND primera."fechaInicio" <= COALESCE(segunda."fechaFin", 'infinity'::timestamp)
+          AND segunda."fechaInicio" <= COALESCE(primera."fechaFin", 'infinity'::timestamp)
+    ) THEN
+        RAISE EXCEPTION 'Existen promociones activas superpuestas para el mismo producto';
+    END IF;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS "PromocionProductos_exclusividad" ON "_PromocionProductos";
 CREATE CONSTRAINT TRIGGER "PromocionProductos_exclusividad"
 AFTER INSERT OR UPDATE ON "_PromocionProductos"
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION disparar_validacion_exclusividad_promocion();
 
+DROP TRIGGER IF EXISTS "Promocion_exclusividad" ON "Promocion";
 CREATE CONSTRAINT TRIGGER "Promocion_exclusividad"
 AFTER UPDATE OF "activa", "fechaInicio", "fechaFin" ON "Promocion"
 DEFERRABLE INITIALLY DEFERRED
