@@ -7,6 +7,7 @@ export interface InputObtenerProductos {
   limit?: number;
   offset?: number;
   categorias?: string[];
+  busqueda?: string;
 }
 
 export class ObtenerProductosUseCase {
@@ -21,7 +22,8 @@ export class ObtenerProductosUseCase {
         direccion: input.direccion,
         limit: input.limit,
         offset: input.offset,
-        categorias: input.categorias
+        categorias: input.categorias,
+        busqueda: input.busqueda
       };
     }
 

@@ -87,6 +87,21 @@ const prevSolicitudesBtn = document.getElementById('prevSolicitudesBtn') as HTML
 const nextSolicitudesBtn = document.getElementById('nextSolicitudesBtn') as HTMLButtonElement;
 const solicitudesPageInfo = document.getElementById('solicitudesPageInfo')!;
 
+// Paginación de órdenes y catálogo
+let ordenesCurrentPage = 1;
+const ordenesLimit = 10;
+let ordenesTotal = 0;
+const prevOrdenesBtn = document.getElementById('prevOrdenesBtn') as HTMLButtonElement;
+const nextOrdenesBtn = document.getElementById('nextOrdenesBtn') as HTMLButtonElement;
+const ordenesPageInfo = document.getElementById('ordenesPageInfo')!;
+let productosCurrentPage = 1;
+const productosLimit = 10;
+let productosTotal = 0;
+const prevProductosBtn = document.getElementById('prevProductosBtn') as HTMLButtonElement;
+const nextProductosBtn = document.getElementById('nextProductosBtn') as HTMLButtonElement;
+const productosPageInfo = document.getElementById('productosPageInfo')!;
+const buscarProductosInput = document.getElementById('buscarProductos') as HTMLInputElement;
+
 // Elementos Formulario Producto
 const mostrarFormBtn = document.getElementById('mostrarFormBtn')!;
 const cancelarFormBtn = document.getElementById('cancelarFormBtn') as HTMLButtonElement;
@@ -101,7 +116,6 @@ const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButton
 // Estado
 let apiKey = '';
 let categoriasDisponibles: string[] = [];
-let ordenesActuales: any[] = [];
 
 // --- INICIALIZACIÓN ---
 // (Eliminado el auto-login con localStorage por seguridad)
@@ -198,6 +212,10 @@ async function cargarSolicitudes() {
 
 if (prevSolicitudesBtn) prevSolicitudesBtn.addEventListener('click', () => { solicitudesCurrentPage--; cargarSolicitudes(); });
 if (nextSolicitudesBtn) nextSolicitudesBtn.addEventListener('click', () => { solicitudesCurrentPage++; cargarSolicitudes(); });
+if (prevOrdenesBtn) prevOrdenesBtn.addEventListener('click', () => { ordenesCurrentPage--; cargarOrdenes(); });
+if (nextOrdenesBtn) nextOrdenesBtn.addEventListener('click', () => { ordenesCurrentPage++; cargarOrdenes(); });
+if (prevProductosBtn) prevProductosBtn.addEventListener('click', () => { productosCurrentPage--; cargarProductos(); });
+if (nextProductosBtn) nextProductosBtn.addEventListener('click', () => { productosCurrentPage++; cargarProductos(); });
 
 (window as any).notificarSubida = async (id: string) => {
   if (!(await cyberConfirm('¿Seguro que quieres notificar al cliente que el libro ya está subido?'))) return;
@@ -254,8 +272,20 @@ tabBtns.forEach(btn => {
 
 const sortProductosSelect = document.getElementById('sortProductos') as HTMLSelectElement;
 if (sortProductosSelect) {
-  sortProductosSelect.addEventListener('change', cargarProductos);
+  sortProductosSelect.addEventListener('change', () => {
+    productosCurrentPage = 1;
+    cargarProductos();
+  });
 }
+
+let buscarProductosTimeout: ReturnType<typeof setTimeout> | undefined;
+buscarProductosInput.addEventListener('input', () => {
+  if (buscarProductosTimeout) clearTimeout(buscarProductosTimeout);
+  buscarProductosTimeout = setTimeout(() => {
+    productosCurrentPage = 1;
+    cargarProductos();
+  }, 300);
+});
 
 // --- LÓGICA DE NUEVO PRODUCTO ---
 mostrarFormBtn.addEventListener('click', () => {
@@ -349,8 +379,10 @@ async function validarYEntrar(key: string): Promise<boolean> {
     loginError.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
 
-    const ordenes = await res.json();
-    ordenesActuales = ordenes;
+    const responseData = await res.json();
+    const ordenes = Array.isArray(responseData) ? responseData : (responseData.ordenes || []);
+    ordenesTotal = Array.isArray(responseData) ? ordenes.length : (responseData.total || 0);
+    actualizarPaginacionOrdenes();
     dibujarOrdenes(ordenes);
     return true;
   } catch (err: any) {
@@ -365,7 +397,17 @@ async function cargarOrdenes() {
   const fetchId = ++currentTabFetchId;
   ordenesBody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
   try {
-    const res = await fetch(`${API_URL}/admin/ordenes`, {
+    const ordenesParams = new URLSearchParams({
+      limit: String(ordenesLimit),
+      page: String(ordenesCurrentPage),
+    });
+    const sortOrdenes = sortOrdenesSelect.value;
+    if (sortOrdenes !== 'default') {
+      const [campo, direccion] = sortOrdenes.split('-');
+      ordenesParams.set('campo', campo === 'email' ? 'email' : 'total');
+      ordenesParams.set('direccion', direccion);
+    }
+    const res = await fetch(`${API_URL}/admin/ordenes?${ordenesParams.toString()}`, {
       headers: { 'x-api-key': apiKey }
     });
 
@@ -374,9 +416,11 @@ async function cargarOrdenes() {
       throw new Error('Error al cargar órdenes');
     }
 
-    const ordenes = await res.json();
+    const responseData = await res.json();
     if (fetchId !== currentTabFetchId) return;
-    ordenesActuales = ordenes;
+    const ordenes = Array.isArray(responseData) ? responseData : (responseData.ordenes || []);
+    ordenesTotal = Array.isArray(responseData) ? ordenes.length : (responseData.total || 0);
+    actualizarPaginacionOrdenes();
     dibujarOrdenes(ordenes);
   } catch (err: any) {
     if (fetchId !== currentTabFetchId) return;
@@ -395,7 +439,8 @@ async function cargarProductos() {
   productosBody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     let params = new URLSearchParams();
-    params.set('limit', '100');
+    params.set('limit', String(productosLimit));
+    params.set('page', String(productosCurrentPage));
     const sortSelect = document.getElementById('sortProductos') as HTMLSelectElement;
     if (sortSelect && sortSelect.value) {
       const [campo, direccion] = sortSelect.value.split('-');
@@ -404,6 +449,8 @@ async function cargarProductos() {
         params.set('direccion', direccion);
       }
     }
+    const busqueda = buscarProductosInput.value.trim();
+    if (busqueda) params.set('busqueda', busqueda);
     const query = `?${params.toString()}`;
 
     const res = await fetch(`${API_URL}/admin/productos${query}`, {
@@ -416,6 +463,8 @@ async function cargarProductos() {
     if (fetchId !== currentTabFetchId) return;
     // Soporte para formato paginado { productos, total } o array directo
     const productos = Array.isArray(responseData) ? responseData : (responseData.productos || []);
+    productosTotal = Array.isArray(responseData) ? productos.length : (responseData.total || 0);
+    actualizarPaginacionProductos();
 
     actualizarDatalistCategorias(productos);
     actualizarPreciosFrecuentes(productos);
@@ -763,16 +812,25 @@ function dibujarOrdenes(ordenes: any[]) {
   });
 }
 
+function actualizarPaginacionOrdenes() {
+  const hayPaginaAnterior = ordenesCurrentPage > 1;
+  const hayPaginaSiguiente = ordenesCurrentPage * ordenesLimit < ordenesTotal;
+  ordenesPageInfo.textContent = `PÁGINA ${ordenesCurrentPage}`;
+  prevOrdenesBtn.disabled = !hayPaginaAnterior;
+  nextOrdenesBtn.disabled = !hayPaginaSiguiente;
+}
+
+function actualizarPaginacionProductos() {
+  const hayPaginaAnterior = productosCurrentPage > 1;
+  const hayPaginaSiguiente = productosCurrentPage * productosLimit < productosTotal;
+  productosPageInfo.textContent = `PÁGINA ${productosCurrentPage}`;
+  prevProductosBtn.disabled = !hayPaginaAnterior;
+  nextProductosBtn.disabled = !hayPaginaSiguiente;
+}
+
 sortOrdenesSelect.addEventListener('change', () => {
-  const seleccionadas = new Set(
-    [...document.querySelectorAll<HTMLInputElement>('.orden-checkbox:checked')]
-      .map(checkbox => checkbox.dataset.id)
-  );
-  dibujarOrdenes(ordenesActuales);
-  document.querySelectorAll<HTMLInputElement>('.orden-checkbox').forEach(checkbox => {
-    checkbox.checked = seleccionadas.has(checkbox.dataset.id);
-  });
-  actualizarSeleccionOrdenes();
+  ordenesCurrentPage = 1;
+  cargarOrdenes();
 });
 
 function actualizarSeleccionOrdenes() {

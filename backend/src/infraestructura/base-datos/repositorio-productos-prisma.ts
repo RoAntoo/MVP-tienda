@@ -47,6 +47,12 @@ export class RepositorioProductosPrisma implements RepositorioProductos {
     if (filtros?.categorias && filtros.categorias.length > 0) {
       where.categoria = { in: filtros.categorias };
     }
+    if (filtros?.busqueda) {
+      where.OR = [
+        { titulo: { contains: filtros.busqueda } },
+        { categoria: { contains: filtros.busqueda } },
+      ];
+    }
 
     const total = await this.prisma.producto.count({ where });
     

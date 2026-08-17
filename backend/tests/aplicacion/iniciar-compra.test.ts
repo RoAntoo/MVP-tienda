@@ -29,7 +29,7 @@ describe('IniciarCompraUseCase', () => {
       crear: vi.fn(),
       actualizar: vi.fn(),
       eliminar: vi.fn(),
-      obtenerTodos: vi.fn(),
+      obtenerTodas: vi.fn(),
       obtenerPorIds: vi.fn().mockResolvedValue([
         { id: '1', titulo: 'P1', precio: 100, driveUrl: 'link1' },
         { id: '2', titulo: 'P2', precio: 50, driveUrl: 'link2' }
@@ -40,7 +40,9 @@ describe('IniciarCompraUseCase', () => {
       crear: vi.fn().mockImplementation((orden) => Promise.resolve({ id: 'orden-1', ...orden })),
       obtenerPorId: vi.fn(),
       actualizarEstado: vi.fn(),
-      obtenerTodos: vi.fn(),
+      obtenerTodas: vi.fn(),
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
 
     const useCase = new IniciarCompraUseCase(mockRepoOrdenes, mockRepoProductos, mockServicioEmail);
@@ -71,7 +73,7 @@ describe('IniciarCompraUseCase', () => {
       crear: vi.fn(),
       actualizar: vi.fn(),
       eliminar: vi.fn(),
-      obtenerTodos: vi.fn(),
+      obtenerTodas: vi.fn(),
       obtenerPorIds: vi.fn().mockResolvedValue([
         { id: '1', titulo: 'P1', precio: 100, driveUrl: 'link1' }
       ]),
@@ -91,14 +93,16 @@ describe('IniciarCompraUseCase', () => {
       obtenerPorId: vi.fn(),
       crear: vi.fn().mockResolvedValue({ id: 'ord-123' }),
       actualizarEstado: vi.fn(),
-      obtenerTodos: vi.fn(),
+      obtenerTodas: vi.fn(),
+      eliminar: vi.fn(),
+      eliminarVarias: vi.fn(),
     };
     const mockRepoProductos: RepositorioProductos = {
       obtenerPorId: vi.fn(),
       crear: vi.fn(),
       actualizar: vi.fn(),
       eliminar: vi.fn(),
-      obtenerTodos: vi.fn(),
+      obtenerTodas: vi.fn(),
       obtenerPorIds: vi.fn().mockResolvedValue([
         { id: '1', titulo: 'P1', precio: new Prisma.Decimal('0.10'), driveUrl: 'link1' },
         { id: '2', titulo: 'P2', precio: new Prisma.Decimal('0.20'), driveUrl: 'link2' }

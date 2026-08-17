@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EbooksPack | Centro de control</title>
   <!-- Favicons -->
   <link rel="shortcut icon" href="/favicon.ico">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -14,25 +15,33 @@
   <!-- Usar la misma fuente que la app principal -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
   <div id="loginSection" class="admin-container">
     <div class="terminal-box">
-      <h2>&gt; REQUERIDA_CREDENCIAL</h2>
-      <p class="sys-msg">SISTEMA_ADMINISTRATIVO_RESTRINGIDO</p>
+      <span class="admin-kicker">EBOOKSPACK / ACCESO PRIVADO</span>
+      <h2>&gt; CENTRO_DE_CONTROL</h2>
+      <p class="sys-msg">Gestioná pedidos, catálogo y solicitudes desde un solo lugar.</p>
       <input type="password" id="apiKeyInput" placeholder="INGRESE_API_KEY..." />
-      <button id="loginBtn" class="cyber-btn">AUTENTICAR</button>
+      <button id="loginBtn" class="cyber-btn cyber-btn-pink">AUTENTICAR</button>
       <p id="loginError" class="error-msg hidden">Acceso Denegado</p>
     </div>
   </div>
 
   <div id="dashboardSection" class="admin-container hidden">
     <header class="admin-header">
-      <h2>&gt; ADMIN_DASHBOARD_</h2>
-      <button id="logoutBtn" class="cyber-btn cyber-btn-sm cyber-btn-pink">CERRAR_SESIÓN</button>
+      <div class="admin-header-copy">
+        <span class="admin-kicker">EBOOKSPACK / BACK OFFICE</span>
+        <h2>Centro de control<span class="title-mark">.</span></h2>
+        <p>Operaciones de la biblioteca digital en tiempo real.</p>
+      </div>
+      <div class="admin-header-actions">
+        <span class="system-status"><span></span>SISTEMA ONLINE</span>
+        <button id="logoutBtn" class="cyber-btn cyber-btn-sm cyber-btn-pink">CERRAR SESIÓN</button>
+      </div>
     </header>
 
     <div class="tabs">
@@ -74,14 +83,23 @@
             </tbody>
           </table>
         </div>
+        <div class="pagination-controls admin-pagination">
+          <button id="prevOrdenesBtn" class="cyber-btn cyber-btn-sm" disabled>&lt; ANTERIOR</button>
+          <span id="ordenesPageInfo">PÁGINA 1</span>
+          <button id="nextOrdenesBtn" class="cyber-btn cyber-btn-sm" disabled>SIGUIENTE &gt;</button>
+        </div>
       </section>
 
       <section id="productosTab" class="hidden">
         <div class="catalog-header">
           <h2>[ CATÁLOGO_DINÁMICO ]</h2>
-          <div style="display: flex; gap: 1rem; align-items: center;">
+          <div class="catalog-controls">
+            <label class="product-search" for="buscarProductos">
+              <span aria-hidden="true">/</span>
+              <input id="buscarProductos" class="cyber-input" type="search" placeholder="Buscar título o categoría..." aria-label="Buscar productos" autocomplete="off">
+            </label>
             <select id="sortProductos" class="cyber-input"
-              style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; cursor: pointer;">
+              aria-label="Ordenar productos">
               <option value="createdAt-desc" style="background: #0d0d12; color: #00f0ff;">Más recientes</option>
               <option value="precio-desc" style="background: #0d0d12; color: #00f0ff;">Mayor precio</option>
               <option value="precio-asc" style="background: #0d0d12; color: #00f0ff;">Menor precio</option>
@@ -153,6 +171,11 @@
               <!-- JS Render -->
             </tbody>
           </table>
+        </div>
+        <div class="pagination-controls admin-pagination">
+          <button id="prevProductosBtn" class="cyber-btn cyber-btn-sm" disabled>&lt; ANTERIOR</button>
+          <span id="productosPageInfo">PÁGINA 1</span>
+          <button id="nextProductosBtn" class="cyber-btn cyber-btn-sm" disabled>SIGUIENTE &gt;</button>
         </div>
       </section>
       <section id="solicitudesTab" class="hidden">

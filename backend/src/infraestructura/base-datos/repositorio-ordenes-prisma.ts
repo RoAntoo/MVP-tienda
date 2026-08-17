@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { EstadoOrden, Orden } from '../../dominio/entidades/orden.js';
-import { RepositorioOrdenes } from '../../dominio/repositorios/repositorio-ordenes.js';
+import { RepositorioOrdenes, ResultadoPaginadoOrdenes, FiltrosOrdenes } from '../../dominio/repositorios/repositorio-ordenes.js';
 
 export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
   constructor(private prisma: PrismaClient) {}
@@ -51,12 +51,23 @@ export class RepositorioOrdenesPrisma implements RepositorioOrdenes {
     return this._mapearOrden(ordenDb);
   }
 
-  async obtenerTodas(): Promise<Orden[]> {
+  async obtenerTodas(filtros?: FiltrosOrdenes): Promise<ResultadoPaginadoOrdenes> {
+    const total = await this.prisma.orden.count();
+    const campo = filtros?.campo === 'email' ? 'emailCliente' : (filtros?.campo || 'id');
+    const direccion = filtros?.direccion || 'desc';
+    const orden = campo === 'id'
+      ? { id: direccion }
+      : [{ [campo]: direccion }, { id: 'desc' as const }];
     const ordenesDb = await this.prisma.orden.findMany({
       include: { productos: true },
-      orderBy: { id: 'desc' }, // En MVP simple ordenamos por id o no aplicamos fechas aun
+      orderBy: orden,
+      take: filtros?.limit,
+      skip: filtros?.offset,
     });
-    return ordenesDb.map(ordenDb => this._mapearOrden(ordenDb));
+    return {
+      ordenes: ordenesDb.map(ordenDb => this._mapearOrden(ordenDb)),
+      total,
+    };
   }
 
   async actualizarEstado(id: string, estadoOrigen: EstadoOrden, nuevoEstado: EstadoOrden): Promise<{ orden: Orden; modificada: boolean } | null> {
