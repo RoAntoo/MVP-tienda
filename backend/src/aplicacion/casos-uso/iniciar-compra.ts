@@ -43,7 +43,7 @@ export class IniciarCompraUseCase {
 
     // Calcular el total
     const total = productosValidos.reduce(
-      (acc, p) => acc.add(new Prisma.Decimal(p.precio as any)), 
+      (acc, p) => acc.add(this.calcularPrecio(p)),
       new Prisma.Decimal(0)
     );
 
@@ -70,5 +70,14 @@ export class IniciarCompraUseCase {
       orden: nuevaOrden,
       mensaje: 'Orden creada exitosamente. Las instrucciones de pago llegarán a tu correo próximamente.',
     };
+  }
+
+  private calcularPrecio(producto: Producto): Prisma.Decimal {
+    const precioBase = new Prisma.Decimal(producto.precio as any);
+    if (!producto.promocion) return precioBase;
+    if (producto.promocion.tipo === 'PRECIO_UNITARIO') {
+      return new Prisma.Decimal(producto.promocion.valor).mul(producto.cantidad);
+    }
+    return precioBase.mul(new Prisma.Decimal(100 - producto.promocion.valor).div(100));
   }
 }

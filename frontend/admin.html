@@ -47,6 +47,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="ordenes">ÓRDENES</button>
       <button class="tab-btn" data-tab="productos">PRODUCTOS</button>
+      <button class="tab-btn" data-tab="promociones">PROMOCIONES</button>
       <button class="tab-btn" data-tab="solicitudes">SOLICITUDES</button>
     </div>
 
@@ -177,6 +178,55 @@
           <nav id="productosPageInfo" class="page-numbers" aria-label="Páginas de productos"></nav>
           <button id="nextProductosBtn" class="cyber-btn cyber-btn-sm" disabled>SIGUIENTE &gt;</button>
         </div>
+      </section>
+      <section id="promocionesTab" class="hidden">
+        <div class="catalog-header">
+          <div>
+            <h2>[ MOTOR_DE_OFERTAS ]</h2>
+            <p class="panel-subtitle">Un producto no puede tener más de una promo activa.</p>
+          </div>
+        </div>
+        <div class="promotion-layout">
+          <form id="promocionForm" class="promotion-form">
+            <span class="admin-kicker">NUEVA PROMOCIÓN</span>
+            <div class="form-group">
+              <label for="promoNombre">NOMBRE DE LA PROMO</label>
+              <input id="promoNombre" required maxlength="100" placeholder="Ej: Todo a mil por archivo" />
+            </div>
+            <div class="promotion-fields">
+              <div class="form-group">
+                <label for="promoTipo">TIPO</label>
+                <select id="promoTipo" class="cyber-input">
+                  <option value="PRECIO_UNITARIO">Precio por archivo</option>
+                  <option value="PORCENTAJE">Porcentaje de descuento</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="promoValor">VALOR</label>
+                <input id="promoValor" type="number" min="0.01" step="0.01" required placeholder="1000" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="promoFechaFin">VENCIMIENTO (OPCIONAL)</label>
+              <input id="promoFechaFin" type="datetime-local" />
+            </div>
+            <p id="promoSelectedCount" class="promotion-selection-count">0 productos seleccionados</p>
+            <button type="submit" class="cyber-btn cyber-btn-pink">ACTIVAR PROMOCIÓN</button>
+          </form>
+          <div class="promotion-picker">
+            <div class="promotion-picker-header">
+              <div>
+                <span class="admin-kicker">PRODUCTOS A INCLUIR</span>
+                <p>Elegí uno o varios libros.</p>
+              </div>
+              <button type="button" id="promoSelectAllBtn" class="cyber-btn cyber-btn-sm">SELECCIONAR TODOS</button>
+            </div>
+            <input id="promoProductoSearch" class="cyber-input promotion-search" type="search" placeholder="Filtrar productos..." aria-label="Filtrar productos para promoción">
+            <div id="promoProductosList" class="promotion-products-list"></div>
+          </div>
+        </div>
+        <div class="promotion-list-heading"><span class="admin-kicker">PROMOCIONES CREADAS</span></div>
+        <div id="promocionesList" class="promotions-list"></div>
       </section>
       <section id="solicitudesTab" class="hidden">
         <div class="catalog-header">

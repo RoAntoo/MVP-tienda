@@ -8,6 +8,7 @@ export interface InputObtenerProductos {
   offset?: number;
   categorias?: string[];
   busqueda?: string;
+  soloPromociones?: boolean;
 }
 
 export class ObtenerProductosUseCase {
@@ -23,7 +24,8 @@ export class ObtenerProductosUseCase {
         limit: input.limit,
         offset: input.offset,
         categorias: input.categorias,
-        busqueda: input.busqueda
+        busqueda: input.busqueda,
+        soloPromociones: input.soloPromociones
       };
     }
 

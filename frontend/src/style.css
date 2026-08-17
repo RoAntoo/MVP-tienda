@@ -410,6 +410,20 @@ body {
   overflow: hidden;
 }
 
+.promotion-badge { position: absolute; top: 0.75rem; left: 0.75rem; z-index: 2; max-width: calc(100% - 1.5rem); padding: 0.42rem 0.62rem; border: 1px solid rgba(255,255,255,0.48); border-radius: 5px; color: #fff; background: var(--accent-pink); box-shadow: 0 8px 22px rgba(255,42,133,0.38); font-family: var(--font-retro); font-size: 0.7rem; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.price-original { margin-right: 0.35rem; color: var(--text-muted); font-size: 0.7em; font-weight: 400; text-decoration: line-through; }
+.promotion-price { color: var(--accent-pink) !important; text-shadow: 0 0 16px rgba(255,42,133,0.28); }
+.promotion-banner { position: relative; display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0 2rem; padding: 1rem 1.2rem; border: 1px solid rgba(255,42,133,0.72); border-radius: 10px; color: #fff; background: linear-gradient(110deg, rgba(255,42,133,0.2), rgba(255,42,133,0.055) 55%, rgba(0,240,255,0.05)); box-shadow: 0 12px 34px rgba(255,42,133,0.12), inset 0 0 28px rgba(255,42,133,0.05); overflow: hidden; }
+.promotion-banner::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(135deg, transparent 0 14px, rgba(255,255,255,0.035) 15px 16px); opacity: 0.45; }
+.promotion-banner-signal, .promotion-banner-copy, .promotion-banner-action { position: relative; z-index: 1; }
+.promotion-banner-signal { display: grid; place-items: center; width: 3.2rem; height: 3.2rem; flex: 0 0 auto; border-radius: 8px; background: var(--accent-pink); color: #fff; font-family: var(--font-retro); font-size: 0.72rem; font-weight: bold; letter-spacing: 0.08em; transform: rotate(-4deg); box-shadow: 0 0 24px rgba(255,42,133,0.42); }
+.promotion-banner-copy { display: grid; gap: 0.12rem; min-width: 0; }
+.promotion-banner-copy > span { color: #ff9fc5; font-family: var(--font-retro); font-size: 0.68rem; letter-spacing: 0.14em; }
+.promotion-banner-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.08rem; }
+.promotion-banner-copy p { color: var(--text-muted); font-size: 0.82rem; }
+.promotion-banner-action { margin-left: auto; padding: 0.55rem 0.7rem; border: 1px solid var(--accent-pink); border-radius: 5px; background: rgba(255,42,133,0.08); color: var(--accent-pink); cursor: pointer; font-family: var(--font-retro); font-size: 0.7rem; letter-spacing: 0.08em; white-space: nowrap; transition: 180ms ease; }
+.promotion-banner-action:hover, .promotion-banner-action[aria-pressed="true"] { background: var(--accent-pink); color: #fff; box-shadow: 0 0 16px rgba(255,42,133,0.3); }
+
 .card-bottom {
   display: flex;
   justify-content: space-between;
@@ -992,4 +1006,13 @@ footer {
   .toast.show {
     transform: translateY(0);
   }
+}
+
+@media (max-width: 600px) {
+  .promotion-banner { align-items: flex-start; flex-wrap: wrap; gap: 0.7rem; padding: 0.85rem; }
+  .promotion-banner-signal { width: 2.7rem; height: 2.7rem; font-size: 0.62rem; }
+  .promotion-banner-copy strong { font-size: 0.92rem; white-space: normal; }
+  .promotion-banner-copy p { font-size: 0.74rem; }
+  .promotion-banner-action { flex: 0 0 100%; width: 100%; margin-left: 0; text-align: center; }
+  .promotion-badge { top: 0.55rem; left: 0.55rem; max-width: calc(100% - 1.1rem); font-size: 0.62rem; }
 }
