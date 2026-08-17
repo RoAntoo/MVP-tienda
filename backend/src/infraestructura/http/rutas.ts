@@ -4,12 +4,14 @@ import { z } from 'zod';
 import { prisma } from '../base-datos/prisma-cliente.js';
 import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-prisma.js';
 import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-prisma.js';
+import { RepositorioPromocionesPrisma } from '../base-datos/repositorio-promociones-prisma.js';
 import { RepositorioSolicitudesPrisma } from '../base-datos/repositorio-solicitudes-prisma.js';
 import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.js';
 import { ServicioEmailDummy } from '../servicios/servicio-email-dummy.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
 import { AprobarOrdenUseCase } from '../../aplicacion/casos-uso/aprobar-orden.js';
 import { EliminarOrdenUseCase } from '../../aplicacion/casos-uso/eliminar-orden.js';
+import { GestionarPromocionesUseCase } from '../../aplicacion/casos-uso/gestionar-promociones.js';
 import { DespacharProductoUseCase } from '../../aplicacion/casos-uso/despachar-producto.js';
 import { CrearProductoUseCase } from '../../aplicacion/casos-uso/crear-producto.js';
 import { EliminarProductoUseCase } from '../../aplicacion/casos-uso/eliminar-producto.js';
@@ -86,6 +88,7 @@ const EsquemaConsultarProductosQuery = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
   page: z.coerce.number().int().positive().max(10000).optional(),
   busqueda: z.string().trim().max(100).optional(),
+  soloPromociones: z.coerce.boolean().optional(),
   categorias: z.string().optional().transform(val => {
     if (!val) return undefined;
     const cats = val.split(',').map(s => s.trim()).filter(Boolean);
@@ -99,6 +102,18 @@ const EsquemaConsultarOrdenesQuery = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
   page: z.coerce.number().int().positive().max(10000).default(1),
 });
+
+const EsquemaCrearPromocion = z.object({
+  nombre: z.string().trim().min(1).max(100),
+  tipo: z.enum(['PRECIO_UNITARIO', 'PORCENTAJE']),
+  valor: z.number().positive(),
+  productoIds: z.array(z.string().uuid()).min(1).max(100),
+  fechaFin: z.coerce.date().nullable().optional(),
+});
+
+const EsquemaActualizarPromocion = EsquemaCrearPromocion.partial().extend({
+  activa: z.boolean().optional(),
+}).refine(data => Object.keys(data).length > 0, 'Debe indicar al menos un campo');
 
 const EsquemaSolicitudLibro = z.object({
   emailCliente: z.string().email('Debe ser un correo electrónico válido'),
@@ -122,6 +137,7 @@ export async function rutas(servidor: FastifyInstance) {
   // 1. Inicializar Repositorios y Servicios
   const repositorioProductos = new RepositorioProductosPrisma(prisma);
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
+  const repositorioPromociones = new RepositorioPromocionesPrisma(prisma);
   const repositorioSolicitudes = new RepositorioSolicitudesPrisma(prisma);
 
   const emailUser = process.env.EMAIL_USER;
@@ -149,6 +165,7 @@ export async function rutas(servidor: FastifyInstance) {
   const iniciarCompraUseCase = new IniciarCompraUseCase(repositorioOrdenes, repositorioProductos, servicioEmail, adminEmail);
   const aprobarOrdenUseCase = new AprobarOrdenUseCase(repositorioOrdenes, repositorioProductos, servicioEmail);
   const eliminarOrdenUseCase = new EliminarOrdenUseCase(repositorioOrdenes);
+  const gestionarPromocionesUseCase = new GestionarPromocionesUseCase(repositorioPromociones);
   const despacharProductoUseCase = new DespacharProductoUseCase(repositorioOrdenes);
   const crearProductoUseCase = new CrearProductoUseCase(repositorioProductos);
   const eliminarProductoUseCase = new EliminarProductoUseCase(repositorioProductos);
@@ -482,6 +499,16 @@ export async function rutas(servidor: FastifyInstance) {
     }
   });
 
+  servidor.get('/promociones/activas', async (_peticion, respuesta) => {
+    try {
+      const promociones = await gestionarPromocionesUseCase.listar();
+      return respuesta.status(200).send(promociones.filter(promocion => promocion.activa));
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener las promociones activas.' });
+    }
+  });
+
   servidor.post('/admin/ordenes/eliminar-multiples', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
       if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
@@ -494,6 +521,57 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(400).send({ error: 'La selección de órdenes no es válida' });
       }
       return respuesta.status(500).send({ error: 'Error al eliminar las órdenes.' });
+    }
+  });
+
+  // Promociones del catálogo (Admin)
+  servidor.get('/admin/promociones', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      return respuesta.status(200).send(await gestionarPromocionesUseCase.listar());
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al obtener las promociones.' });
+    }
+  });
+
+  servidor.post('/admin/promociones', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      const datos = EsquemaCrearPromocion.parse(peticion.body);
+      return respuesta.status(201).send(await gestionarPromocionesUseCase.crear(datos));
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error instanceof z.ZodError || error?.name === 'ZodError') return respuesta.status(400).send({ error: error.issues });
+      if (error.message.includes('promoción') || error.message.includes('porcentaje') || error.message.includes('valor')) return respuesta.status(400).send({ error: error.message });
+      return respuesta.status(500).send({ error: 'Error al crear la promoción.' });
+    }
+  });
+
+  servidor.put('/admin/promociones/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      const { id } = z.object({ id: z.string().uuid() }).parse(peticion.params);
+      const datos = EsquemaActualizarPromocion.parse(peticion.body);
+      return respuesta.status(200).send(await gestionarPromocionesUseCase.actualizar(id, datos));
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error instanceof z.ZodError || error?.name === 'ZodError') return respuesta.status(400).send({ error: error.issues });
+      if (error.message.includes('promoción') || error.message.includes('porcentaje') || error.message.includes('valor')) return respuesta.status(400).send({ error: error.message });
+      return respuesta.status(500).send({ error: 'Error al actualizar la promoción.' });
+    }
+  });
+
+  servidor.delete('/admin/promociones/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      const { id } = z.object({ id: z.string().uuid() }).parse(peticion.params);
+      await gestionarPromocionesUseCase.eliminar(id);
+      return respuesta.status(204).send();
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error instanceof z.ZodError || error?.name === 'ZodError') return respuesta.status(400).send({ error: error.issues });
+      return respuesta.status(500).send({ error: 'Error al eliminar la promoción.' });
     }
   });
 

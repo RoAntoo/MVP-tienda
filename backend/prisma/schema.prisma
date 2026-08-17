@@ -18,8 +18,21 @@ model Producto {
   cantidad    Int      @default(1)
   createdAt   DateTime @default(now())
   ordenes     Orden[]  @relation("OrdenProductos")
+  promociones Promocion[] @relation("PromocionProductos")
 
   @@map("productos")
+}
+
+model Promocion {
+  id          String   @id @default(uuid())
+  nombre      String
+  tipo        String
+  valor       Decimal
+  activa      Boolean  @default(true)
+  fechaInicio DateTime @default(now())
+  fechaFin    DateTime?
+  createdAt   DateTime @default(now())
+  productos   Producto[] @relation("PromocionProductos")
 }
 
 model Orden {

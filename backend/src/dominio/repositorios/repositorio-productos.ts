@@ -7,6 +7,7 @@ export interface FiltrosProductos {
   offset?: number;
   categorias?: string[];
   busqueda?: string;
+  soloPromociones?: boolean;
 }
 
 export interface ResultadoPaginado<T> {

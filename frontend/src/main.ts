@@ -6,6 +6,8 @@ interface Product {
   description: string;
   categoria: string;
   cantidad: number;
+  originalPrice?: number;
+  promotion?: { nombre: string; tipo: 'PRECIO_UNITARIO' | 'PORCENTAJE'; valor: number };
 }
 
 // Estado Global
@@ -16,6 +18,9 @@ let currentSearchQuery: string = '';
 let currentPage: number = 1;
 const limitPerPage: number = 10;
 let totalProducts: number = 0;
+let activePromotionNames: string[] = [];
+let activePromotionsLoaded = false;
+let mostrarSoloPromociones = false;
 
 // Estado del Carrito
 let cartItems: Product[] = [];
@@ -31,6 +36,7 @@ const cartTotalPrice = document.getElementById('cartTotalPrice');
 const checkoutForm = document.getElementById('checkoutForm');
 const cartCountElement = document.getElementById('cartCount');
 const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
+const promotionBanner = document.getElementById('promotionBanner');
 
 // Sistema de Notificaciones (Toasts)
 function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -153,7 +159,11 @@ function openProductDetails(id: string) {
   
   (document.getElementById('detailImage') as HTMLImageElement).src = p.imageUrl || 'https://placehold.co/400x500/14141e/ff2a85?text=NO+IMAGE';
   document.getElementById('detailTitle')!.textContent = p.title;
-  document.getElementById('detailPrice')!.textContent = `$${p.price.toLocaleString('es-AR')}`;
+   const detailPrice = document.getElementById('detailPrice')!;
+   detailPrice.classList.toggle('promotion-price', Boolean(p.originalPrice && p.originalPrice > p.price));
+   detailPrice.innerHTML = p.originalPrice && p.originalPrice > p.price
+     ? `<span class="price-original">$${p.originalPrice.toLocaleString('es-AR')}</span> $${p.price.toLocaleString('es-AR')}`
+     : `$${p.price.toLocaleString('es-AR')}`;
   document.getElementById('detailDesc')!.textContent = p.description || 'Sin descripción disponible.';
   const qty = p.cantidad || 1;
   document.getElementById('detailCantidadValue')!.textContent = `${qty} ${qty === 1 ? 'archivo' : 'archivos'}`;
@@ -298,7 +308,10 @@ function renderCart() {
 
     const price = document.createElement('div');
     price.className = 'cart-item-price';
-    price.textContent = `$${item.price.toLocaleString('es-AR')}`;
+    price.classList.toggle('promotion-price', Boolean(item.originalPrice && item.originalPrice > item.price));
+    price.innerHTML = item.originalPrice && item.originalPrice > item.price
+      ? `<span class="price-original">$${item.originalPrice.toLocaleString('es-AR')}</span> $${item.price.toLocaleString('es-AR')}`
+      : `$${item.price.toLocaleString('es-AR')}`;
 
     info.appendChild(title);
     info.appendChild(price);
@@ -363,7 +376,10 @@ async function fetchProducts() {
     }
     
     if (currentSearchQuery.trim() !== '') {
-      params.append('search', currentSearchQuery.trim());
+      params.append('busqueda', currentSearchQuery.trim());
+    }
+    if (mostrarSoloPromociones) {
+      params.append('soloPromociones', 'true');
     }
     
     const res = await fetch(`${API_URL}/productos?${params.toString()}`, {
@@ -374,6 +390,14 @@ async function fetchProducts() {
     const data = await res.json();
     const productosDb = data.productos || [];
     totalProducts = data.total || 0;
+    if (!activePromotionsLoaded) {
+      const promotionsRes = await fetch(`${API_URL}/promociones/activas`);
+      if (promotionsRes.ok) {
+        const promociones = await promotionsRes.json();
+        activePromotionNames = promociones.map((promocion: any) => promocion.nombre);
+        activePromotionsLoaded = true;
+      }
+    }
 
     PRODUCTS = productosDb.reduce((acc: Product[], p: any) => {
       let precioValidado = typeof p.precio === 'string' ? parseFloat(p.precio) : p.precio;
@@ -385,7 +409,9 @@ async function fetchProducts() {
       acc.push({
         id: p.id,
         title: p.titulo,
-        price: precioValidado,
+        price: Number(p.precioPromocional ?? precioValidado),
+        originalPrice: p.precioPromocional ? Number(p.precioOriginal ?? precioValidado) : undefined,
+        promotion: p.promocion ? { nombre: p.promocion.nombre, tipo: p.promocion.tipo, valor: Number(p.promocion.valor) } : undefined,
         description: p.descripcion,
         categoria: p.categoria,
         imageUrl: p.imagenUrl,
@@ -393,6 +419,7 @@ async function fetchProducts() {
       });
       return acc;
     }, []);
+    renderPromotionBanner();
 
     renderProducts();
     renderPagination();
@@ -410,6 +437,41 @@ async function fetchProducts() {
     const grid = document.getElementById('productsGrid');
     if (grid) grid.innerHTML = '<p style="color:red;text-align:center;width:100%">[ ERROR_CONEXIÓN_CATÁLOGO ]</p>';
   }
+}
+
+function renderPromotionBanner() {
+  if (!promotionBanner) return;
+  const nombres = [...new Set([...activePromotionNames, ...PRODUCTS.filter(producto => producto.promotion).map(producto => producto.promotion!.nombre)])];
+  if (nombres.length === 0) {
+    promotionBanner.classList.add('hidden');
+    promotionBanner.textContent = '';
+    return;
+  }
+  promotionBanner.innerHTML = '';
+  const signal = document.createElement('span');
+  signal.className = 'promotion-banner-signal';
+  signal.textContent = 'PROMO';
+  const copy = document.createElement('div');
+  copy.className = 'promotion-banner-copy';
+  const kicker = document.createElement('span');
+  kicker.textContent = 'OFERTAS ACTIVAS';
+  const title = document.createElement('strong');
+  title.textContent = nombres.join(' · ');
+  const detail = document.createElement('p');
+  detail.textContent = 'Precios especiales en títulos seleccionados del catálogo.';
+  copy.append(kicker, title, detail);
+  const action = document.createElement('button');
+  action.className = 'promotion-banner-action';
+  action.type = 'button';
+  action.textContent = mostrarSoloPromociones ? 'VER TODO' : 'VER OFERTAS';
+  action.setAttribute('aria-pressed', String(mostrarSoloPromociones));
+  action.addEventListener('click', () => {
+    mostrarSoloPromociones = !mostrarSoloPromociones;
+    currentPage = 1;
+    fetchProducts();
+  });
+  promotionBanner.append(signal, copy, action);
+  promotionBanner.classList.remove('hidden');
 }
 
 // Función para obtener categorías únicas
@@ -606,13 +668,26 @@ function renderProducts() {
     title.className = 'product-title';
     title.textContent = product.title;
 
+    if (product.promotion) {
+      const promoBadge = document.createElement('span');
+      promoBadge.className = 'promotion-badge';
+      promoBadge.setAttribute('aria-label', `Promoción: ${product.promotion.nombre}`);
+      promoBadge.textContent = product.promotion.tipo === 'PRECIO_UNITARIO'
+        ? `${product.promotion.nombre} · $${product.promotion.valor.toLocaleString('es-AR')}/archivo`
+        : `${product.promotion.nombre} · ${product.promotion.valor}% OFF`;
+      imgContainer.appendChild(promoBadge);
+    }
+
     // Bottom section
     const bottomDiv = document.createElement('div');
     bottomDiv.className = 'card-bottom';
 
     const price = document.createElement('p');
     price.className = 'product-price';
-    price.textContent = `$${product.price.toLocaleString('es-AR')}`;
+    price.classList.toggle('promotion-price', Boolean(product.originalPrice && product.originalPrice > product.price));
+    price.innerHTML = product.originalPrice && product.originalPrice > product.price
+      ? `<span class="price-original">$${product.originalPrice.toLocaleString('es-AR')}</span> $${product.price.toLocaleString('es-AR')}`
+      : `$${product.price.toLocaleString('es-AR')}`;
 
     const btn = document.createElement('button');
     btn.className = 'cyber-btn cyber-btn-primary add-to-cart-btn';

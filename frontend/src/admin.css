@@ -267,6 +267,31 @@ tr:hover td {
   color: var(--accent-pink);
 }
 
+.panel-subtitle { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.35rem; }
+.promotion-layout { display: grid; grid-template-columns: minmax(280px, 0.8fr) minmax(320px, 1.2fr); gap: 1rem; margin-bottom: 2.5rem; }
+.promotion-form, .promotion-picker { padding: 1.35rem; background: rgba(24,24,27,0.62); border: 1px solid var(--border-glass); border-radius: 12px; }
+.promotion-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.promotion-form .cyber-btn { width: 100%; }
+.promotion-selection-count { color: var(--accent-pink); font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; margin: 0.75rem 0 1rem; }
+.promotion-picker-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.promotion-picker-header p { color: var(--text-muted); font-size: 0.85rem; }
+.promotion-search { width: 100%; padding: 0.7rem 0.85rem; margin-bottom: 0.7rem; }
+.promotion-products-list { max-height: 22rem; overflow-y: auto; display: grid; gap: 0.4rem; }
+.promotion-product-option { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem; border: 1px solid transparent; border-radius: 7px; cursor: pointer; transition: 180ms ease; }
+.promotion-product-option:hover { background: rgba(255,42,133,0.08); border-color: rgba(255,42,133,0.25); }
+.promotion-product-option span { display: grid; gap: 0.2rem; min-width: 0; }
+.promotion-product-option strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.promotion-product-option small { color: var(--text-muted); }
+.promotion-empty, .promotion-error { color: var(--text-muted); padding: 1rem 0; }
+.promotion-error { color: var(--accent-pink); }
+.promotion-list-heading { margin-bottom: 0.75rem; }
+.promotions-list { display: grid; gap: 0.75rem; }
+.promotion-card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.15rem; background: rgba(24,24,27,0.72); border: 1px solid rgba(255,42,133,0.3); border-radius: 10px; }
+.promotion-card.is-inactive { opacity: 0.55; border-color: var(--border-glass); }
+.promotion-card h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+.promotion-card p { color: var(--text-muted); font-size: 0.82rem; }
+.promotion-card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
 .catalog-controls { display: flex; align-items: center; gap: 0.75rem; }
 .product-search { display: flex; align-items: center; gap: 0.45rem; min-width: 17rem; padding: 0.15rem 0.7rem; border: 1px solid var(--border-glass); border-radius: 7px; background: rgba(255,255,255,0.04); color: var(--accent-pink); }
 .product-search span { font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; }
@@ -441,6 +466,11 @@ tr:hover td {
   .catalog-controls { width: 100%; flex-direction: column; align-items: stretch; }
   .product-search { min-width: 0; }
   .catalog-controls select { width: 100%; }
+  .promotion-layout { grid-template-columns: 1fr; }
+  .promotion-fields { grid-template-columns: 1fr; }
+  .promotion-picker-header, .promotion-card { align-items: flex-start; flex-direction: column; }
+  .promotion-card-actions { width: 100%; }
+  .promotion-card-actions .cyber-btn { flex: 1; }
   .admin-pagination { gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
   .admin-pagination .page-numbers { width: 100%; min-width: 0; overflow-x: auto; justify-content: flex-start; padding: 0.15rem 0.1rem 0.35rem; }
   .admin-pagination .cyber-btn { padding-left: 0.55rem; padding-right: 0.55rem; font-size: 0.7rem; }

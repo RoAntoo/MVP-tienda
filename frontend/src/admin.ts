@@ -70,6 +70,7 @@ const logoutBtn = document.getElementById('logoutBtn')!;
 const tabBtns = document.querySelectorAll('.tab-btn');
 const ordenesTab = document.getElementById('ordenesTab')!;
 const productosTab = document.getElementById('productosTab')!;
+const promocionesTab = document.getElementById('promocionesTab')!;
 const solicitudesTab = document.getElementById('solicitudesTab')!;
 const ordenesBody = document.getElementById('ordenesBody')!;
 const ordenesBulkActions = document.getElementById('ordenesBulkActions')!;
@@ -101,6 +102,16 @@ const prevProductosBtn = document.getElementById('prevProductosBtn') as HTMLButt
 const nextProductosBtn = document.getElementById('nextProductosBtn') as HTMLButtonElement;
 const productosPageInfo = document.getElementById('productosPageInfo')!;
 const buscarProductosInput = document.getElementById('buscarProductos') as HTMLInputElement;
+const promocionForm = document.getElementById('promocionForm') as HTMLFormElement;
+const promoNombreInput = document.getElementById('promoNombre') as HTMLInputElement;
+const promoTipoSelect = document.getElementById('promoTipo') as HTMLSelectElement;
+const promoValorInput = document.getElementById('promoValor') as HTMLInputElement;
+const promoFechaFinInput = document.getElementById('promoFechaFin') as HTMLInputElement;
+const promoSelectedCount = document.getElementById('promoSelectedCount')!;
+const promoSelectAllBtn = document.getElementById('promoSelectAllBtn') as HTMLButtonElement;
+const promoProductoSearch = document.getElementById('promoProductoSearch') as HTMLInputElement;
+const promoProductosList = document.getElementById('promoProductosList')!;
+const promocionesList = document.getElementById('promocionesList')!;
 
 // Elementos Formulario Producto
 const mostrarFormBtn = document.getElementById('mostrarFormBtn')!;
@@ -116,6 +127,8 @@ const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButton
 // Estado
 let apiKey = '';
 let categoriasDisponibles: string[] = [];
+let promoProductosDisponibles: any[] = [];
+const promoProductosSeleccionados = new Set<string>();
 
 // --- INICIALIZACIÓN ---
 // (Eliminado el auto-login con localStorage por seguridad)
@@ -254,16 +267,25 @@ tabBtns.forEach(btn => {
     if (tabName === 'ordenes') {
       ordenesTab.classList.remove('hidden');
       productosTab.classList.add('hidden');
+      promocionesTab.classList.add('hidden');
       solicitudesTab.classList.add('hidden');
       cargarOrdenes();
     } else if (tabName === 'productos') {
       ordenesTab.classList.add('hidden');
       productosTab.classList.remove('hidden');
+      promocionesTab.classList.add('hidden');
       solicitudesTab.classList.add('hidden');
       cargarProductos();
+    } else if (tabName === 'promociones') {
+      ordenesTab.classList.add('hidden');
+      productosTab.classList.add('hidden');
+      promocionesTab.classList.remove('hidden');
+      solicitudesTab.classList.add('hidden');
+      cargarPromociones();
     } else if (tabName === 'solicitudes') {
       ordenesTab.classList.add('hidden');
       productosTab.classList.add('hidden');
+      promocionesTab.classList.add('hidden');
       solicitudesTab.classList.remove('hidden');
       cargarSolicitudes();
     }
@@ -474,6 +496,129 @@ async function cargarProductos() {
     productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
   }
 }
+
+async function cargarPromociones() {
+  try {
+    const [promocionesRes, productosRes] = await Promise.all([
+      fetch(`${API_URL}/admin/promociones`, { headers: { 'x-api-key': apiKey } }),
+      fetch(`${API_URL}/admin/productos?limit=100&campo=titulo&direccion=asc`, { headers: { 'x-api-key': apiKey } }),
+    ]);
+    if (!promocionesRes.ok || !productosRes.ok) throw new Error('Error al cargar promociones');
+    const promociones = await promocionesRes.json();
+    const productosData = await productosRes.json();
+    promoProductosDisponibles = productosData.productos || [];
+    renderizarPromoProductos();
+    renderizarPromociones(promociones);
+  } catch (error: any) {
+    promocionesList.innerHTML = `<p class="promotion-error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderizarPromoProductos() {
+  const filtro = promoProductoSearch.value.trim().toLowerCase();
+  const productos = promoProductosDisponibles.filter(producto =>
+    !filtro || `${producto.titulo} ${producto.categoria}`.toLowerCase().includes(filtro)
+  );
+  promoProductosList.innerHTML = productos.length > 0
+    ? productos.map(producto => `
+      <label class="promotion-product-option">
+        <input type="checkbox" data-promo-product-id="${producto.id}" ${promoProductosSeleccionados.has(producto.id) ? 'checked' : ''}>
+        <span><strong>${escapeHtml(producto.titulo)}</strong><small>${escapeHtml(producto.categoria || 'General')} · ${producto.cantidad || 1} archivo${(producto.cantidad || 1) === 1 ? '' : 's'}</small></span>
+      </label>
+    `).join('')
+    : '<p class="promotion-empty">No hay productos que coincidan.</p>';
+  promoProductosList.querySelectorAll<HTMLInputElement>('[data-promo-product-id]').forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.checked) promoProductosSeleccionados.add(input.dataset.promoProductId!);
+      else promoProductosSeleccionados.delete(input.dataset.promoProductId!);
+      actualizarPromoSelectedCount();
+    });
+  });
+  actualizarPromoSelectedCount();
+}
+
+function actualizarPromoSelectedCount() {
+  const cantidad = promoProductosSeleccionados.size;
+  promoSelectedCount.textContent = `${cantidad} producto${cantidad === 1 ? '' : 's'} seleccionado${cantidad === 1 ? '' : 's'}`;
+}
+
+function renderizarPromociones(promociones: any[]) {
+  if (promociones.length === 0) {
+    promocionesList.innerHTML = '<p class="promotion-empty">Todavía no hay promociones creadas.</p>';
+    return;
+  }
+  promocionesList.innerHTML = promociones.map(promo => {
+    const valor = promo.tipo === 'PORCENTAJE' ? `${promo.valor}% OFF` : `$${Number(promo.valor).toLocaleString('es-AR')} por archivo`;
+    const vencimiento = promo.fechaFin ? `Vence ${new Date(promo.fechaFin).toLocaleDateString('es-AR')}` : 'Sin vencimiento';
+    return `<article class="promotion-card ${promo.activa ? '' : 'is-inactive'}">
+      <div><span class="admin-kicker">${promo.activa ? 'ACTIVA' : 'PAUSADA'}</span><h3>${escapeHtml(promo.nombre)}</h3><p>${valor} · ${promo.productoIds.length} producto${promo.productoIds.length === 1 ? '' : 's'} · ${vencimiento}</p></div>
+      <div class="promotion-card-actions"><button class="cyber-btn cyber-btn-sm" data-promo-action="toggle" data-id="${promo.id}">${promo.activa ? 'PAUSAR' : 'ACTIVAR'}</button><button class="cyber-btn cyber-btn-sm cyber-btn-pink" data-promo-action="delete" data-id="${promo.id}">ELIMINAR</button></div>
+    </article>`;
+  }).join('');
+}
+
+promoProductoSearch.addEventListener('input', renderizarPromoProductos);
+promoSelectAllBtn.addEventListener('click', () => {
+  const visibles = promoProductosDisponibles.filter(producto => {
+    const filtro = promoProductoSearch.value.trim().toLowerCase();
+    return !filtro || `${producto.titulo} ${producto.categoria}`.toLowerCase().includes(filtro);
+  });
+  const todosSeleccionados = visibles.every(producto => promoProductosSeleccionados.has(producto.id));
+  visibles.forEach(producto => todosSeleccionados ? promoProductosSeleccionados.delete(producto.id) : promoProductosSeleccionados.add(producto.id));
+  renderizarPromoProductos();
+});
+
+promocionForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (promoProductosSeleccionados.size === 0) {
+    await cyberAlert('Seleccioná al menos un producto para la promoción.');
+    return;
+  }
+  const valor = Number(promoValorInput.value);
+  if (promoTipoSelect.value === 'PORCENTAJE' && valor > 100) {
+    await cyberAlert('El porcentaje no puede superar 100.');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_URL}/admin/promociones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify({
+        nombre: promoNombreInput.value.trim(),
+        tipo: promoTipoSelect.value,
+        valor,
+        productoIds: [...promoProductosSeleccionados],
+        fechaFin: promoFechaFinInput.value ? new Date(promoFechaFinInput.value).toISOString() : null,
+      }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(typeof error.error === 'string' ? error.error : 'No se pudo crear la promoción');
+    }
+    promocionForm.reset();
+    promoProductosSeleccionados.clear();
+    await cargarPromociones();
+    await cyberAlert('Promoción activada correctamente.');
+  } catch (error: any) {
+    await cyberAlert(`Error: ${error.message}`);
+  }
+});
+
+promocionesList.addEventListener('click', async (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-promo-action]');
+  if (!button) return;
+  const id = button.dataset.id;
+  const promociones = await fetch(`${API_URL}/admin/promociones`, { headers: { 'x-api-key': apiKey } }).then(res => res.json());
+  const promo = promociones.find((item: any) => item.id === id);
+  if (!promo) return;
+  if (button.dataset.promoAction === 'delete') {
+    if (!(await cyberConfirm(`¿Eliminar la promoción "${promo.nombre}"?`))) return;
+    await fetch(`${API_URL}/admin/promociones/${id}`, { method: 'DELETE', headers: { 'x-api-key': apiKey } });
+  } else {
+    await fetch(`${API_URL}/admin/promociones/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey }, body: JSON.stringify({ activa: !promo.activa, productoIds: promo.productoIds }) });
+  }
+  cargarPromociones();
+});
 
 // --- SUGERENCIAS DE PRECIOS FRECUENTES ---
 let preciosFrecuentes: { precio: number; count: number }[] = [];
