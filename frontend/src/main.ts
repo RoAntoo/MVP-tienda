@@ -971,10 +971,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          const errorMessage = Array.isArray(errorData.error)
-            ? errorData.error.map((error: any) => error.message).join(', ')
-            : errorData.error;
+          const responseBody = await response.text();
+          const trimmedBody = responseBody.trim();
+          let errorMessage = '';
+
+          if (trimmedBody) {
+            try {
+              const errorData = JSON.parse(trimmedBody);
+              errorMessage = Array.isArray(errorData.error)
+                ? errorData.error.map((error: any) => error.message).filter(Boolean).join(', ')
+                : typeof errorData.error === 'string' ? errorData.error : '';
+            } catch {
+              const contentType = response.headers.get('content-type') || '';
+              if (!contentType.includes('text/html') && !trimmedBody.startsWith('<')) {
+                errorMessage = trimmedBody;
+              }
+            }
+          }
+
           throw new Error(errorMessage || 'No se pudo registrar la suscripción');
         }
 
