@@ -72,13 +72,26 @@ model NotificacionOutbox {
 }
 
 model Suscriptor {
-  id                   String   @id @default(uuid())
-  email                String   @unique
-  activo               Boolean  @default(true)
-  unsubscribeTokenHash String?  @unique
-  createdAt            DateTime @default(now())
+  id        String                  @id @default(uuid())
+  email     String                  @unique
+  activo    Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  tokensBaja TokenBajaSuscriptor[]
 
   @@map("suscriptores")
+}
+
+model TokenBajaSuscriptor {
+  id            String      @id @default(uuid())
+  suscriptorId  String
+  tokenHash     String      @unique
+  creadoAt      DateTime    @default(now())
+  usadoAt       DateTime?
+  revocadoAt    DateTime?
+  suscriptor    Suscriptor  @relation(fields: [suscriptorId], references: [id], onDelete: Cascade)
+
+  @@index([suscriptorId, usadoAt, revocadoAt])
+  @@map("tokens_baja_suscriptor")
 }
 
 model CampaniaNovedad {

@@ -26,29 +26,53 @@ export class RepositorioSuscriptoresPrisma implements RepositorioSuscriptores {
   async generarTokenBaja(email: string, secret: string): Promise<string> {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(token, secret);
-    const actualizado = await this.prisma.suscriptor.updateMany({
+    const suscriptor = await this.prisma.suscriptor.findFirst({
       where: { email, activo: true },
-      data: { unsubscribeTokenHash: tokenHash },
     });
-    if (actualizado.count === 0) throw new Error('El suscriptor ya no está activo');
+    if (!suscriptor) throw new Error('El suscriptor ya no está activo');
+
+    await this.prisma.tokenBajaSuscriptor.create({
+      data: {
+        suscriptorId: suscriptor.id,
+        tokenHash,
+      },
+    });
     return token;
   }
 
   async desactivarPorToken(token: string, secret: string): Promise<boolean> {
     const tokenHash = this.hashToken(token, secret);
     return this.prisma.$transaction(async tx => {
-      const suscriptor = await tx.suscriptor.findUnique({ where: { unsubscribeTokenHash: tokenHash } });
-      if (!suscriptor || !suscriptor.activo) return false;
+      const tokenBaja = await tx.tokenBajaSuscriptor.findUnique({
+        where: { tokenHash },
+        include: { suscriptor: true },
+      });
+      if (!tokenBaja || tokenBaja.usadoAt || tokenBaja.revocadoAt || !tokenBaja.suscriptor.activo) return false;
 
       const actualizado = await tx.suscriptor.updateMany({
-        where: { id: suscriptor.id, activo: true },
-        data: { activo: false, unsubscribeTokenHash: null },
+        where: { id: tokenBaja.suscriptorId, activo: true },
+        data: { activo: false },
       });
       if (actualizado.count === 0) return false;
 
+      const ahora = new Date();
+      await tx.tokenBajaSuscriptor.update({
+        where: { id: tokenBaja.id },
+        data: { usadoAt: ahora },
+      });
+      await tx.tokenBajaSuscriptor.updateMany({
+        where: {
+          suscriptorId: tokenBaja.suscriptorId,
+          id: { not: tokenBaja.id },
+          usadoAt: null,
+          revocadoAt: null,
+        },
+        data: { revocadoAt: ahora },
+      });
+
       await tx.envioNovedad.updateMany({
         where: {
-          email: suscriptor.email,
+          email: tokenBaja.suscriptor.email,
           estado: { in: ['PENDIENTE', 'EN_PROCESO', 'FALLIDO'] },
         },
         data: { estado: 'CANCELADO', lockedUntil: null, leaseToken: null, error: 'Suscriptor dado de baja' },
