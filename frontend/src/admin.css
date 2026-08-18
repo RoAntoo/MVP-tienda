@@ -154,6 +154,17 @@ input[type="password"]:focus {
   color: var(--accent-pink);
 }
 
+.cyber-btn-cyan {
+  background: var(--accent-cyan);
+  color: var(--bg-dark);
+  border-color: var(--accent-cyan);
+}
+
+.cyber-btn-cyan:hover {
+  background: transparent;
+  color: var(--accent-cyan);
+}
+
 .error-msg {
   color: var(--accent-pink);
   margin-top: 1rem;
@@ -291,6 +302,20 @@ tr:hover td {
 .promotion-card h3 { font-size: 1rem; margin-bottom: 0.25rem; }
 .promotion-card p { color: var(--text-muted); font-size: 0.82rem; }
 .promotion-card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+.news-composer-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+.news-composer { padding: 1.35rem; background: rgba(24,24,27,0.62); border: 1px solid var(--border-glass); border-radius: 12px; }
+.news-composer h3 { margin-bottom: 0.35rem; }
+.news-composer .form-group { margin-top: 1rem; }
+.news-composer .form-group > span { display: block; color: var(--accent-cyan); margin-bottom: 0.5rem; font-size: 0.9rem; }
+.news-composer .cyber-btn { width: 100%; }
+.news-picker-list { max-height: 17rem; overflow-y: auto; display: grid; gap: 0.4rem; margin-top: 1rem; padding-right: 0.25rem; }
+.news-option { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem; border: 1px solid transparent; border-radius: 7px; cursor: pointer; transition: 180ms ease; }
+.news-option:hover { background: rgba(0,240,255,0.07); border-color: rgba(0,240,255,0.25); }
+.news-option span { display: grid; gap: 0.2rem; min-width: 0; }
+.news-option strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.news-option small { color: var(--text-muted); }
+.news-history-card { align-items: flex-start; }
 
 .catalog-controls { display: flex; align-items: center; gap: 0.75rem; }
 .product-search { display: flex; align-items: center; gap: 0.45rem; min-width: 17rem; padding: 0.15rem 0.7rem; border: 1px solid var(--border-glass); border-radius: 7px; background: rgba(255,255,255,0.04); color: var(--accent-pink); }
@@ -467,6 +492,7 @@ tr:hover td {
   .product-search { min-width: 0; }
   .catalog-controls select { width: 100%; }
   .promotion-layout { grid-template-columns: 1fr; }
+  .news-composer-layout { grid-template-columns: 1fr; }
   .promotion-fields { grid-template-columns: 1fr; }
   .promotion-picker-header, .promotion-card { align-items: flex-start; flex-direction: column; }
   .promotion-card-actions { width: 100%; }

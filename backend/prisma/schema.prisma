@@ -79,3 +79,35 @@ model Suscriptor {
 
   @@map("suscriptores")
 }
+
+model CampaniaNovedad {
+  id          String         @id @default(uuid())
+  tipo        String
+  asunto      String
+  mensaje     String
+  contenido   String
+  estado      String         @default("PENDIENTE")
+  createdAt   DateTime       @default(now())
+  enviadaAt   DateTime?
+  envios      EnvioNovedad[]
+
+  @@map("campanias_novedad")
+}
+
+model EnvioNovedad {
+  id          String         @id @default(uuid())
+  campaniaId  String
+  email       String
+  estado      String         @default("PENDIENTE")
+  intentos    Int            @default(0)
+  error       String?
+  lockedUntil DateTime?
+  enviadoAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  campania    CampaniaNovedad @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  @@unique([campaniaId, email])
+  @@index([estado, lockedUntil])
+  @@map("envios_novedad")
+}

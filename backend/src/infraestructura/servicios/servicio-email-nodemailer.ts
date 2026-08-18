@@ -5,6 +5,7 @@ import { Orden } from '../../dominio/entidades/orden.js';
 import { Prisma } from '@prisma/client';
 import { generarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
+import { ProductoNovedad, PromocionNovedad } from '../../dominio/entidades/novedad.js';
 
 function getSafeUrl(urlStr: string): string {
   try {
@@ -244,6 +245,70 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       from: '"EbooksPack Team" <no-reply@ebookspack.com>',
       to: emailCliente,
       subject: '¡Los libros que pediste ya están disponibles!',
+      html: htmlContent,
+    });
+  }
+
+  private getUnsubscribeUrl(email: string): string {
+    const token = generarTokenAprobacion(email, this.apiKey);
+    return `${getSafeUrl(this.backendUrl)}/suscripciones/baja?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+  }
+
+  async enviarNovedadCatalogo(emailCliente: string, asunto: string, mensaje: string, productos: ProductoNovedad[]): Promise<void> {
+    const listaProductosHTML = productos.map(producto => `
+      <li style="margin-bottom: 12px;">
+        <strong>${escapeHtml(producto.titulo)}</strong><br/>
+        <span style="color: #a0a0b0;">${escapeHtml(producto.categoria)} · $${escapeHtml(producto.precio.toLocaleString('es-AR'))}</span>
+      </li>
+    `).join('');
+
+    const htmlContent = `
+      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
+        <h2 style="color: #00f0ff;">&gt; NUEVOS_LIBROS</h2>
+        <p>${escapeHtml(mensaje)}</p>
+        <ul style="list-style: none; padding-left: 0; border-left: 2px solid #00f0ff; padding-left: 15px;">
+          ${listaProductosHTML}
+        </ul>
+        <p style="color: #a0a0b0;">Gracias por seguir EbooksPack.</p>
+        <p style="font-size: 12px;"><a href="${escapeHtml(this.getUnsubscribeUrl(emailCliente))}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: '"EbooksPack Team" <no-reply@ebookspack.com>',
+      to: emailCliente,
+      subject: asunto,
+      html: htmlContent,
+    });
+  }
+
+  async enviarNovedadPromocion(emailCliente: string, asunto: string, mensaje: string, promociones: PromocionNovedad[]): Promise<void> {
+    const listaPromocionesHTML = promociones.map(promocion => {
+      const valor = promocion.tipo === 'PORCENTAJE'
+        ? `${promocion.valor}% OFF`
+        : `$${promocion.valor.toLocaleString('es-AR')} por archivo`;
+      const vencimiento = promocion.fechaFin
+        ? ` · Vence ${promocion.fechaFin.toLocaleDateString('es-AR')}`
+        : '';
+      return `<li style="margin-bottom: 12px;"><strong>${escapeHtml(promocion.nombre)}</strong><br/><span style="color: #ff9fc5;">${escapeHtml(valor)}${escapeHtml(vencimiento)}</span></li>`;
+    }).join('');
+
+    const htmlContent = `
+      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
+        <h2 style="color: #ff2a85;">&gt; PROMOCIONES_ACTIVAS</h2>
+        <p>${escapeHtml(mensaje)}</p>
+        <ul style="list-style: none; padding-left: 0; border-left: 2px solid #ff2a85; padding-left: 15px;">
+          ${listaPromocionesHTML}
+        </ul>
+        <p style="color: #a0a0b0;">Gracias por seguir EbooksPack.</p>
+        <p style="font-size: 12px;"><a href="${escapeHtml(this.getUnsubscribeUrl(emailCliente))}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: '"EbooksPack Team" <no-reply@ebookspack.com>',
+      to: emailCliente,
+      subject: asunto,
       html: htmlContent,
     });
   }

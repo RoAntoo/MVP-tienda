@@ -11,4 +11,21 @@ export class RepositorioSuscriptoresPrisma implements RepositorioSuscriptores {
       create: { email, activo: true },
     });
   }
+
+  async obtenerActivos(): Promise<string[]> {
+    const suscriptores = await this.prisma.suscriptor.findMany({
+      where: { activo: true },
+      select: { email: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return suscriptores.map(suscriptor => suscriptor.email);
+  }
+
+  async desactivar(email: string): Promise<void> {
+    await this.prisma.suscriptor.updateMany({
+      where: { email },
+      data: { activo: false },
+    });
+  }
 }
