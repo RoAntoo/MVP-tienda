@@ -804,6 +804,82 @@ footer {
   margin-top: 4rem;
 }
 
+/* --- NEWSLETTER --- */
+.newsletter-section {
+  max-width: 1200px;
+  margin: 4rem auto 0;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  gap: 2rem;
+  align-items: center;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 10px;
+  background: linear-gradient(110deg, rgba(0, 240, 255, 0.08), rgba(255, 42, 133, 0.06));
+}
+
+.newsletter-kicker {
+  display: block;
+  margin-bottom: 0.7rem;
+  color: var(--accent-cyan);
+  font-family: var(--font-retro);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+
+.newsletter-copy h2 {
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.newsletter-copy p {
+  color: var(--text-muted);
+}
+
+.newsletter-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.newsletter-form label {
+  color: var(--text-muted);
+  font-family: var(--font-retro);
+  font-size: 0.8rem;
+}
+
+.newsletter-input-row {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.newsletter-input-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.newsletter-feedback {
+  min-height: 1.3rem;
+  color: var(--accent-cyan);
+  font-family: var(--font-retro);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 700px) {
+  .newsletter-section {
+    grid-template-columns: 1fr;
+    padding: 1.4rem;
+  }
+
+  .newsletter-input-row {
+    flex-direction: column;
+  }
+
+  .newsletter-input-row .cyber-btn {
+    width: 100%;
+  }
+}
+
 /* --- CHECKOUT SUCCESS MODAL & PROMO MODAL --- */
 .checkout-success-modal,
 .promo-modal-overlay {

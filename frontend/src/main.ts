@@ -37,6 +37,7 @@ const checkoutForm = document.getElementById('checkoutForm');
 const cartCountElement = document.getElementById('cartCount');
 const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
 const promotionBanner = document.getElementById('promotionBanner');
+const newsletterForm = document.getElementById('newsletterForm') as HTMLFormElement | null;
 
 // Sistema de Notificaciones (Toasts)
 function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -945,6 +946,47 @@ document.addEventListener('DOMContentLoaded', async () => {
       } finally {
         submitRequestBtn.innerText = 'ENVIAR_SOLICITUD';
         submitRequestBtn.disabled = false;
+      }
+    });
+  }
+
+  if (newsletterForm) {
+    newsletterForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const emailInput = document.getElementById('newsletterEmail') as HTMLInputElement;
+      const feedback = document.getElementById('newsletterFeedback');
+      const submitBtn = newsletterForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+      const originalText = submitBtn.innerText;
+
+      submitBtn.innerText = '[ REGISTRANDO... ]';
+      submitBtn.disabled = true;
+      if (feedback) feedback.textContent = '';
+
+      try {
+        const response = await fetch(`${API_URL}/suscripciones`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emailInput.value }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          const errorMessage = Array.isArray(errorData.error)
+            ? errorData.error.map((error: any) => error.message).join(', ')
+            : errorData.error;
+          throw new Error(errorMessage || 'No se pudo registrar la suscripción');
+        }
+
+        newsletterForm.reset();
+        if (feedback) feedback.textContent = 'Suscripción confirmada. Te avisaremos cuando haya novedades.';
+        showToast('SUSCRIPCIÓN_REGISTRADA_CON_ÉXITO', 'success');
+      } catch (error: any) {
+        if (feedback) feedback.textContent = error.message;
+        showToast(`ERROR: ${error.message}`, 'error');
+      } finally {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
       }
     });
   }

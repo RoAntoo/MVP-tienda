@@ -6,6 +6,7 @@ import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-
 import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-prisma.js';
 import { RepositorioPromocionesPrisma } from '../base-datos/repositorio-promociones-prisma.js';
 import { RepositorioSolicitudesPrisma } from '../base-datos/repositorio-solicitudes-prisma.js';
+import { RepositorioSuscriptoresPrisma } from '../base-datos/repositorio-suscriptores-prisma.js';
 import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.js';
 import { ServicioEmailDummy } from '../servicios/servicio-email-dummy.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
@@ -21,6 +22,7 @@ import { SolicitarLibrosUseCase } from '../../aplicacion/casos-uso/solicitar-lib
 import { ResponderSolicitudUseCase } from '../../aplicacion/casos-uso/responder-solicitud.js';
 import { ObtenerSolicitudesUseCase } from '../../aplicacion/casos-uso/obtener-solicitudes.js';
 import { NotificarSubidaUseCase } from '../../aplicacion/casos-uso/notificar-subida.js';
+import { SuscribirseCatalogoUseCase } from '../../aplicacion/casos-uso/suscribirse-catalogo.js';
 import { OutboxProcessor } from '../trabajos/outbox-processor.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
@@ -124,6 +126,10 @@ const EsquemaSolicitudLibro = z.object({
   mensaje: z.string().min(5, 'El mensaje debe tener al menos 5 caracteres').max(1000, 'Mensaje muy largo')
 });
 
+const EsquemaSuscripcion = z.object({
+  email: z.string().trim().email('Debe ser un correo electrónico válido'),
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // --- VALIDACIÓN DE VARIABLES CRÍTICAS (FAIL-FAST) ---
   const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
@@ -143,6 +149,7 @@ export async function rutas(servidor: FastifyInstance) {
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
   const repositorioPromociones = new RepositorioPromocionesPrisma(prisma);
   const repositorioSolicitudes = new RepositorioSolicitudesPrisma(prisma);
+  const repositorioSuscriptores = new RepositorioSuscriptoresPrisma(prisma);
 
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
@@ -179,6 +186,7 @@ export async function rutas(servidor: FastifyInstance) {
   const responderSolicitudUseCase = new ResponderSolicitudUseCase(repositorioSolicitudes);
   const obtenerSolicitudesUseCase = new ObtenerSolicitudesUseCase(repositorioSolicitudes);
   const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes);
+  const suscribirseCatalogoUseCase = new SuscribirseCatalogoUseCase(repositorioSuscriptores);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', { config: limiteCompras }, async (peticion, respuesta) => {
@@ -500,6 +508,20 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(404).send({ error: 'Orden no encontrada' });
       }
       return respuesta.status(500).send({ error: 'Error al eliminar la orden.' });
+    }
+  });
+
+  servidor.post('/suscripciones', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
+    try {
+      const cuerpo = EsquemaSuscripcion.parse(peticion.body);
+      const resultado = await suscribirseCatalogoUseCase.ejecutar(cuerpo);
+      return respuesta.status(200).send(resultado);
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
+      return respuesta.status(500).send({ error: 'Error al registrar la suscripción.' });
     }
   });
 

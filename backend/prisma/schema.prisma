@@ -70,3 +70,12 @@ model NotificacionOutbox {
 
   solicitud    SolicitudLibro @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
 }
+
+model Suscriptor {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("suscriptores")
+}
