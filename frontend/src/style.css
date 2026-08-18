@@ -897,6 +897,7 @@ footer {
 }
 
 .category-btn {
+  position: relative;
   background: rgba(255,255,255,0.03);
   color: var(--text-muted);
   border: 1px solid var(--border-glass);
@@ -929,7 +930,8 @@ footer {
   background: var(--text-main);
   color: var(--bg-color);
   border-color: var(--text-main);
-  font-weight: 600;
+  font-weight: 500;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
 }
 
 .category-btn:focus-within {
