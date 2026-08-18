@@ -6,6 +6,8 @@ import { RepositorioProductosPrisma } from '../base-datos/repositorio-productos-
 import { RepositorioOrdenesPrisma } from '../base-datos/repositorio-ordenes-prisma.js';
 import { RepositorioPromocionesPrisma } from '../base-datos/repositorio-promociones-prisma.js';
 import { RepositorioSolicitudesPrisma } from '../base-datos/repositorio-solicitudes-prisma.js';
+import { RepositorioSuscriptoresPrisma } from '../base-datos/repositorio-suscriptores-prisma.js';
+import { RepositorioNovedadesPrisma } from '../base-datos/repositorio-novedades-prisma.js';
 import { ServicioEmailNodemailer } from '../servicios/servicio-email-nodemailer.js';
 import { ServicioEmailDummy } from '../servicios/servicio-email-dummy.js';
 import { IniciarCompraUseCase } from '../../aplicacion/casos-uso/iniciar-compra.js';
@@ -21,7 +23,11 @@ import { SolicitarLibrosUseCase } from '../../aplicacion/casos-uso/solicitar-lib
 import { ResponderSolicitudUseCase } from '../../aplicacion/casos-uso/responder-solicitud.js';
 import { ObtenerSolicitudesUseCase } from '../../aplicacion/casos-uso/obtener-solicitudes.js';
 import { NotificarSubidaUseCase } from '../../aplicacion/casos-uso/notificar-subida.js';
+import { SuscribirseCatalogoUseCase } from '../../aplicacion/casos-uso/suscribirse-catalogo.js';
+import { CrearNovedadUseCase } from '../../aplicacion/casos-uso/crear-novedad.js';
+import { DesuscribirseCatalogoUseCase } from '../../aplicacion/casos-uso/desuscribirse-catalogo.js';
 import { OutboxProcessor } from '../trabajos/outbox-processor.js';
+import { NovedadProcessor } from '../trabajos/novedad-processor.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 
@@ -124,6 +130,26 @@ const EsquemaSolicitudLibro = z.object({
   mensaje: z.string().min(5, 'El mensaje debe tener al menos 5 caracteres').max(1000, 'Mensaje muy largo')
 });
 
+const EsquemaSuscripcion = z.object({
+  email: z.string().trim().email('Debe ser un correo electrónico válido'),
+});
+
+const EsquemaCrearNovedad = z.object({
+  tipo: z.enum(['CATALOGO', 'PROMOCION']),
+  mensaje: z.string().trim().min(5, 'El mensaje debe tener al menos 5 caracteres').max(2000, 'Mensaje muy largo'),
+  productoIds: z.array(z.string().uuid()).max(20).default([]),
+  promocionIds: z.array(z.string().uuid()).max(20).default([]),
+}).superRefine((data, contexto) => {
+  const ids = data.tipo === 'CATALOGO' ? data.productoIds : data.promocionIds;
+  if (ids.length === 0) {
+    contexto.addIssue({ code: z.ZodIssueCode.custom, message: data.tipo === 'CATALOGO' ? 'Seleccioná al menos un libro' : 'Seleccioná al menos una promoción' });
+  }
+  const idsContrarios = data.tipo === 'CATALOGO' ? data.promocionIds : data.productoIds;
+  if (idsContrarios.length > 0) {
+    contexto.addIssue({ code: z.ZodIssueCode.custom, message: 'Una novedad solo puede incluir contenido de su tipo' });
+  }
+});
+
 export async function rutas(servidor: FastifyInstance) {
   // --- VALIDACIÓN DE VARIABLES CRÍTICAS (FAIL-FAST) ---
   const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
@@ -143,6 +169,8 @@ export async function rutas(servidor: FastifyInstance) {
   const repositorioOrdenes = new RepositorioOrdenesPrisma(prisma);
   const repositorioPromociones = new RepositorioPromocionesPrisma(prisma);
   const repositorioSolicitudes = new RepositorioSolicitudesPrisma(prisma);
+  const repositorioSuscriptores = new RepositorioSuscriptoresPrisma(prisma);
+  const repositorioNovedades = new RepositorioNovedadesPrisma(prisma);
 
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
@@ -150,7 +178,7 @@ export async function rutas(servidor: FastifyInstance) {
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
   const servicioEmail = (emailUser && emailPass)
-    ? new ServicioEmailNodemailer(emailUser, emailPass, TOKEN_SIGNING_SECRET, backendUrl)
+    ? new ServicioEmailNodemailer(emailUser, emailPass, repositorioSuscriptores, TOKEN_SIGNING_SECRET, backendUrl)
     : new ServicioEmailDummy();
 
   if (!emailUser || !emailPass) {
@@ -159,10 +187,11 @@ export async function rutas(servidor: FastifyInstance) {
 
   const outboxProcessor = new OutboxProcessor(prisma, servicioEmail, adminEmail, backendUrl);
   outboxProcessor.start(10000);
+  const novedadProcessor = new NovedadProcessor(prisma, servicioEmail);
+  novedadProcessor.start(10000);
 
-  servidor.addHook('onClose', (instance, done) => {
-    outboxProcessor.stop();
-    done();
+  servidor.addHook('onClose', async () => {
+    await Promise.all([outboxProcessor.stop(), novedadProcessor.stop()]);
   });
 
   // 2. Inicializar Casos de Uso
@@ -179,6 +208,9 @@ export async function rutas(servidor: FastifyInstance) {
   const responderSolicitudUseCase = new ResponderSolicitudUseCase(repositorioSolicitudes);
   const obtenerSolicitudesUseCase = new ObtenerSolicitudesUseCase(repositorioSolicitudes);
   const notificarSubidaUseCase = new NotificarSubidaUseCase(repositorioSolicitudes);
+  const suscribirseCatalogoUseCase = new SuscribirseCatalogoUseCase(repositorioSuscriptores);
+  const crearNovedadUseCase = new CrearNovedadUseCase(repositorioNovedades, repositorioProductos, repositorioPromociones, repositorioSuscriptores);
+  const desuscribirseCatalogoUseCase = new DesuscribirseCatalogoUseCase(repositorioSuscriptores);
 
   // Endpoint 1: Iniciar Compra (Carrito)
   servidor.post('/compras', { config: limiteCompras }, async (peticion, respuesta) => {
@@ -500,6 +532,107 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(404).send({ error: 'Orden no encontrada' });
       }
       return respuesta.status(500).send({ error: 'Error al eliminar la orden.' });
+    }
+  });
+
+  servidor.post('/suscripciones', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
+    try {
+      const cuerpo = EsquemaSuscripcion.parse(peticion.body);
+      const resultado = await suscribirseCatalogoUseCase.ejecutar(cuerpo);
+      return respuesta.status(200).send(resultado);
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error.name === 'ZodError' || error instanceof z.ZodError) {
+        return respuesta.status(400).send({ error: error.issues });
+      }
+      return respuesta.status(500).send({ error: 'Error al registrar la suscripción.' });
+    }
+  });
+
+  servidor.get('/suscripciones/baja', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
+    try {
+      const { token } = peticion.query as { token?: string };
+      if (!token) throw new Error('Falta el token para procesar la baja');
+      const safeToken = escapeHtml(token);
+      return respuesta.type('text/html').send(`
+        <h1>Cancelar suscripción</h1>
+        <p>¿Querés dejar de recibir novedades de EbooksPack?</p>
+        <button id="confirmarBaja">Confirmar baja</button>
+        <p id="resultadoBaja"></p>
+        <script>
+          document.getElementById('confirmarBaja').addEventListener('click', async () => {
+            const boton = document.getElementById('confirmarBaja');
+            const resultado = document.getElementById('resultadoBaja');
+            boton.disabled = true;
+            const respuesta = await fetch('/suscripciones/baja', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: '${safeToken}' })
+            });
+            resultado.textContent = await respuesta.text();
+          });
+        </script>
+      `);
+    } catch (error: any) {
+      return respuesta.status(400).type('text/html').send(`<h1>No se pudo cancelar la suscripción</h1><p>${escapeHtml(error.message || 'Enlace inválido')}</p>`);
+    }
+  });
+
+  servidor.post('/suscripciones/baja', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
+    try {
+      const { token } = z.object({ token: z.string().min(1) }).parse(peticion.body);
+      await desuscribirseCatalogoUseCase.ejecutar({ token, secret: TOKEN_SIGNING_SECRET });
+      return respuesta.type('text/html').send('<h1>Suscripción cancelada</h1><p>Ya no recibirás novedades de EbooksPack.</p>');
+    } catch (error: any) {
+      const mensaje = error instanceof z.ZodError ? 'El enlace de baja es inválido o expiró' : (error.message || 'Enlace inválido');
+      return respuesta.status(400).type('text/html').send(`<h1>No se pudo cancelar la suscripción</h1><p>${escapeHtml(mensaje)}</p>`);
+    }
+  });
+
+  servidor.get('/admin/novedades', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+
+      const [productos, promociones, campanias] = await Promise.all([
+        obtenerProductosUseCase.ejecutar({ campo: 'createdAt', direccion: 'desc', limit: 20 }),
+        gestionarPromocionesUseCase.listar(),
+        repositorioNovedades.obtenerTodas(20),
+      ]);
+      const ahora = new Date();
+      const promocionesVigentes = promociones.filter(promocion => promocion.activa
+        && promocion.fechaInicio <= ahora
+        && (!promocion.fechaFin || promocion.fechaFin >= ahora));
+
+      return respuesta.status(200).send({
+        productos: productos.productos,
+        promociones: promocionesVigentes,
+        campanias,
+      });
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error al cargar las novedades.' });
+    }
+  });
+
+  servidor.post('/admin/novedades', { config: limiteAdmin }, async (peticion, respuesta) => {
+    try {
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      const datos = EsquemaCrearNovedad.parse(peticion.body);
+      const novedad = await crearNovedadUseCase.ejecutar(datos);
+      return respuesta.status(201).send(novedad);
+    } catch (error: any) {
+      servidor.log.error(error);
+      if (error instanceof z.ZodError || error?.name === 'ZodError') {
+        return respuesta.status(400).send({ error: error.issues });
+      }
+      if (error.message.includes('Seleccioná')
+        || error.message.includes('no existen')
+        || error.message.includes('activas')
+        || error.message.includes('suscriptores')
+        || error.message.includes('solo puede')) {
+        return respuesta.status(400).send({ error: error.message });
+      }
+      return respuesta.status(500).send({ error: 'Error al preparar la novedad.' });
     }
   });
 

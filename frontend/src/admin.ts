@@ -71,6 +71,7 @@ const tabBtns = document.querySelectorAll('.tab-btn');
 const ordenesTab = document.getElementById('ordenesTab')!;
 const productosTab = document.getElementById('productosTab')!;
 const promocionesTab = document.getElementById('promocionesTab')!;
+const novedadesTab = document.getElementById('novedadesTab')!;
 const solicitudesTab = document.getElementById('solicitudesTab')!;
 const ordenesBody = document.getElementById('ordenesBody')!;
 const ordenesBulkActions = document.getElementById('ordenesBulkActions')!;
@@ -112,6 +113,15 @@ const promoSelectAllBtn = document.getElementById('promoSelectAllBtn') as HTMLBu
 const promoProductoSearch = document.getElementById('promoProductoSearch') as HTMLInputElement;
 const promoProductosList = document.getElementById('promoProductosList')!;
 const promocionesList = document.getElementById('promocionesList')!;
+const catalogoNovedadForm = document.getElementById('catalogoNovedadForm') as HTMLFormElement;
+const promocionNovedadForm = document.getElementById('promocionNovedadForm') as HTMLFormElement;
+const novedadesProductosList = document.getElementById('novedadesProductosList')!;
+const novedadesPromocionesList = document.getElementById('novedadesPromocionesList')!;
+const novedadesProductosCount = document.getElementById('novedadesProductosCount')!;
+const novedadesPromocionesCount = document.getElementById('novedadesPromocionesCount')!;
+const novedadesHistorial = document.getElementById('novedadesHistorial')!;
+const novedadCatalogoMensaje = document.getElementById('novedadCatalogoMensaje') as HTMLTextAreaElement;
+const novedadPromocionMensaje = document.getElementById('novedadPromocionMensaje') as HTMLTextAreaElement;
 
 // Elementos Formulario Producto
 const mostrarFormBtn = document.getElementById('mostrarFormBtn')!;
@@ -129,6 +139,10 @@ let apiKey = '';
 let categoriasDisponibles: string[] = [];
 let promoProductosDisponibles: any[] = [];
 const promoProductosSeleccionados = new Set<string>();
+let novedadesProductosDisponibles: any[] = [];
+let novedadesPromocionesDisponibles: any[] = [];
+const novedadesProductosSeleccionados = new Set<string>();
+const novedadesPromocionesSeleccionadas = new Set<string>();
 
 // --- INICIALIZACIÓN ---
 // (Eliminado el auto-login con localStorage por seguridad)
@@ -268,24 +282,35 @@ tabBtns.forEach(btn => {
       ordenesTab.classList.remove('hidden');
       productosTab.classList.add('hidden');
       promocionesTab.classList.add('hidden');
+      novedadesTab.classList.add('hidden');
       solicitudesTab.classList.add('hidden');
       cargarOrdenes();
     } else if (tabName === 'productos') {
       ordenesTab.classList.add('hidden');
       productosTab.classList.remove('hidden');
       promocionesTab.classList.add('hidden');
+      novedadesTab.classList.add('hidden');
       solicitudesTab.classList.add('hidden');
       cargarProductos();
     } else if (tabName === 'promociones') {
       ordenesTab.classList.add('hidden');
       productosTab.classList.add('hidden');
       promocionesTab.classList.remove('hidden');
+      novedadesTab.classList.add('hidden');
       solicitudesTab.classList.add('hidden');
       cargarPromociones();
+    } else if (tabName === 'novedades') {
+      ordenesTab.classList.add('hidden');
+      productosTab.classList.add('hidden');
+      promocionesTab.classList.add('hidden');
+      novedadesTab.classList.remove('hidden');
+      solicitudesTab.classList.add('hidden');
+      cargarNovedades();
     } else if (tabName === 'solicitudes') {
       ordenesTab.classList.add('hidden');
       productosTab.classList.add('hidden');
       promocionesTab.classList.add('hidden');
+      novedadesTab.classList.add('hidden');
       solicitudesTab.classList.remove('hidden');
       cargarSolicitudes();
     }
@@ -520,6 +545,162 @@ async function cargarPromociones() {
     promocionesList.innerHTML = `<p class="promotion-error">${escapeHtml(error.message)}</p>`;
   }
 }
+
+async function cargarNovedades() {
+  novedadesProductosList.innerHTML = '<p class="promotion-empty">Cargando libros...</p>';
+  novedadesPromocionesList.innerHTML = '<p class="promotion-empty">Cargando promociones...</p>';
+  try {
+    const res = await fetch(`${API_URL}/admin/novedades`, {
+      headers: { 'x-api-key': apiKey },
+    });
+    if (!res.ok) throw new Error('Error al cargar las novedades');
+
+    const data = await res.json();
+    novedadesProductosDisponibles = data.productos || [];
+    novedadesPromocionesDisponibles = data.promociones || [];
+    renderizarNovedadesProductos();
+    renderizarNovedadesPromociones();
+    renderizarHistorialNovedades(data.campanias || []);
+  } catch (error: any) {
+    const mensaje = escapeHtml(error.message || 'Error desconocido');
+    novedadesProductosList.innerHTML = `<p class="promotion-error">${mensaje}</p>`;
+    novedadesPromocionesList.innerHTML = `<p class="promotion-error">${mensaje}</p>`;
+    novedadesHistorial.innerHTML = '';
+  }
+}
+
+function renderizarNovedadesProductos() {
+  novedadesProductosList.innerHTML = novedadesProductosDisponibles.length > 0
+    ? novedadesProductosDisponibles.map(producto => `
+      <label class="news-option">
+        <input type="checkbox" data-news-product-id="${escapeHtml(producto.id)}" ${novedadesProductosSeleccionados.has(producto.id) ? 'checked' : ''}>
+        <span><strong>${escapeHtml(producto.titulo)}</strong><small>${escapeHtml(producto.categoria || 'General')} · $${Number(producto.precio).toLocaleString('es-AR')}</small></span>
+      </label>
+    `).join('')
+    : '<p class="promotion-empty">No hay libros disponibles.</p>';
+
+  novedadesProductosList.querySelectorAll<HTMLInputElement>('[data-news-product-id]').forEach(input => {
+    input.addEventListener('change', () => {
+      const id = input.dataset.newsProductId!;
+      if (input.checked) novedadesProductosSeleccionados.add(id);
+      else novedadesProductosSeleccionados.delete(id);
+      actualizarNovedadesSeleccionadas();
+    });
+  });
+  actualizarNovedadesSeleccionadas();
+}
+
+function renderizarNovedadesPromociones() {
+  novedadesPromocionesList.innerHTML = novedadesPromocionesDisponibles.length > 0
+    ? novedadesPromocionesDisponibles.map(promocion => {
+      const valor = promocion.tipo === 'PORCENTAJE'
+        ? `${promocion.valor}% OFF`
+        : `$${Number(promocion.valor).toLocaleString('es-AR')} por archivo`;
+      return `
+        <label class="news-option">
+          <input type="checkbox" data-news-promotion-id="${escapeHtml(promocion.id)}" ${novedadesPromocionesSeleccionadas.has(promocion.id) ? 'checked' : ''}>
+          <span><strong>${escapeHtml(promocion.nombre)}</strong><small>${escapeHtml(valor)}${promocion.fechaFin ? ` · Vence ${new Date(promocion.fechaFin).toLocaleDateString('es-AR')}` : ''}</small></span>
+        </label>
+      `;
+    }).join('')
+    : '<p class="promotion-empty">No hay promociones activas.</p>';
+
+  novedadesPromocionesList.querySelectorAll<HTMLInputElement>('[data-news-promotion-id]').forEach(input => {
+    input.addEventListener('change', () => {
+      const id = input.dataset.newsPromotionId!;
+      if (input.checked) novedadesPromocionesSeleccionadas.add(id);
+      else novedadesPromocionesSeleccionadas.delete(id);
+      actualizarNovedadesSeleccionadas();
+    });
+  });
+  actualizarNovedadesSeleccionadas();
+}
+
+function actualizarNovedadesSeleccionadas() {
+  novedadesProductosCount.textContent = `${novedadesProductosSeleccionados.size} libro${novedadesProductosSeleccionados.size === 1 ? '' : 's'} seleccionado${novedadesProductosSeleccionados.size === 1 ? '' : 's'}`;
+  novedadesPromocionesCount.textContent = `${novedadesPromocionesSeleccionadas.size} promoción${novedadesPromocionesSeleccionadas.size === 1 ? '' : 'es'} seleccionada${novedadesPromocionesSeleccionadas.size === 1 ? '' : 's'}`;
+}
+
+function renderizarHistorialNovedades(campanias: any[]) {
+  if (campanias.length === 0) {
+    novedadesHistorial.innerHTML = '<p class="promotion-empty">Todavía no se enviaron novedades.</p>';
+    return;
+  }
+
+  novedadesHistorial.innerHTML = campanias.map(campania => {
+    const esCatalogo = campania.tipo === 'CATALOGO';
+    const estado = campania.estado === 'ENVIADA'
+      ? 'ENVIADA'
+      : campania.estado === 'FALLIDA' ? 'CON_ERRORES' : campania.estado;
+    return `<article class="promotion-card news-history-card">
+      <div>
+        <span class="admin-kicker">${esCatalogo ? 'LIBROS' : 'PROMOCIONES'} · ${escapeHtml(estado)}</span>
+        <h3>${escapeHtml(campania.asunto)}</h3>
+        <p>${escapeHtml(campania.mensaje)} · ${campania.enviados}/${campania.totalDestinatarios} enviados · ${new Date(campania.createdAt).toLocaleDateString('es-AR')}</p>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+async function enviarNovedad(
+  tipo: 'CATALOGO' | 'PROMOCION',
+  seleccionados: Set<string>,
+  mensajeInput: HTMLTextAreaElement,
+  form: HTMLFormElement,
+) {
+  if (seleccionados.size === 0) {
+    await cyberAlert(tipo === 'CATALOGO' ? 'Seleccioná al menos un libro.' : 'Seleccioná al menos una promoción.');
+    return;
+  }
+
+  if (!(await cyberConfirm(`¿Enviar esta novedad a todos los suscriptores activos?`))) return;
+
+  const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const originalText = submitBtn.innerText;
+  submitBtn.disabled = true;
+  submitBtn.innerText = 'PREPARANDO_ENVÍO...';
+
+  try {
+    const res = await fetch(`${API_URL}/admin/novedades`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify({
+        tipo,
+        mensaje: mensajeInput.value.trim(),
+        productoIds: tipo === 'CATALOGO' ? [...seleccionados] : [],
+        promocionIds: tipo === 'PROMOCION' ? [...seleccionados] : [],
+      }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      const mensajeError = Array.isArray(errorData.error)
+        ? errorData.error.map((error: any) => error.message).join(', ')
+        : errorData.error;
+      throw new Error(mensajeError || 'No se pudo preparar la novedad');
+    }
+
+    form.reset();
+    seleccionados.clear();
+    await cargarNovedades();
+    await cyberAlert('Novedad encolada. El sistema comenzará a enviar los emails en segundo plano.');
+  } catch (error: any) {
+    await cyberAlert(`Error: ${error.message}`);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerText = originalText;
+  }
+}
+
+catalogoNovedadForm.addEventListener('submit', event => {
+  event.preventDefault();
+  enviarNovedad('CATALOGO', novedadesProductosSeleccionados, novedadCatalogoMensaje, catalogoNovedadForm);
+});
+
+promocionNovedadForm.addEventListener('submit', event => {
+  event.preventDefault();
+  enviarNovedad('PROMOCION', novedadesPromocionesSeleccionadas, novedadPromocionMensaje, promocionNovedadForm);
+});
 
 function renderizarPromoProductos() {
   const filtro = promoProductoSearch.value.trim().toLowerCase();

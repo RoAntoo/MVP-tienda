@@ -70,3 +70,61 @@ model NotificacionOutbox {
 
   solicitud    SolicitudLibro @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
 }
+
+model Suscriptor {
+  id        String                  @id @default(uuid())
+  email     String                  @unique
+  activo    Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  tokensBaja TokenBajaSuscriptor[]
+
+  @@map("suscriptores")
+}
+
+model TokenBajaSuscriptor {
+  id            String      @id @default(uuid())
+  suscriptorId  String
+  tokenHash     String      @unique
+  creadoAt      DateTime    @default(now())
+  usadoAt       DateTime?
+  revocadoAt    DateTime?
+  suscriptor    Suscriptor  @relation(fields: [suscriptorId], references: [id], onDelete: Cascade)
+
+  @@index([suscriptorId, usadoAt, revocadoAt])
+  @@map("tokens_baja_suscriptor")
+}
+
+model CampaniaNovedad {
+  id          String         @id @default(uuid())
+  tipo        String
+  asunto      String
+  mensaje     String
+  contenido   String
+  estado      String         @default("PENDIENTE")
+  createdAt   DateTime       @default(now())
+  enviadaAt   DateTime?
+  envios      EnvioNovedad[]
+
+  @@map("campanias_novedad")
+}
+
+model EnvioNovedad {
+  id          String         @id @default(uuid())
+  campaniaId  String
+  email       String
+  estado      String         @default("PENDIENTE")
+  intentos    Int            @default(0)
+  error       String?
+  lockedUntil DateTime?
+  enviadoAt   DateTime?
+  leaseToken  String?
+  resultadoAceptadoAt DateTime?
+  referenciaEnvio     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  campania    CampaniaNovedad @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
+
+  @@unique([campaniaId, email])
+  @@index([estado, lockedUntil])
+  @@map("envios_novedad")
+}

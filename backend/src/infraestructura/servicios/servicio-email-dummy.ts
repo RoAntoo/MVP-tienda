@@ -2,6 +2,8 @@ import { ServicioEmail } from '../../dominio/servicios/servicio-email.js';
 import { Producto } from '../../dominio/entidades/producto.js';
 import { Orden } from '../../dominio/entidades/orden.js';
 import { Prisma } from '@prisma/client';
+import { ProductoNovedad, PromocionNovedad } from '../../dominio/entidades/novedad.js';
+import { ResultadoEnvioNovedad } from '../../dominio/servicios/servicio-email.js';
 
 export class ServicioEmailDummy implements ServicioEmail {
   async enviarInstruccionesPago(emailCliente: string, total: Prisma.Decimal | number, cantidad: number): Promise<void> {
@@ -26,5 +28,15 @@ export class ServicioEmailDummy implements ServicioEmail {
 
   async enviarAvisoSubidaLibro(emailCliente: string, mensajeOriginal: string): Promise<void> {
     console.log(`[DUMMY EMAIL] Enviando aviso de subida de libro al cliente.`);
+  }
+
+  async enviarNovedadCatalogo(emailCliente: string, asunto: string, mensaje: string, productos: ProductoNovedad[]): Promise<ResultadoEnvioNovedad> {
+    console.log(`[DUMMY EMAIL] Novedad de catálogo simulada: ${productos.length} libro(s).`);
+    return { aceptado: true };
+  }
+
+  async enviarNovedadPromocion(emailCliente: string, asunto: string, mensaje: string, promociones: PromocionNovedad[]): Promise<ResultadoEnvioNovedad> {
+    console.log(`[DUMMY EMAIL] Novedad de promociones simulada: ${promociones.length} promoción(es).`);
+    return { aceptado: true };
   }
 }
