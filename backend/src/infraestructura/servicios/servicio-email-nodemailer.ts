@@ -6,6 +6,8 @@ import { Prisma } from '@prisma/client';
 import { generarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 import { ProductoNovedad, PromocionNovedad } from '../../dominio/entidades/novedad.js';
+import { RepositorioSuscriptores } from '../../dominio/repositorios/repositorio-suscriptores.js';
+import { ResultadoEnvioNovedad } from '../../dominio/servicios/servicio-email.js';
 
 function getSafeUrl(urlStr: string): string {
   try {
@@ -25,8 +27,9 @@ export class ServicioEmailNodemailer implements ServicioEmail {
   constructor(
     usuario: string,
     pass: string,
+    private repositorioSuscriptores: RepositorioSuscriptores,
     private apiKey: string = '',
-    private backendUrl: string = 'http://localhost:3000'
+    private backendUrl: string = 'http://localhost:3000',
   ) {
     this.transporter = nodemailer.createTransport({
       service: 'gmail', // Por defecto usamos Gmail
@@ -249,12 +252,12 @@ export class ServicioEmailNodemailer implements ServicioEmail {
     });
   }
 
-  private getUnsubscribeUrl(email: string): string {
-    const token = generarTokenAprobacion(email, this.apiKey);
-    return `${getSafeUrl(this.backendUrl)}/suscripciones/baja?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+  private async getUnsubscribeUrl(email: string): Promise<string> {
+    const token = await this.repositorioSuscriptores.generarTokenBaja(email, this.apiKey);
+    return `${getSafeUrl(this.backendUrl)}/suscripciones/baja?token=${encodeURIComponent(token)}`;
   }
 
-  async enviarNovedadCatalogo(emailCliente: string, asunto: string, mensaje: string, productos: ProductoNovedad[]): Promise<void> {
+  async enviarNovedadCatalogo(emailCliente: string, asunto: string, mensaje: string, productos: ProductoNovedad[]): Promise<ResultadoEnvioNovedad> {
     const listaProductosHTML = productos.map(producto => `
       <li style="margin-bottom: 12px;">
         <strong>${escapeHtml(producto.titulo)}</strong><br/>
@@ -262,6 +265,7 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       </li>
     `).join('');
 
+    const unsubscribeUrl = await this.getUnsubscribeUrl(emailCliente);
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
         <h2 style="color: #00f0ff;">&gt; NUEVOS_LIBROS</h2>
@@ -270,19 +274,20 @@ export class ServicioEmailNodemailer implements ServicioEmail {
           ${listaProductosHTML}
         </ul>
         <p style="color: #a0a0b0;">Gracias por seguir EbooksPack.</p>
-        <p style="font-size: 12px;"><a href="${escapeHtml(this.getUnsubscribeUrl(emailCliente))}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
+        <p style="font-size: 12px;"><a href="${escapeHtml(unsubscribeUrl)}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
       </div>
     `;
 
-    await this.transporter.sendMail({
+    const info = await this.transporter.sendMail({
       from: '"EbooksPack Team" <no-reply@ebookspack.com>',
       to: emailCliente,
       subject: asunto,
       html: htmlContent,
     });
+    return { aceptado: true, referencia: info.messageId };
   }
 
-  async enviarNovedadPromocion(emailCliente: string, asunto: string, mensaje: string, promociones: PromocionNovedad[]): Promise<void> {
+  async enviarNovedadPromocion(emailCliente: string, asunto: string, mensaje: string, promociones: PromocionNovedad[]): Promise<ResultadoEnvioNovedad> {
     const listaPromocionesHTML = promociones.map(promocion => {
       const valor = promocion.tipo === 'PORCENTAJE'
         ? `${promocion.valor}% OFF`
@@ -293,6 +298,7 @@ export class ServicioEmailNodemailer implements ServicioEmail {
       return `<li style="margin-bottom: 12px;"><strong>${escapeHtml(promocion.nombre)}</strong><br/><span style="color: #ff9fc5;">${escapeHtml(valor)}${escapeHtml(vencimiento)}</span></li>`;
     }).join('');
 
+    const unsubscribeUrl = await this.getUnsubscribeUrl(emailCliente);
     const htmlContent = `
       <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
         <h2 style="color: #ff2a85;">&gt; PROMOCIONES_ACTIVAS</h2>
@@ -301,15 +307,16 @@ export class ServicioEmailNodemailer implements ServicioEmail {
           ${listaPromocionesHTML}
         </ul>
         <p style="color: #a0a0b0;">Gracias por seguir EbooksPack.</p>
-        <p style="font-size: 12px;"><a href="${escapeHtml(this.getUnsubscribeUrl(emailCliente))}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
+        <p style="font-size: 12px;"><a href="${escapeHtml(unsubscribeUrl)}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
       </div>
     `;
 
-    await this.transporter.sendMail({
+    const info = await this.transporter.sendMail({
       from: '"EbooksPack Team" <no-reply@ebookspack.com>',
       to: emailCliente,
       subject: asunto,
       html: htmlContent,
     });
+    return { aceptado: true, referencia: info.messageId };
   }
 }

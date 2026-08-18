@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import * as crypto from 'crypto';
 import { ContenidoNovedad } from '../../dominio/entidades/novedad.js';
 import { ServicioEmail } from '../../dominio/servicios/servicio-email.js';
 
@@ -39,6 +40,7 @@ export class NovedadProcessor {
           { estado: 'EN_PROCESO', lockedUntil: { lt: new Date() } },
         ],
         intentos: { lt: 3 },
+        resultadoAceptadoAt: null,
       },
       include: { campania: true },
       orderBy: { createdAt: 'asc' },
@@ -47,35 +49,60 @@ export class NovedadProcessor {
 
     for (const job of jobs) {
       const lockedUntil = new Date(Date.now() + 5 * 60 * 1000);
+      const leaseToken = crypto.randomUUID();
       const where: any = { id: job.id, estado: job.estado };
       if (job.estado === 'EN_PROCESO') where.lockedUntil = { lt: new Date() };
 
       const locked = await this.prisma.envioNovedad.updateMany({
         where,
-        data: { estado: 'EN_PROCESO', intentos: job.intentos + 1, lockedUntil },
+        data: { estado: 'EN_PROCESO', intentos: job.intentos + 1, lockedUntil, leaseToken },
       });
       if (locked.count === 0) continue;
 
       try {
+        const suscriptor = await this.prisma.suscriptor.findUnique({
+          where: { email: job.email },
+          select: { activo: true },
+        });
+        if (!suscriptor?.activo) {
+          await this.prisma.envioNovedad.updateMany({
+            where: { id: job.id, estado: 'EN_PROCESO', leaseToken },
+            data: { estado: 'CANCELADO', lockedUntil: null, leaseToken: null, error: 'Suscriptor dado de baja' },
+          });
+          await this.actualizarEstadoCampania(job.campaniaId);
+          continue;
+        }
+
         const contenido = JSON.parse(job.campania.contenido) as ContenidoNovedad;
+        let resultado;
         if (job.campania.tipo === 'CATALOGO') {
-          await this.servicioEmail.enviarNovedadCatalogo(job.email, job.campania.asunto, job.campania.mensaje, contenido.productos || []);
+          resultado = await this.servicioEmail.enviarNovedadCatalogo(job.email, job.campania.asunto, job.campania.mensaje, contenido.productos || []);
         } else {
           const promociones = (contenido.promociones || []).map(promocion => ({
             ...promocion,
             fechaFin: promocion.fechaFin ? new Date(promocion.fechaFin) : null,
           }));
-          await this.servicioEmail.enviarNovedadPromocion(job.email, job.campania.asunto, job.campania.mensaje, promociones);
+          resultado = await this.servicioEmail.enviarNovedadPromocion(job.email, job.campania.asunto, job.campania.mensaje, promociones);
         }
+        if (!resultado.aceptado) throw new Error('El proveedor no aceptó el email');
 
-        await this.prisma.envioNovedad.update({
-          where: { id: job.id },
-          data: { estado: 'COMPLETADO', error: null, lockedUntil: null, enviadoAt: new Date() },
+        const completado = await this.prisma.envioNovedad.updateMany({
+          where: { id: job.id, estado: 'EN_PROCESO', leaseToken, resultadoAceptadoAt: null },
+          data: {
+            estado: 'COMPLETADO',
+            error: null,
+            lockedUntil: null,
+            leaseToken: null,
+            enviadoAt: new Date(),
+            resultadoAceptadoAt: new Date(),
+            referenciaEnvio: resultado.referencia || job.id,
+          },
         });
+        if (completado.count === 0) console.warn(`El envío ${job.id} perdió su lease después de ser aceptado`);
       } catch (error: any) {
-        await this.prisma.envioNovedad.update({
-          where: { id: job.id },
-          data: { estado: 'FALLIDO', error: error.message || 'Error desconocido', lockedUntil: null },
+        await this.prisma.envioNovedad.updateMany({
+          where: { id: job.id, estado: 'EN_PROCESO', leaseToken },
+          data: { estado: 'FALLIDO', error: error.message || 'Error desconocido', lockedUntil: null, leaseToken: null },
         });
       }
 

@@ -178,7 +178,7 @@ export async function rutas(servidor: FastifyInstance) {
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
   const servicioEmail = (emailUser && emailPass)
-    ? new ServicioEmailNodemailer(emailUser, emailPass, TOKEN_SIGNING_SECRET, backendUrl)
+    ? new ServicioEmailNodemailer(emailUser, emailPass, repositorioSuscriptores, TOKEN_SIGNING_SECRET, backendUrl)
     : new ServicioEmailDummy();
 
   if (!emailUser || !emailPass) {
@@ -190,13 +190,8 @@ export async function rutas(servidor: FastifyInstance) {
   const novedadProcessor = new NovedadProcessor(prisma, servicioEmail);
   novedadProcessor.start(10000);
 
-  servidor.addHook('onClose', (instance, done) => {
-    outboxProcessor.stop();
-    done();
-  });
-
   servidor.addHook('onClose', async () => {
-    await novedadProcessor.stop();
+    await Promise.all([outboxProcessor.stop(), novedadProcessor.stop()]);
   });
 
   // 2. Inicializar Casos de Uso
@@ -556,12 +551,41 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.get('/suscripciones/baja', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
     try {
-      const { email, token } = peticion.query as { email?: string; token?: string };
-      if (!email || !token) throw new Error('Faltan parámetros para procesar la baja');
-      await desuscribirseCatalogoUseCase.ejecutar({ email, token, secret: TOKEN_SIGNING_SECRET });
-      return respuesta.type('text/html').send('<h1>Suscripción cancelada</h1><p>Ya no recibirás novedades de EbooksPack.</p>');
+      const { token } = peticion.query as { token?: string };
+      if (!token) throw new Error('Falta el token para procesar la baja');
+      const safeToken = escapeHtml(token);
+      return respuesta.type('text/html').send(`
+        <h1>Cancelar suscripción</h1>
+        <p>¿Querés dejar de recibir novedades de EbooksPack?</p>
+        <button id="confirmarBaja">Confirmar baja</button>
+        <p id="resultadoBaja"></p>
+        <script>
+          document.getElementById('confirmarBaja').addEventListener('click', async () => {
+            const boton = document.getElementById('confirmarBaja');
+            const resultado = document.getElementById('resultadoBaja');
+            boton.disabled = true;
+            const respuesta = await fetch('/suscripciones/baja', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: '${safeToken}' })
+            });
+            resultado.textContent = await respuesta.text();
+          });
+        </script>
+      `);
     } catch (error: any) {
       return respuesta.status(400).type('text/html').send(`<h1>No se pudo cancelar la suscripción</h1><p>${escapeHtml(error.message || 'Enlace inválido')}</p>`);
+    }
+  });
+
+  servidor.post('/suscripciones/baja', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
+    try {
+      const { token } = z.object({ token: z.string().min(1) }).parse(peticion.body);
+      await desuscribirseCatalogoUseCase.ejecutar({ token, secret: TOKEN_SIGNING_SECRET });
+      return respuesta.type('text/html').send('<h1>Suscripción cancelada</h1><p>Ya no recibirás novedades de EbooksPack.</p>');
+    } catch (error: any) {
+      const mensaje = error instanceof z.ZodError ? 'El enlace de baja es inválido o expiró' : (error.message || 'Enlace inválido');
+      return respuesta.status(400).type('text/html').send(`<h1>No se pudo cancelar la suscripción</h1><p>${escapeHtml(mensaje)}</p>`);
     }
   });
 

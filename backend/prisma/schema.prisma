@@ -72,10 +72,11 @@ model NotificacionOutbox {
 }
 
 model Suscriptor {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id                   String   @id @default(uuid())
+  email                String   @unique
+  activo               Boolean  @default(true)
+  unsubscribeTokenHash String?  @unique
+  createdAt            DateTime @default(now())
 
   @@map("suscriptores")
 }
@@ -103,6 +104,9 @@ model EnvioNovedad {
   error       String?
   lockedUntil DateTime?
   enviadoAt   DateTime?
+  leaseToken  String?
+  resultadoAceptadoAt DateTime?
+  referenciaEnvio     String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   campania    CampaniaNovedad @relation(fields: [campaniaId], references: [id], onDelete: Cascade)
