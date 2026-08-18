@@ -505,13 +505,12 @@ function renderCategories() {
     label.style.display = 'flex';
     label.style.alignItems = 'center';
     label.style.gap = '0.5rem';
-    label.style.userSelect = 'none'; // Evitar seleccionar texto al hacer clic rápido
+    label.style.userSelect = 'none';
 
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.value = cat;
     checkbox.checked = selectedCategories.has(cat);
-    // Ocultar el checkbox original visualmente pero mantener la accesibilidad
     checkbox.style.position = 'absolute';
     checkbox.style.opacity = '0';
     checkbox.style.pointerEvents = 'none';
@@ -520,17 +519,20 @@ function renderCategories() {
       if (checkbox.checked) {
         selectedCategories.add(cat);
         label.classList.add('active');
+        label.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       } else {
         selectedCategories.delete(cat);
         label.classList.remove('active');
+        if (selectedCategories.size === 0) {
+          filtersContainer.scrollTo({ left: 0, behavior: 'smooth' });
+        }
       }
-      currentPage = 1; // Reiniciar a página 1 al filtrar
+      currentPage = 1;
       fetchProducts();
     });
 
     label.appendChild(checkbox);
     
-    // Capitalizar la primera letra
     const displayName = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
     label.appendChild(document.createTextNode(displayName));
     filtersContainer.appendChild(label);
