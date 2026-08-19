@@ -30,6 +30,7 @@ export class ServicioEmailNodemailer implements ServicioEmail {
     private repositorioSuscriptores: RepositorioSuscriptores,
     private apiKey: string = '',
     private backendUrl: string = 'http://localhost:3000',
+    private frontendUrl: string = 'http://localhost:5173',
   ) {
     this.transporter = nodemailer.createTransport({
       service: 'gmail', // Por defecto usamos Gmail
@@ -258,24 +259,79 @@ export class ServicioEmailNodemailer implements ServicioEmail {
   }
 
   async enviarNovedadCatalogo(emailCliente: string, asunto: string, mensaje: string, productos: ProductoNovedad[]): Promise<ResultadoEnvioNovedad> {
-    const listaProductosHTML = productos.map(producto => `
-      <li style="margin-bottom: 12px;">
-        <strong>${escapeHtml(producto.titulo)}</strong><br/>
-        <span style="color: #a0a0b0;">${escapeHtml(producto.categoria)} · $${escapeHtml(producto.precio.toLocaleString('es-AR'))}</span>
-      </li>
-    `).join('');
-
     const unsubscribeUrl = await this.getUnsubscribeUrl(emailCliente);
+    const catalogUrl = getSafeUrl(this.frontendUrl);
+    const listaProductosHTML = productos.map(producto => {
+      const imagenUrl = getSafeUrl(producto.imagenUrl);
+      const titulo = escapeHtml(producto.titulo);
+      const categoria = escapeHtml(producto.categoria || 'General');
+      const precio = escapeHtml(producto.precio.toLocaleString('es-AR'));
+
+      return `
+        <tr>
+          <td style="padding: 0 0 16px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #2d3748; background: #111827;">
+              <tr>
+                <td width="112" valign="top" style="padding: 12px;">
+                  <img src="${escapeHtml(imagenUrl)}" width="104" height="150" alt="Portada de ${titulo}" style="display: block; width: 104px; height: 150px; object-fit: cover; border: 1px solid #00f0ff; border-radius: 8px; background: #09090b;" />
+                </td>
+                <td valign="middle" style="padding: 16px 16px 16px 4px;">
+                  <p style="margin: 0 0 8px 0; color: #00f0ff; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">${categoria}</p>
+                  <h3 style="margin: 0 0 14px 0; color: #f8fafc; font-family: Arial, Helvetica, sans-serif; font-size: 20px; line-height: 1.25;">${titulo}</h3>
+                  <p style="margin: 0; color: #ff2a85; font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold;">$${precio}</p>
+                  <p style="margin: 8px 0 0 0; color: #94a3b8; font-family: Arial, Helvetica, sans-serif; font-size: 12px;">Disponible en formato digital.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
     const htmlContent = `
-      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
-        <h2 style="color: #00f0ff;">&gt; NUEVOS_LIBROS</h2>
-        <p>${escapeHtml(mensaje)}</p>
-        <ul style="list-style: none; padding-left: 0; border-left: 2px solid #00f0ff; padding-left: 15px;">
-          ${listaProductosHTML}
-        </ul>
-        <p style="color: #a0a0b0;">Gracias por seguir EbooksPack.</p>
-        <p style="font-size: 12px;"><a href="${escapeHtml(unsubscribeUrl)}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
-      </div>
+      <!doctype html>
+      <html lang="es">
+        <body style="margin: 0; padding: 0; background: transparent; color: #f8fafc;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width: 100%; background: transparent;">
+            <tr>
+              <td align="center" style="padding: 24px 12px;">
+                <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 640px; background: #0b1018; border: 1px solid #243244; border-radius: 18px; overflow: hidden;">
+                  <tr>
+                    <td style="padding: 28px 28px 22px 28px; border-bottom: 3px solid #ff2a85; background: linear-gradient(135deg, #101a2b, #0b1018 70%);">
+                      <p style="margin: 0 0 14px 0; color: #00f0ff; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 2px;">EBOOKSPACK / ACTUALIZACIÓN_DE_CATÁLOGO</p>
+                      <h1 style="margin: 0; color: #f8fafc; font-family: Arial, Helvetica, sans-serif; font-size: 32px; line-height: 1.12;">Nuevas lecturas<br/><span style="color: #00f0ff;">detectadas.</span></h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 26px 28px 10px 28px;">
+                      <p style="margin: 0; color: #e2e8f0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6;">${escapeHtml(mensaje)}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 16px 28px 8px 28px;">
+                      <p style="margin: 0 0 14px 0; color: #94a3b8; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">&gt; NUEVAS_ENTRADAS</p>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        ${listaProductosHTML}
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding: 14px 28px 30px 28px;">
+                      <a href="${escapeHtml(catalogUrl)}" style="display: inline-block; padding: 14px 22px; background: #ff2a85; border: 1px solid #ff2a85; border-radius: 9px; color: #ffffff; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-decoration: none;">EXPLORAR CATÁLOGO &gt;</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 18px 28px; border-top: 1px solid #243244; background: #080c12;">
+                      <p style="margin: 0 0 8px 0; color: #64748b; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5;">Recibís este email porque te suscribiste a las novedades de EbooksPack.</p>
+                      <a href="${escapeHtml(unsubscribeUrl)}" style="color: #94a3b8; font-family: Arial, Helvetica, sans-serif; font-size: 11px;">Dejar de recibir novedades</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
     `;
 
     const info = await this.transporter.sendMail({
@@ -288,27 +344,83 @@ export class ServicioEmailNodemailer implements ServicioEmail {
   }
 
   async enviarNovedadPromocion(emailCliente: string, asunto: string, mensaje: string, promociones: PromocionNovedad[]): Promise<ResultadoEnvioNovedad> {
+    const unsubscribeUrl = await this.getUnsubscribeUrl(emailCliente);
+    const catalogUrl = getSafeUrl(this.frontendUrl);
     const listaPromocionesHTML = promociones.map(promocion => {
-      const valor = promocion.tipo === 'PORCENTAJE'
+      const esPorcentaje = promocion.tipo === 'PORCENTAJE';
+      const valor = esPorcentaje
         ? `${promocion.valor}% OFF`
         : `$${promocion.valor.toLocaleString('es-AR')} por archivo`;
+      const tipo = esPorcentaje ? 'DESCUENTO PORCENTUAL' : 'PRECIO ESPECIAL POR ARCHIVO';
       const vencimiento = promocion.fechaFin
-        ? ` · Vence ${promocion.fechaFin.toLocaleDateString('es-AR')}`
-        : '';
-      return `<li style="margin-bottom: 12px;"><strong>${escapeHtml(promocion.nombre)}</strong><br/><span style="color: #ff9fc5;">${escapeHtml(valor)}${escapeHtml(vencimiento)}</span></li>`;
+        ? `Válida hasta ${promocion.fechaFin.toLocaleDateString('es-AR')}`
+        : 'Sin fecha de vencimiento';
+
+      return `
+        <tr>
+          <td style="padding: 0 0 16px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #4b263d; border-radius: 12px; overflow: hidden; background: #17111a;">
+              <tr>
+                <td width="92" valign="middle" align="center" style="padding: 18px 10px; border-right: 1px solid #4b263d;">
+                  <p style="margin: 0 0 8px 0; color: #ff7eaf; font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; letter-spacing: 1px;">PROMO</p>
+                  <p style="margin: 0; color: #ff2a85; font-family: 'Courier New', monospace; font-size: 22px; font-weight: bold; line-height: 1.1;">${escapeHtml(valor)}</p>
+                </td>
+                <td valign="middle" style="padding: 18px 18px;">
+                  <p style="margin: 0 0 8px 0; color: #00f0ff; font-family: 'Courier New', monospace; font-size: 10px; letter-spacing: 1px;">${escapeHtml(tipo)}</p>
+                  <h3 style="margin: 0 0 10px 0; color: #f8fafc; font-family: Arial, Helvetica, sans-serif; font-size: 19px; line-height: 1.25;">${escapeHtml(promocion.nombre)}</h3>
+                  <p style="margin: 0; color: #94a3b8; font-family: Arial, Helvetica, sans-serif; font-size: 12px;">${escapeHtml(vencimiento)}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
     }).join('');
 
-    const unsubscribeUrl = await this.getUnsubscribeUrl(emailCliente);
     const htmlContent = `
-      <div style="font-family: monospace; color: #f0f0f0; background: #0d0d12; padding: 20px;">
-        <h2 style="color: #ff2a85;">&gt; PROMOCIONES_ACTIVAS</h2>
-        <p>${escapeHtml(mensaje)}</p>
-        <ul style="list-style: none; padding-left: 0; border-left: 2px solid #ff2a85; padding-left: 15px;">
-          ${listaPromocionesHTML}
-        </ul>
-        <p style="color: #a0a0b0;">Gracias por seguir EbooksPack.</p>
-        <p style="font-size: 12px;"><a href="${escapeHtml(unsubscribeUrl)}" style="color: #a0a0b0;">Dejar de recibir novedades</a></p>
-      </div>
+      <!doctype html>
+      <html lang="es">
+        <body style="margin: 0; padding: 0; background: transparent; color: #f8fafc;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width: 100%; background: transparent;">
+            <tr>
+              <td align="center" style="padding: 24px 12px;">
+                <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 640px; background: #0b1018; border: 1px solid #243244; border-radius: 18px; overflow: hidden;">
+                  <tr>
+                    <td style="padding: 28px 28px 22px 28px; border-bottom: 3px solid #00f0ff; background: linear-gradient(135deg, #241126, #0b1018 70%);">
+                      <p style="margin: 0 0 14px 0; color: #ff7eaf; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 2px;">EBOOKSPACK / SEÑAL_DE_PROMOCIONES</p>
+                      <h1 style="margin: 0; color: #f8fafc; font-family: Arial, Helvetica, sans-serif; font-size: 32px; line-height: 1.12;">Algo especial<br/><span style="color: #ff2a85;">te está esperando.</span></h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 26px 28px 10px 28px;">
+                      <p style="margin: 0; color: #e2e8f0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6;">${escapeHtml(mensaje)}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 16px 28px 8px 28px;">
+                      <p style="margin: 0 0 14px 0; color: #94a3b8; font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">&gt; OFERTAS_ACTIVAS</p>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        ${listaPromocionesHTML}
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding: 14px 28px 30px 28px;">
+                      <a href="${escapeHtml(catalogUrl)}" style="display: inline-block; padding: 14px 22px; background: #ff2a85; border: 1px solid #ff2a85; border-radius: 9px; color: #ffffff; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; letter-spacing: 1px; text-decoration: none;">VER OFERTAS &gt;</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 18px 28px; border-top: 1px solid #243244; background: #080c12;">
+                      <p style="margin: 0 0 8px 0; color: #64748b; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5;">Recibís este email porque te suscribiste a las novedades de EbooksPack.</p>
+                      <a href="${escapeHtml(unsubscribeUrl)}" style="color: #94a3b8; font-family: Arial, Helvetica, sans-serif; font-size: 11px;">Dejar de recibir novedades</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
     `;
 
     const info = await this.transporter.sendMail({

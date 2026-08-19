@@ -43,7 +43,7 @@ export class CrearNovedadUseCase {
           imagenUrl: producto.imagenUrl,
         })),
       };
-      asunto = 'Nuevos libros en EbooksPack';
+      asunto = 'Nuevas lecturas: libros recién llegados a EbooksPack';
     } else {
       if (promocionIds.length === 0) throw new Error('Seleccioná al menos una promoción');
       if (productoIds.length > 0) throw new Error('Una novedad de promoción no puede incluir libros');
