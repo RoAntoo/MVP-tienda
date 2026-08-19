@@ -176,9 +176,10 @@ export async function rutas(servidor: FastifyInstance) {
   const emailPass = process.env.EMAIL_PASS;
   const adminEmail = process.env.ADMIN_EMAIL || emailUser || 'admin@localhost';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
 
   const servicioEmail = (emailUser && emailPass)
-    ? new ServicioEmailNodemailer(emailUser, emailPass, repositorioSuscriptores, TOKEN_SIGNING_SECRET, backendUrl)
+    ? new ServicioEmailNodemailer(emailUser, emailPass, repositorioSuscriptores, TOKEN_SIGNING_SECRET, backendUrl, frontendUrl)
     : new ServicioEmailDummy();
 
   if (!emailUser || !emailPass) {
