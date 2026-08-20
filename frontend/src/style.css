@@ -137,6 +137,11 @@ body {
   border-color: var(--accent-pink);
 }
 
+.admin-link {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .cyber-btn-text {
   background: transparent;
   border: none;
