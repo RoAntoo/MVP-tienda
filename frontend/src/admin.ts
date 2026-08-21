@@ -136,6 +136,7 @@ const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButton
 
 // Estado
 let apiKey = '';
+const adminSessionStorageKey = 'adminApiKey';
 let categoriasDisponibles: string[] = [];
 let promoProductosDisponibles: any[] = [];
 const promoProductosSeleccionados = new Set<string>();
@@ -145,7 +146,10 @@ const novedadesProductosSeleccionados = new Set<string>();
 const novedadesPromocionesSeleccionadas = new Set<string>();
 
 // --- INICIALIZACIÓN ---
-// (Eliminado el auto-login con localStorage por seguridad)
+const apiKeyGuardada = localStorage.getItem(adminSessionStorageKey);
+if (apiKeyGuardada) {
+  void validarYEntrar(apiKeyGuardada);
+}
 
 loginBtn.addEventListener('click', async () => {
   const key = apiKeyInput.value.trim();
@@ -265,6 +269,7 @@ if (nextProductosBtn) nextProductosBtn.addEventListener('click', () => { product
 
 logoutBtn.addEventListener('click', () => {
   apiKey = '';
+  localStorage.removeItem(adminSessionStorageKey);
   dashboardSection.classList.add('hidden');
   loginSection.classList.remove('hidden');
   apiKeyInput.value = '';
@@ -417,10 +422,16 @@ async function validarYEntrar(key: string): Promise<boolean> {
       headers: { 'x-api-key': key }
     });
 
-    if (!res.ok) throw new Error('Inválida');
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem(adminSessionStorageKey);
+      }
+      throw new Error('Inválida');
+    }
 
     // Autenticación exitosa
     apiKey = key;
+    localStorage.setItem(adminSessionStorageKey, key);
 
     loginSection.classList.add('hidden');
     loginError.classList.add('hidden');
