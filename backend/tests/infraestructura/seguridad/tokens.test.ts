@@ -19,7 +19,9 @@ describe('tokens de enlaces', () => {
 
   it('rechaza un HMAC con formato inválido', () => {
     const token = generarTokenAprobacion(ordenId, secreto);
-    const tokenManipulado = `${token.slice(0, -1)}z`;
+    const ultimoCaracter = token.at(-1);
+    const reemplazo = ultimoCaracter === '0' ? '1' : '0';
+    const tokenManipulado = `${token.slice(0, -1)}${reemplazo}`;
 
     expect(validarTokenAprobacion(tokenManipulado, ordenId, secreto)).toBe(false);
   });

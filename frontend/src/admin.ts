@@ -345,6 +345,24 @@ buscarProductosInput.addEventListener('input', () => {
   }, 300);
 });
 
+function esPromocionAdminValida(promocion: unknown): boolean {
+  if (!promocion || typeof promocion !== 'object') return false;
+  const datos = promocion as Record<string, unknown>;
+  const tipoValido = datos.tipo === 'PRECIO_UNITARIO' || datos.tipo === 'PORCENTAJE';
+  const valor = datos.valor;
+  return typeof datos.id === 'string'
+    && typeof datos.nombre === 'string'
+    && tipoValido
+    && typeof valor === 'number'
+    && Number.isFinite(valor)
+    && valor > 0
+    && valor <= 1_000_000_000
+    && (datos.tipo !== 'PORCENTAJE' || valor <= 100)
+    && typeof datos.activa === 'boolean'
+    && Array.isArray(datos.productoIds)
+    && datos.productoIds.every(id => typeof id === 'string');
+}
+
 // --- LÓGICA DE NUEVO PRODUCTO ---
 mostrarFormBtn.addEventListener('click', () => {
   nuevoProductoFormContainer.classList.remove('hidden');
@@ -546,6 +564,9 @@ async function cargarPromociones() {
     ]);
     if (!promocionesRes.ok || !productosRes.ok) throw new Error('Error al cargar promociones');
     const promociones = await promocionesRes.json();
+    if (!Array.isArray(promociones) || !promociones.every(esPromocionAdminValida)) {
+      throw new Error('La respuesta de promociones no tiene un formato válido');
+    }
     const productosData = await productosRes.json();
     promoProductosDisponibles = productosData.productos || [];
     const totalPaginas = Math.ceil((productosData.total || promoProductosDisponibles.length) / 100);
@@ -724,12 +745,15 @@ function renderizarPromoProductos() {
     !filtro || `${producto.titulo} ${producto.categoria}`.toLowerCase().includes(filtro)
   );
   promoProductosList.innerHTML = productos.length > 0
-    ? productos.map(producto => `
+    ? productos.map(producto => {
+      const productoId = String(producto.id);
+      return `
       <label class="promotion-product-option">
-        <input type="checkbox" data-promo-product-id="${escapeHtml(String(producto.id))}" ${promoProductosSeleccionados.has(producto.id) ? 'checked' : ''}>
+        <input type="checkbox" data-promo-product-id="${escapeHtml(productoId)}" ${promoProductosSeleccionados.has(productoId) ? 'checked' : ''}>
         <span><strong>${escapeHtml(producto.titulo)}</strong><small>${escapeHtml(producto.categoria || 'General')} · ${producto.cantidad || 1} archivo${(producto.cantidad || 1) === 1 ? '' : 's'}</small></span>
       </label>
-    `).join('')
+    `;
+    }).join('')
     : '<p class="promotion-empty">No hay productos que coincidan.</p>';
   promoProductosList.querySelectorAll<HTMLInputElement>('[data-promo-product-id]').forEach(input => {
     input.addEventListener('change', () => {
@@ -752,7 +776,9 @@ function renderizarPromociones(promociones: any[]) {
     return;
   }
   promocionesList.innerHTML = promociones.map(promo => {
-    const valor = promo.tipo === 'PORCENTAJE' ? `${promo.valor}% OFF` : `$${Number(promo.valor).toLocaleString('es-AR')} por archivo`;
+    const valor = promo.tipo === 'PORCENTAJE'
+      ? `${escapeHtml(String(promo.valor))}% OFF`
+      : `$${escapeHtml(Number(promo.valor).toLocaleString('es-AR'))} por archivo`;
     const vencimiento = promo.fechaFin ? `Vence ${new Date(promo.fechaFin).toLocaleDateString('es-AR')}` : 'Sin vencimiento';
     return `<article class="promotion-card ${promo.activa ? '' : 'is-inactive'}">
       <div><span class="admin-kicker">${promo.activa ? 'ACTIVA' : 'PAUSADA'}</span><h3>${escapeHtml(promo.nombre)}</h3><p>${valor} · ${promo.productoIds.length} producto${promo.productoIds.length === 1 ? '' : 's'} · ${vencimiento}</p></div>
@@ -767,8 +793,12 @@ promoSelectAllBtn.addEventListener('click', () => {
     const filtro = promoProductoSearch.value.trim().toLowerCase();
     return !filtro || `${producto.titulo} ${producto.categoria}`.toLowerCase().includes(filtro);
   });
-  const todosSeleccionados = visibles.every(producto => promoProductosSeleccionados.has(producto.id));
-  visibles.forEach(producto => todosSeleccionados ? promoProductosSeleccionados.delete(producto.id) : promoProductosSeleccionados.add(producto.id));
+  const todosSeleccionados = visibles.every(producto => promoProductosSeleccionados.has(String(producto.id)));
+  visibles.forEach(producto => {
+    const productoId = String(producto.id);
+    if (todosSeleccionados) promoProductosSeleccionados.delete(productoId);
+    else promoProductosSeleccionados.add(productoId);
+  });
   renderizarPromoProductos();
 });
 
