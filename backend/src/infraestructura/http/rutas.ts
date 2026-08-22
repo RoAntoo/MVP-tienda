@@ -31,10 +31,105 @@ import { NovedadProcessor } from '../trabajos/novedad-processor.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 
+// --- Helpers de sesión ---
+const SESSION_MAX_AGE_S = 8 * 60 * 60; // 8 horas
+const SESSION_COOKIE = 'admin_session';
+const sesionesRevocadas = new Set<string>();
+
+function generarTokenSesion(secret: string): string {
+  const expiry = Date.now() + SESSION_MAX_AGE_S * 1000;
+  const jti = crypto.randomUUID();
+  const payload = `admin:${expiry}:${jti}`;
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}:${hmac}`;
+}
+
+function validarTokenSesion(token: string, secret: string): { valido: boolean, jti?: string } {
+  if (!token || typeof token !== 'string') return { valido: false };
+  const partes = token.split(':');
+  if (partes.length !== 4) return { valido: false };
+
+  const [prefijo, expiryStr, jti, hmac] = partes;
+  if (prefijo !== 'admin') return { valido: false };
+  if (!/^\d+$/.test(expiryStr) || !/^[a-f0-9]{64}$/i.test(hmac)) return { valido: false };
+
+  const expiry = Number(expiryStr);
+  if (!Number.isSafeInteger(expiry) || Date.now() >= expiry) return { valido: false };
+  
+  if (sesionesRevocadas.has(jti)) return { valido: false };
+
+  const expectedHmac = crypto.createHmac('sha256', secret).update(`${prefijo}:${expiryStr}:${jti}`).digest();
+  const receivedHmac = Buffer.from(hmac, 'hex');
+
+  const valido = receivedHmac.length === expectedHmac.length
+    && crypto.timingSafeEqual(receivedHmac, expectedHmac);
+    
+  return { valido, jti: valido ? jti : undefined };
+}
+
+function esPeticionCrossSite(peticion: any): boolean {
+  if (!peticion.headers.origin) return false;
+  try {
+    const originHost = new URL(peticion.headers.origin).hostname;
+    return originHost !== peticion.hostname;
+  } catch {
+    return false;
+  }
+}
+
+function setCookieSesion(peticion: any, respuesta: any, token: string, esProduccion: boolean) {
+  const isCrossSite = esPeticionCrossSite(peticion);
+  respuesta.setCookie(SESSION_COOKIE, token, {
+    path: '/admin',
+    httpOnly: true,
+    secure: isCrossSite ? true : esProduccion,
+    sameSite: isCrossSite ? 'none' : 'strict',
+    maxAge: SESSION_MAX_AGE_S,
+  });
+}
+
+function clearCookieSesion(peticion: any, respuesta: any, esProduccion: boolean) {
+  const isCrossSite = esPeticionCrossSite(peticion);
+  respuesta.clearCookie(SESSION_COOKIE, {
+    path: '/admin',
+    httpOnly: true,
+    secure: isCrossSite ? true : esProduccion,
+    sameSite: isCrossSite ? 'none' : 'strict',
+  });
+}
+
 // Helpers
-function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string): boolean {
+function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string, sessionSecret?: string): boolean {
+  // 1. Intentar autenticación por cookie de sesión
+  let authenticatedViaCookie = false;
+  if (sessionSecret) {
+    const cookieToken = peticion.cookies?.[SESSION_COOKIE];
+    if (cookieToken) {
+      const { valido } = validarTokenSesion(cookieToken, sessionSecret);
+      if (valido) {
+        authenticatedViaCookie = true;
+      }
+    }
+  }
+
+  // Protección CSRF explícita: Operaciones mutables autenticadas por cookie requieren cabecera personalizada
+  const esMutable = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(peticion.method);
+  if (authenticatedViaCookie && esMutable) {
+    const adminRequestHeader = peticion.headers['x-admin-request'];
+    if (adminRequestHeader !== 'true') {
+      respuesta.status(403).send({ error: 'CSRF token missing or invalid' });
+      return false;
+    }
+    return true; // Autenticado por cookie y pasó CSRF
+  }
+
+  if (authenticatedViaCookie) {
+    return true; // Autenticado por cookie (operación segura, ej: GET)
+  }
+
+  // 2. Fallback: autenticación por header x-api-key
   const rawKey = peticion.headers['x-api-key'];
-  const apiKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+  const apiKey = typeof rawKey === 'string' ? rawKey : '';
 
   // Comparación en tiempo constante para no filtrar la clave por timing
   const recibida = Buffer.from(apiKey || '', 'utf8');
@@ -42,22 +137,47 @@ function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string
   const esValida = recibida.length === esperada.length && crypto.timingSafeEqual(recibida, esperada);
 
   if (!esValida) {
-    respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+    respuesta.status(401).send({ error: 'No autorizado' });
     return false;
   }
 
   return true;
 }
 
+function escaparJavaScript(valor: string): string {
+  return JSON.stringify(valor)
+    .replace(/</g, '\\u003C')
+    .replace(/>/g, '\\u003E')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+function protegerRespuestaDeEnlace(respuesta: any): any {
+  return respuesta
+    .header('Cache-Control', 'no-store')
+    .header('Referrer-Policy', 'no-referrer');
+}
+
 // Límites de rate limiting por tipo de endpoint (anti-spam / anti-fuerza-bruta)
 const limiteCompras = { rateLimit: { max: 10, timeWindow: '1 minute' } };
 const limiteSolicitudesPublico = { rateLimit: { max: 5, timeWindow: '1 minute' } };
 const limiteAdmin = { rateLimit: { max: 30, timeWindow: '1 minute' } };
+const limiteEnlacesMagicos = { rateLimit: { max: 10, timeWindow: '1 minute' } };
+const limiteLogin = { rateLimit: { max: 5, timeWindow: '1 minute' } };
+
+const EsquemaUrlHttp = z.string()
+  .max(2048, 'La URL es demasiado larga')
+  .url('Debe ser una URL válida')
+  .refine(valor => {
+    const protocolo = new URL(valor).protocol;
+    return protocolo === 'http:' || protocolo === 'https:';
+  }, 'La URL debe usar HTTP o HTTPS');
 
 // Esquemas de validación Zod
 const EsquemaIniciarCompra = z.object({
-  emailCliente: z.string().email('Debe ser un correo electrónico válido'),
-  productoIds: z.array(z.string().uuid('IDs de productos inválidos')).min(1, 'El carrito debe tener al menos un producto'),
+  emailCliente: z.string().max(254, 'El correo electrónico es demasiado largo').email('Debe ser un correo electrónico válido'),
+  productoIds: z.array(z.string().uuid('IDs de productos inválidos')).min(1, 'El carrito debe tener al menos un producto').max(50, 'El carrito excede el máximo de productos permitido'),
 });
 
 const EsquemaAprobarOrden = z.object({
@@ -69,23 +189,23 @@ const EsquemaEliminarOrdenes = z.object({
 });
 
 const EsquemaCrearProducto = z.object({
-  titulo: z.string().min(1, 'El título es requerido'),
-  precio: z.number().positive('El precio debe ser positivo'),
-  descripcion: z.string().min(1, 'La descripción es requerida'),
-  categoria: z.string().optional().transform(val => (!val || val.trim() === '') ? 'General' : val.trim()),
-  imagenUrl: z.string().url('Debe ser una URL válida'),
-  driveUrl: z.string().url('Debe ser una URL válida'),
-  cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').optional().default(1),
+  titulo: z.string().trim().min(1, 'El título es requerido').max(200, 'El título es demasiado largo'),
+  precio: z.number().positive('El precio debe ser positivo').max(1_000_000_000, 'El precio es demasiado alto'),
+  descripcion: z.string().trim().min(1, 'La descripción es requerida').max(10_000, 'La descripción es demasiado larga'),
+  categoria: z.string().max(100, 'La categoría es demasiado larga').optional().transform(val => (!val || val.trim() === '') ? 'General' : val.trim()),
+  imagenUrl: EsquemaUrlHttp,
+  driveUrl: EsquemaUrlHttp,
+  cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').max(1_000, 'La cantidad es demasiado alta').optional().default(1),
 });
 
 const EsquemaActualizarProducto = z.object({
-  titulo: z.string().min(1, 'El título no puede estar vacío').optional(),
-  precio: z.number().positive('El precio debe ser positivo').optional(),
-  descripcion: z.string().min(1, 'La descripción no puede estar vacía').optional(),
-  categoria: z.string().optional().transform(val => val === undefined ? undefined : (val.trim() === '' ? 'General' : val.trim())),
-  imagenUrl: z.string().url('Debe ser una URL válida').optional(),
-  driveUrl: z.string().url('Debe ser una URL válida').optional(),
-  cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').optional(),
+  titulo: z.string().trim().min(1, 'El título no puede estar vacío').max(200, 'El título es demasiado largo').optional(),
+  precio: z.number().positive('El precio debe ser positivo').max(1_000_000_000, 'El precio es demasiado alto').optional(),
+  descripcion: z.string().trim().min(1, 'La descripción no puede estar vacía').max(10_000, 'La descripción es demasiado larga').optional(),
+  categoria: z.string().max(100, 'La categoría es demasiado larga').optional().transform(val => val === undefined ? undefined : (val.trim() === '' ? 'General' : val.trim())),
+  imagenUrl: EsquemaUrlHttp.optional(),
+  driveUrl: EsquemaUrlHttp.optional(),
+  cantidad: z.number().int().positive('La cantidad debe ser un entero positivo').max(1_000, 'La cantidad es demasiado alta').optional(),
 }).refine(data => Object.keys(data).length > 0, 'Se requiere al menos un campo para actualizar');
 
 const EsquemaConsultarProductosQuery = z.object({
@@ -99,7 +219,7 @@ const EsquemaConsultarProductosQuery = z.object({
     if (value === 'false') return false;
     return value;
   }, z.boolean().optional()),
-  categorias: z.string().optional().transform(val => {
+  categorias: z.string().max(2_000).optional().transform(val => {
     if (!val) return undefined;
     const cats = val.split(',').map(s => s.trim()).filter(Boolean);
     return cats.slice(0, 20);
@@ -116,7 +236,7 @@ const EsquemaConsultarOrdenesQuery = z.object({
 const EsquemaCrearPromocion = z.object({
   nombre: z.string().trim().min(1).max(100),
   tipo: z.enum(['PRECIO_UNITARIO', 'PORCENTAJE']),
-  valor: z.number().positive(),
+  valor: z.number().positive().max(1_000_000_000),
   productoIds: z.array(z.string().uuid()).min(1).max(100),
   fechaFin: z.coerce.date().nullable().optional(),
 });
@@ -126,12 +246,26 @@ const EsquemaActualizarPromocion = EsquemaCrearPromocion.partial().extend({
 }).refine(data => Object.keys(data).length > 0, 'Debe indicar al menos un campo');
 
 const EsquemaSolicitudLibro = z.object({
-  emailCliente: z.string().email('Debe ser un correo electrónico válido'),
+  emailCliente: z.string().max(254, 'El correo electrónico es demasiado largo').email('Debe ser un correo electrónico válido'),
   mensaje: z.string().min(5, 'El mensaje debe tener al menos 5 caracteres').max(1000, 'Mensaje muy largo')
 });
 
 const EsquemaSuscripcion = z.object({
-  email: z.string().trim().email('Debe ser un correo electrónico válido'),
+  email: z.string().trim().max(254, 'El correo electrónico es demasiado largo').email('Debe ser un correo electrónico válido'),
+});
+
+const EsquemaTokenAprobacion = z.string()
+  .regex(/^[0-9a-f-]{36}:[0-9]+:[0-9a-f]{64}$/i, 'Enlace inválido');
+const EsquemaTokenBaja = z.string()
+  .regex(/^[0-9a-f]{64}$/i, 'Enlace de baja inválido');
+const EsquemaParametrosAprobarMagico = z.object({
+  ordenId: z.string().uuid('ID de orden inválido'),
+  token: EsquemaTokenAprobacion,
+});
+const EsquemaParametrosResponderSolicitud = z.object({
+  solicitudId: z.string().uuid('ID de solicitud inválido'),
+  existe: z.enum(['true', 'false']),
+  token: EsquemaTokenAprobacion,
 });
 
 const EsquemaCrearNovedad = z.object({
@@ -153,15 +287,15 @@ const EsquemaCrearNovedad = z.object({
 export async function rutas(servidor: FastifyInstance) {
   // --- VALIDACIÓN DE VARIABLES CRÍTICAS (FAIL-FAST) ---
   const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
-  if (!ADMIN_API_KEY) {
+  if (!ADMIN_API_KEY || ADMIN_API_KEY.length < 32) {
     servidor.log.error('CRITICAL: ADMIN_API_KEY no está configurada.');
-    throw new Error('ADMIN_API_KEY no está configurada.');
+    throw new Error('ADMIN_API_KEY no está configurada o no cumple la longitud mínima.');
   }
 
   const TOKEN_SIGNING_SECRET = process.env.TOKEN_SIGNING_SECRET;
-  if (!TOKEN_SIGNING_SECRET) {
+  if (!TOKEN_SIGNING_SECRET || TOKEN_SIGNING_SECRET.length < 32) {
     servidor.log.error('CRITICAL: TOKEN_SIGNING_SECRET no está configurada.');
-    throw new Error('TOKEN_SIGNING_SECRET no está configurada.');
+    throw new Error('TOKEN_SIGNING_SECRET no está configurada o no cumple la longitud mínima.');
   }
 
   // 1. Inicializar Repositorios y Servicios
@@ -177,6 +311,9 @@ export async function rutas(servidor: FastifyInstance) {
   const adminEmail = process.env.ADMIN_EMAIL || emailUser || 'admin@localhost';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
   const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+  if (process.env.NODE_ENV === 'production' && new URL(backendUrl).protocol !== 'https:') {
+    throw new Error('BACKEND_URL debe usar HTTPS en producción.');
+  }
 
   const servicioEmail = (emailUser && emailPass)
     ? new ServicioEmailNodemailer(emailUser, emailPass, repositorioSuscriptores, TOKEN_SIGNING_SECRET, backendUrl, frontendUrl)
@@ -218,7 +355,14 @@ export async function rutas(servidor: FastifyInstance) {
     try {
       const cuerpo = EsquemaIniciarCompra.parse(peticion.body);
       const resultado = await iniciarCompraUseCase.ejecutar(cuerpo);
-      return respuesta.status(201).send(resultado);
+      return respuesta.status(201).send({
+        mensaje: resultado.mensaje,
+        orden: {
+          id: resultado.orden.id,
+          total: resultado.orden.total,
+          estado: resultado.orden.estado,
+        },
+      });
     } catch (error: any) {
       servidor.log.error(error);
       if (error.name === 'ZodError' || error instanceof z.ZodError) {
@@ -242,13 +386,20 @@ export async function rutas(servidor: FastifyInstance) {
         return respuesta.status(400).send({ error: [{ message: 'El offset excede el límite máximo permitido' }] });
       }
 
-      const productos = await obtenerProductosUseCase.ejecutar({
+      const resultado = await obtenerProductosUseCase.ejecutar({
         ...query,
         limit,
         offset,
         busqueda: query.busqueda
       });
-      return respuesta.status(200).send(productos);
+      return respuesta.status(200).send({
+        ...resultado,
+        // Los enlaces de descarga solo deben salir por el correo tras aprobar la orden.
+        productos: resultado.productos.map(producto => {
+          const { driveUrl: _driveUrl, ...productoPublico } = producto;
+          return productoPublico;
+        }),
+      });
     } catch (error: any) {
       servidor.log.error(error);
       if (error.name === 'ZodError' || error instanceof z.ZodError) {
@@ -288,10 +439,56 @@ export async function rutas(servidor: FastifyInstance) {
     }
   });
 
+  // --- Endpoints de Sesión Admin ---
+  const esProduccion = process.env.NODE_ENV === 'production';
+
+  servidor.post('/admin/login', { config: limiteLogin }, async (peticion, respuesta) => {
+    try {
+      const body = peticion.body as { apiKey?: string };
+      const rawKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+
+      const recibida = Buffer.from(rawKey, 'utf8');
+      const esperada = Buffer.from(ADMIN_API_KEY, 'utf8');
+      const esValida = recibida.length === esperada.length && crypto.timingSafeEqual(recibida, esperada);
+
+      if (!esValida) {
+        return respuesta.status(401).send({ error: 'API key inválida' });
+      }
+
+      const token = generarTokenSesion(TOKEN_SIGNING_SECRET);
+      setCookieSesion(peticion, respuesta, token, esProduccion);
+      return respuesta.status(200).send({ autenticado: true });
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error interno del servidor' });
+    }
+  });
+
+  servidor.post('/admin/logout', async (peticion, respuesta) => {
+    const cookieToken = (peticion as any).cookies?.[SESSION_COOKIE];
+    if (cookieToken) {
+      const { valido, jti } = validarTokenSesion(cookieToken, TOKEN_SIGNING_SECRET);
+      if (valido && jti) {
+        sesionesRevocadas.add(jti);
+      }
+    }
+    clearCookieSesion(peticion, respuesta, esProduccion);
+    return respuesta.status(200).send({ mensaje: 'Sesión cerrada' });
+  });
+
+  servidor.get('/admin/sesion', { config: limiteAdmin }, async (peticion, respuesta) => {
+    const cookieToken = (peticion as any).cookies?.[SESSION_COOKIE];
+    if (cookieToken) {
+      const { valido } = validarTokenSesion(cookieToken, TOKEN_SIGNING_SECRET);
+      if (valido) return respuesta.status(200).send({ autenticado: true });
+    }
+    return respuesta.status(401).send({ error: 'No autenticado' });
+  });
+
   // Endpoint 2: Aprobar Orden Manual (Admin)
   servidor.post('/admin/ordenes/aprobar', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
 
       const cuerpo = EsquemaAprobarOrden.parse(peticion.body);
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
@@ -317,16 +514,16 @@ export async function rutas(servidor: FastifyInstance) {
   });
 
   // Endpoint 2.5: Aprobar Orden (Magic Link GET - Vista de Confirmación)
-  servidor.get('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
+  servidor.get('/admin/ordenes/aprobar-magico', { config: limiteEnlacesMagicos }, async (peticion, respuesta) => {
     try {
-      const { ordenId, token } = peticion.query as { ordenId?: string, token?: string };
+      const parametros = EsquemaParametrosAprobarMagico.safeParse(peticion.query);
 
-      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, TOKEN_SIGNING_SECRET)) {
-        return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
+      if (!parametros.success || !validarTokenAprobacion(parametros.data.token, parametros.data.ordenId, TOKEN_SIGNING_SECRET)) {
+        return protegerRespuestaDeEnlace(respuesta).status(403).type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
       }
+      const { ordenId, token } = parametros.data;
 
-      const safeOrdenId = escapeHtml(String(ordenId || ''));
-      const safeToken = escapeHtml(String(token || ''));
+      const safeOrdenId = escapeHtml(ordenId);
 
       const html = `
         <div style="font-family: monospace; padding: 40px; text-align: center; background: #0d0d12; color: #f0f0f0; height: 100vh;">
@@ -344,7 +541,10 @@ export async function rutas(servidor: FastifyInstance) {
               fetch('/admin/ordenes/aprobar-magico', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ordenId: '${safeOrdenId}', token: '${safeToken}' })
+                body: JSON.stringify({
+                  ordenId: ${escaparJavaScript(ordenId)},
+                  token: ${escaparJavaScript(token)}
+                })
               })
               .then(res => res.text())
               .then(html => {
@@ -355,21 +555,22 @@ export async function rutas(servidor: FastifyInstance) {
           </script>
         </div>
       `;
-      return respuesta.type('text/html').send(html);
+      return protegerRespuestaDeEnlace(respuesta).type('text/html').send(html);
     } catch (error: any) {
       servidor.log.error(error);
-      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(String(error.message || 'Error desconocido'))}</p>`);
+      return protegerRespuestaDeEnlace(respuesta).status(500).type('text/html').send('<h1>Error</h1><p>No se pudo procesar el enlace.</p>');
     }
   });
 
   // Endpoint 2.6: Aprobar Orden (Magic Link POST - Mutación)
-  servidor.post('/admin/ordenes/aprobar-magico', async (peticion, respuesta) => {
+  servidor.post('/admin/ordenes/aprobar-magico', { config: limiteEnlacesMagicos }, async (peticion, respuesta) => {
     try {
-      const { ordenId, token } = peticion.body as { ordenId?: string, token?: string };
+      const parametros = EsquemaParametrosAprobarMagico.safeParse(peticion.body);
 
-      if (!ordenId || !token || !validarTokenAprobacion(token, ordenId, TOKEN_SIGNING_SECRET)) {
-        return respuesta.type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
+      if (!parametros.success || !validarTokenAprobacion(parametros.data.token, parametros.data.ordenId, TOKEN_SIGNING_SECRET)) {
+        return protegerRespuestaDeEnlace(respuesta).status(403).type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace mágico inválido o expirado.</p>');
       }
+      const { ordenId } = parametros.data;
 
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId });
       
@@ -377,7 +578,7 @@ export async function rutas(servidor: FastifyInstance) {
         await despacharProductoUseCase.ejecutar({ ordenId: resultadoAprobacion.orden.id });
       }
 
-      const safeOrdenId = escapeHtml(String(ordenId || ''));
+      const safeOrdenId = escapeHtml(ordenId);
       const safeEmail = escapeHtml(String(resultadoAprobacion.orden.emailCliente || ''));
 
       const html = `
@@ -385,28 +586,28 @@ export async function rutas(servidor: FastifyInstance) {
           <h1 style="color: #ff2a85;">> CONFIRMACION_EXITOSA_</h1>
           <h2>¡La orden #${safeOrdenId.substring(0, 8)} ha sido APROBADA!</h2>
           <p>Los libros fueron liberados y enviados al cliente ${safeEmail}.</p>
-          <a href="http://localhost:5173" style="color: white; margin-top: 20px; display: inline-block;">Cerrar ventana</a>
+          <a href="${escapeHtml(frontendUrl)}" style="color: white; margin-top: 20px; display: inline-block;">Cerrar ventana</a>
         </div>
       `;
-      return respuesta.type('text/html').send(html);
+      return protegerRespuestaDeEnlace(respuesta).type('text/html').send(html);
     } catch (error: any) {
       servidor.log.error(error);
-      return respuesta.type('text/html').send(`<h1>Error</h1><p>${escapeHtml(String(error.message || 'Error desconocido'))}</p>`);
+      return protegerRespuestaDeEnlace(respuesta).status(500).type('text/html').send('<h1>Error</h1><p>No se pudo procesar el enlace.</p>');
     }
   });
 
   // Endpoint 2.7: Responder a Solicitud de Libro desde Email (Admin)
-  servidor.get('/admin/solicitudes/responder', async (peticion, respuesta) => {
+  servidor.get('/admin/solicitudes/responder', { config: limiteEnlacesMagicos }, async (peticion, respuesta) => {
     try {
-      const { solicitudId, existe, token } = peticion.query as { solicitudId?: string, existe?: string, token?: string };
-      
-      if (!solicitudId || !existe || !token) {
-        return respuesta.status(400).send({ error: 'Faltan parámetros en la URL' });
+      const parametros = EsquemaParametrosResponderSolicitud.safeParse(peticion.query);
+
+      if (!parametros.success || !validarTokenAprobacion(parametros.data.token, parametros.data.solicitudId, TOKEN_SIGNING_SECRET)) {
+        return protegerRespuestaDeEnlace(respuesta).status(403).type('text/html').send('<h1>Acceso Denegado</h1><p>Enlace inválido o expirado.</p>');
       }
+      const { solicitudId, existe, token } = parametros.data;
 
       // No ejecutamos la mutación en GET, solo devolvemos una página de confirmación con script
-      respuesta.type('text/html');
-      return respuesta.send(`
+      return protegerRespuestaDeEnlace(respuesta).type('text/html').send(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -437,9 +638,9 @@ export async function rutas(servidor: FastifyInstance) {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    solicitudId: '${escapeHtml(solicitudId)}',
-                    existe: '${escapeHtml(existe)}',
-                    token: '${escapeHtml(token)}'
+                    solicitudId: ${escaparJavaScript(solicitudId)},
+                    existe: ${escaparJavaScript(existe)},
+                    token: ${escaparJavaScript(token)}
                   })
                 });
                 const data = await res.json();
@@ -465,17 +666,18 @@ export async function rutas(servidor: FastifyInstance) {
       `);
     } catch (error: any) {
       servidor.log.error(error);
-      return respuesta.status(500).send('Error interno');
+      return protegerRespuestaDeEnlace(respuesta).status(500).type('text/html').send('<h1>Error</h1><p>No se pudo procesar el enlace.</p>');
     }
   });
 
-  servidor.post('/admin/solicitudes/responder', async (peticion, respuesta) => {
+  servidor.post('/admin/solicitudes/responder', { config: limiteEnlacesMagicos }, async (peticion, respuesta) => {
     try {
-      const { solicitudId, existe, token } = peticion.body as { solicitudId?: string, existe?: string, token?: string };
-      
-      if (!solicitudId || !existe || !token) {
-        return respuesta.status(400).send({ error: 'Faltan parámetros' });
+      const parametros = EsquemaParametrosResponderSolicitud.safeParse(peticion.body);
+
+      if (!parametros.success || !validarTokenAprobacion(parametros.data.token, parametros.data.solicitudId, TOKEN_SIGNING_SECRET)) {
+        return respuesta.status(403).send({ error: 'Enlace inválido o expirado' });
       }
+      const { solicitudId, existe, token } = parametros.data;
 
       await responderSolicitudUseCase.ejecutar({
         solicitudId,
@@ -494,7 +696,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const query = EsquemaConsultarOrdenesQuery.parse(peticion.query);
       const offset = (query.page - 1) * query.limit;
       const resultado = await repositorioOrdenes.obtenerTodas({
@@ -516,7 +718,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 3.5: Eliminar Orden (Admin)
   servidor.delete('/admin/ordenes/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const EsquemaParams = z.object({
         id: z.string().uuid('ID de orden inválido')
       });
@@ -552,10 +754,12 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.get('/suscripciones/baja', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
     try {
-      const { token } = peticion.query as { token?: string };
-      if (!token) throw new Error('Falta el token para procesar la baja');
-      const safeToken = escapeHtml(token);
-      return respuesta.type('text/html').send(`
+      const parametros = z.object({ token: EsquemaTokenBaja }).safeParse(peticion.query);
+      if (!parametros.success) {
+        return protegerRespuestaDeEnlace(respuesta).status(403).type('text/html').send('<h1>Enlace inválido</h1><p>El enlace de baja es inválido o expiró.</p>');
+      }
+      const { token } = parametros.data;
+      return protegerRespuestaDeEnlace(respuesta).type('text/html').send(`
         <h1>Cancelar suscripción</h1>
         <p>¿Querés dejar de recibir novedades de EbooksPack?</p>
         <button id="confirmarBaja">Confirmar baja</button>
@@ -568,31 +772,35 @@ export async function rutas(servidor: FastifyInstance) {
             const respuesta = await fetch('/suscripciones/baja', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: '${safeToken}' })
+             body: JSON.stringify({ token: ${escaparJavaScript(token)} })
             });
             resultado.textContent = await respuesta.text();
           });
         </script>
       `);
     } catch (error: any) {
-      return respuesta.status(400).type('text/html').send(`<h1>No se pudo cancelar la suscripción</h1><p>${escapeHtml(error.message || 'Enlace inválido')}</p>`);
+      servidor.log.error(error);
+      return protegerRespuestaDeEnlace(respuesta).status(500).type('text/html').send('<h1>Error</h1><p>No se pudo procesar el enlace.</p>');
     }
   });
 
   servidor.post('/suscripciones/baja', { config: limiteSolicitudesPublico }, async (peticion, respuesta) => {
     try {
-      const { token } = z.object({ token: z.string().min(1) }).parse(peticion.body);
+      const { token } = z.object({ token: EsquemaTokenBaja }).parse(peticion.body);
       await desuscribirseCatalogoUseCase.ejecutar({ token, secret: TOKEN_SIGNING_SECRET });
-      return respuesta.type('text/html').send('<h1>Suscripción cancelada</h1><p>Ya no recibirás novedades de EbooksPack.</p>');
+      return protegerRespuestaDeEnlace(respuesta).type('text/html').send('<h1>Suscripción cancelada</h1><p>Ya no recibirás novedades de EbooksPack.</p>');
     } catch (error: any) {
-      const mensaje = error instanceof z.ZodError ? 'El enlace de baja es inválido o expiró' : (error.message || 'Enlace inválido');
-      return respuesta.status(400).type('text/html').send(`<h1>No se pudo cancelar la suscripción</h1><p>${escapeHtml(mensaje)}</p>`);
+      if (error instanceof z.ZodError || error?.message === 'El enlace de baja es inválido o expiró') {
+        return protegerRespuestaDeEnlace(respuesta).status(400).type('text/html').send('<h1>No se pudo cancelar la suscripción</h1><p>El enlace de baja es inválido o expiró.</p>');
+      }
+      servidor.log.error(error);
+      return protegerRespuestaDeEnlace(respuesta).status(500).type('text/html').send('<h1>Error</h1><p>No se pudo procesar el enlace.</p>');
     }
   });
 
   servidor.get('/admin/novedades', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
 
       const [productos, promociones, campanias] = await Promise.all([
         obtenerProductosUseCase.ejecutar({ campo: 'createdAt', direccion: 'desc', limit: 20 }),
@@ -617,7 +825,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.post('/admin/novedades', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const datos = EsquemaCrearNovedad.parse(peticion.body);
       const novedad = await crearNovedadUseCase.ejecutar(datos);
       return respuesta.status(201).send(novedad);
@@ -652,7 +860,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.post('/admin/ordenes/eliminar-multiples', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const { ids } = EsquemaEliminarOrdenes.parse(peticion.body);
       const eliminadas = await eliminarOrdenUseCase.ejecutarVarias(ids);
       return respuesta.status(200).send({ eliminadas });
@@ -668,7 +876,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Promociones del catálogo (Admin)
   servidor.get('/admin/promociones', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       return respuesta.status(200).send(await gestionarPromocionesUseCase.listar());
     } catch (error: any) {
       servidor.log.error(error);
@@ -678,7 +886,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.post('/admin/promociones', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const datos = EsquemaCrearPromocion.parse(peticion.body);
       return respuesta.status(201).send(await gestionarPromocionesUseCase.crear(datos));
     } catch (error: any) {
@@ -691,7 +899,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.put('/admin/promociones/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const { id } = z.object({ id: z.string().uuid() }).parse(peticion.params);
       const datos = EsquemaActualizarPromocion.parse(peticion.body);
       return respuesta.status(200).send(await gestionarPromocionesUseCase.actualizar(id, datos));
@@ -705,7 +913,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.delete('/admin/promociones/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const { id } = z.object({ id: z.string().uuid() }).parse(peticion.params);
       await gestionarPromocionesUseCase.eliminar(id);
       return respuesta.status(204).send();
@@ -719,7 +927,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 4: Obtener Todos los Productos (Admin)
   servidor.get('/admin/productos', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const query = EsquemaConsultarProductosQuery.parse(peticion.query);
       const limit = query.limit;
       const offset = (query.limit && query.page) ? (query.page - 1) * query.limit : undefined;
@@ -746,7 +954,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
       const nuevoProducto = await crearProductoUseCase.ejecutar(cuerpo);
       return respuesta.status(201).send(nuevoProducto);
@@ -762,9 +970,9 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 6: Eliminar Producto (Admin)
   servidor.delete('/admin/productos/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const EsquemaParams = z.object({
-        id: z.string().trim().min(1, 'El ID del producto es requerido')
+        id: z.string().uuid('ID de producto inválido')
       });
       const { id } = EsquemaParams.parse(peticion.params);
 
@@ -788,9 +996,9 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 7: Actualizar Producto (Admin)
   servidor.put('/admin/productos/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const EsquemaParams = z.object({
-        id: z.string().trim().min(1, 'El ID del producto es requerido')
+        id: z.string().uuid('ID de producto inválido')
       });
       const { id } = EsquemaParams.parse(peticion.params);
       const cuerpo = EsquemaActualizarProducto.parse(peticion.body);
@@ -811,11 +1019,11 @@ export async function rutas(servidor: FastifyInstance) {
 
   // Endpoint 7: Obtener Todas las Solicitudes (Admin)
   servidor.get('/admin/solicitudes', { config: limiteAdmin }, async (peticion, respuesta) => {
-    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
     try {
       const EsquemaPaginacion = z.object({
         limit: z.coerce.number().int().positive().max(100).default(10),
-        offset: z.coerce.number().int().nonnegative().default(0)
+        offset: z.coerce.number().int().nonnegative().max(1_000_000).default(0)
       }).strict();
       
       const { limit, offset } = EsquemaPaginacion.parse(peticion.query);
@@ -833,9 +1041,9 @@ export async function rutas(servidor: FastifyInstance) {
 
   // Endpoint 8: Notificar Subida de Libro (Admin)
   servidor.post('/admin/solicitudes/:id/notificar', { config: limiteAdmin }, async (peticion, respuesta) => {
-    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
     try {
-      const { id } = peticion.params as { id: string };
+      const { id } = z.object({ id: z.string().uuid('ID de solicitud inválido') }).parse(peticion.params);
       const resultado = await notificarSubidaUseCase.ejecutar(id);
       return respuesta.status(200).send(resultado);
     } catch (error: any) {

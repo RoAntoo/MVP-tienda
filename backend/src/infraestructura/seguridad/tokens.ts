@@ -13,18 +13,20 @@ export function generarTokenAprobacion(ordenId: string, secretKey: string): stri
 export function validarTokenAprobacion(token: string, ordenId: string, secretKey: string): boolean {
   if (!token || !token.includes(':') || !secretKey) return false;
   
-  const [tokenId, expiryStr, hmac] = token.split(':');
-  if (tokenId !== ordenId) return false;
-  
-  const expiry = parseInt(expiryStr, 10);
-  if (isNaN(expiry) || Date.now() > expiry) return false;
+  const partes = token.split(':');
+  if (partes.length !== 3) return false;
 
-  const expectedHmac = crypto.createHmac('sha256', secretKey).update(`${tokenId}:${expiryStr}`).digest('hex');
+  const [tokenId, expiryStr, hmac] = partes;
+  if (tokenId !== ordenId) return false;
+  if (!/^\d+$/.test(expiryStr) || !/^[a-f0-9]{64}$/i.test(hmac)) return false;
+  
+  const expiry = Number(expiryStr);
+  if (!Number.isSafeInteger(expiry) || Date.now() >= expiry) return false;
+
+  const expectedHmac = crypto.createHmac('sha256', secretKey).update(`${tokenId}:${expiryStr}`).digest();
+  const receivedHmac = Buffer.from(hmac, 'hex');
   
   // Safe comparison
-  try {
-    return crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expectedHmac));
-  } catch (e) {
-    return false;
-  }
+  return receivedHmac.length === expectedHmac.length
+    && crypto.timingSafeEqual(receivedHmac, expectedHmac);
 }
