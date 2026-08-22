@@ -363,6 +363,32 @@ function esPromocionAdminValida(promocion: unknown): boolean {
     && datos.productoIds.every(id => typeof id === 'string');
 }
 
+function esProductoPromoValido(producto: unknown): boolean {
+  if (!producto || typeof producto !== 'object') return false;
+  const datos = producto as Record<string, unknown>;
+  const cantidad = datos.cantidad;
+  return (typeof datos.id === 'string' || typeof datos.id === 'number')
+    && typeof datos.titulo === 'string'
+    && (datos.categoria === undefined || typeof datos.categoria === 'string')
+    && typeof cantidad === 'number'
+    && Number.isInteger(cantidad)
+    && cantidad >= 1
+    && cantidad <= 1_000;
+}
+
+function obtenerProductosPromo(data: unknown): any[] {
+  if (!data || typeof data !== 'object') throw new Error('La respuesta de productos no tiene un formato válido');
+  const respuesta = data as Record<string, unknown>;
+  if (!Array.isArray(respuesta.productos) || !respuesta.productos.every(esProductoPromoValido)) {
+    throw new Error('La respuesta de productos no tiene un formato válido');
+  }
+  if (respuesta.total !== undefined
+    && (typeof respuesta.total !== 'number' || !Number.isSafeInteger(respuesta.total) || respuesta.total < 0)) {
+    throw new Error('La respuesta de productos no tiene un total válido');
+  }
+  return respuesta.productos;
+}
+
 // --- LÓGICA DE NUEVO PRODUCTO ---
 mostrarFormBtn.addEventListener('click', () => {
   nuevoProductoFormContainer.classList.remove('hidden');
@@ -568,13 +594,14 @@ async function cargarPromociones() {
       throw new Error('La respuesta de promociones no tiene un formato válido');
     }
     const productosData = await productosRes.json();
-    promoProductosDisponibles = productosData.productos || [];
-    const totalPaginas = Math.ceil((productosData.total || promoProductosDisponibles.length) / 100);
+    promoProductosDisponibles = obtenerProductosPromo(productosData);
+    const totalProductos = (productosData as { total?: number }).total ?? promoProductosDisponibles.length;
+    const totalPaginas = Math.ceil(totalProductos / 100);
     for (let pagina = 2; pagina <= totalPaginas; pagina++) {
       const respuestaPagina = await fetch(`${API_URL}/admin/productos?limit=100&page=${pagina}&campo=titulo&direccion=asc`, { headers: { 'x-api-key': apiKey } });
       if (!respuestaPagina.ok) throw new Error('Error al cargar todos los productos');
       const datosPagina = await respuestaPagina.json();
-      promoProductosDisponibles.push(...(datosPagina.productos || []));
+      promoProductosDisponibles.push(...obtenerProductosPromo(datosPagina));
     }
     renderizarPromoProductos();
     renderizarPromociones(promociones);
@@ -747,10 +774,11 @@ function renderizarPromoProductos() {
   promoProductosList.innerHTML = productos.length > 0
     ? productos.map(producto => {
       const productoId = String(producto.id);
+      const cantidad = producto.cantidad;
       return `
       <label class="promotion-product-option">
         <input type="checkbox" data-promo-product-id="${escapeHtml(productoId)}" ${promoProductosSeleccionados.has(productoId) ? 'checked' : ''}>
-        <span><strong>${escapeHtml(producto.titulo)}</strong><small>${escapeHtml(producto.categoria || 'General')} · ${producto.cantidad || 1} archivo${(producto.cantidad || 1) === 1 ? '' : 's'}</small></span>
+        <span><strong>${escapeHtml(producto.titulo)}</strong><small>${escapeHtml(producto.categoria || 'General')} · ${cantidad} archivo${cantidad === 1 ? '' : 's'}</small></span>
       </label>
     `;
     }).join('')

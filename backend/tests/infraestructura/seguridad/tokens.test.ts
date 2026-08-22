@@ -17,7 +17,7 @@ describe('tokens de enlaces', () => {
     expect(validarTokenAprobacion(`${token}:extra`, ordenId, secreto)).toBe(false);
   });
 
-  it('rechaza un HMAC con formato inválido', () => {
+  it('rechaza un HMAC alterado con formato válido', () => {
     const token = generarTokenAprobacion(ordenId, secreto);
     const ultimoCaracter = token.at(-1);
     const reemplazo = ultimoCaracter === '0' ? '1' : '0';
