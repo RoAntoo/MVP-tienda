@@ -34,60 +34,97 @@ import escapeHtml from 'escape-html';
 // --- Helpers de sesión ---
 const SESSION_MAX_AGE_S = 8 * 60 * 60; // 8 horas
 const SESSION_COOKIE = 'admin_session';
+const sesionesRevocadas = new Set<string>();
 
 function generarTokenSesion(secret: string): string {
   const expiry = Date.now() + SESSION_MAX_AGE_S * 1000;
-  const payload = `admin:${expiry}`;
+  const jti = crypto.randomUUID();
+  const payload = `admin:${expiry}:${jti}`;
   const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return `${payload}:${hmac}`;
 }
 
-function validarTokenSesion(token: string, secret: string): boolean {
-  if (!token || typeof token !== 'string') return false;
+function validarTokenSesion(token: string, secret: string): { valido: boolean, jti?: string } {
+  if (!token || typeof token !== 'string') return { valido: false };
   const partes = token.split(':');
-  if (partes.length !== 3) return false;
+  if (partes.length !== 4) return { valido: false };
 
-  const [prefijo, expiryStr, hmac] = partes;
-  if (prefijo !== 'admin') return false;
-  if (!/^\d+$/.test(expiryStr) || !/^[a-f0-9]{64}$/i.test(hmac)) return false;
+  const [prefijo, expiryStr, jti, hmac] = partes;
+  if (prefijo !== 'admin') return { valido: false };
+  if (!/^\d+$/.test(expiryStr) || !/^[a-f0-9]{64}$/i.test(hmac)) return { valido: false };
 
   const expiry = Number(expiryStr);
-  if (!Number.isSafeInteger(expiry) || Date.now() >= expiry) return false;
+  if (!Number.isSafeInteger(expiry) || Date.now() >= expiry) return { valido: false };
+  
+  if (sesionesRevocadas.has(jti)) return { valido: false };
 
-  const expectedHmac = crypto.createHmac('sha256', secret).update(`${prefijo}:${expiryStr}`).digest();
+  const expectedHmac = crypto.createHmac('sha256', secret).update(`${prefijo}:${expiryStr}:${jti}`).digest();
   const receivedHmac = Buffer.from(hmac, 'hex');
 
-  return receivedHmac.length === expectedHmac.length
+  const valido = receivedHmac.length === expectedHmac.length
     && crypto.timingSafeEqual(receivedHmac, expectedHmac);
+    
+  return { valido, jti: valido ? jti : undefined };
 }
 
-function setCookieSesion(respuesta: any, token: string, esProduccion: boolean) {
+function esPeticionCrossSite(peticion: any): boolean {
+  if (!peticion.headers.origin) return false;
+  try {
+    const originHost = new URL(peticion.headers.origin).hostname;
+    return originHost !== peticion.hostname;
+  } catch {
+    return false;
+  }
+}
+
+function setCookieSesion(peticion: any, respuesta: any, token: string, esProduccion: boolean) {
+  const isCrossSite = esPeticionCrossSite(peticion);
   respuesta.setCookie(SESSION_COOKIE, token, {
     path: '/admin',
     httpOnly: true,
-    secure: esProduccion,
-    sameSite: 'strict',
+    secure: isCrossSite ? true : esProduccion,
+    sameSite: isCrossSite ? 'none' : 'strict',
     maxAge: SESSION_MAX_AGE_S,
   });
 }
 
-function clearCookieSesion(respuesta: any, esProduccion: boolean) {
+function clearCookieSesion(peticion: any, respuesta: any, esProduccion: boolean) {
+  const isCrossSite = esPeticionCrossSite(peticion);
   respuesta.clearCookie(SESSION_COOKIE, {
     path: '/admin',
     httpOnly: true,
-    secure: esProduccion,
-    sameSite: 'strict',
+    secure: isCrossSite ? true : esProduccion,
+    sameSite: isCrossSite ? 'none' : 'strict',
   });
 }
 
 // Helpers
 function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string, sessionSecret?: string): boolean {
   // 1. Intentar autenticación por cookie de sesión
+  let authenticatedViaCookie = false;
   if (sessionSecret) {
     const cookieToken = peticion.cookies?.[SESSION_COOKIE];
-    if (cookieToken && validarTokenSesion(cookieToken, sessionSecret)) {
-      return true;
+    if (cookieToken) {
+      const { valido } = validarTokenSesion(cookieToken, sessionSecret);
+      if (valido) {
+        authenticatedViaCookie = true;
+      }
     }
+  }
+
+  // Protección CSRF explícita: Operaciones mutables autenticadas por cookie requieren cabecera personalizada
+  const esMutable = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(peticion.method);
+  if (authenticatedViaCookie && esMutable) {
+    const adminRequestHeader = peticion.headers['x-admin-request'];
+    if (adminRequestHeader !== 'true') {
+      respuesta.status(403).send({ error: 'CSRF token missing or invalid' });
+      return false;
+    }
+    return true; // Autenticado por cookie y pasó CSRF
+  }
+
+  if (authenticatedViaCookie) {
+    return true; // Autenticado por cookie (operación segura, ej: GET)
   }
 
   // 2. Fallback: autenticación por header x-api-key
@@ -419,7 +456,7 @@ export async function rutas(servidor: FastifyInstance) {
       }
 
       const token = generarTokenSesion(TOKEN_SIGNING_SECRET);
-      setCookieSesion(respuesta, token, esProduccion);
+      setCookieSesion(peticion, respuesta, token, esProduccion);
       return respuesta.status(200).send({ autenticado: true });
     } catch (error: any) {
       servidor.log.error(error);
@@ -427,15 +464,23 @@ export async function rutas(servidor: FastifyInstance) {
     }
   });
 
-  servidor.post('/admin/logout', async (_peticion, respuesta) => {
-    clearCookieSesion(respuesta, esProduccion);
+  servidor.post('/admin/logout', async (peticion, respuesta) => {
+    const cookieToken = (peticion as any).cookies?.[SESSION_COOKIE];
+    if (cookieToken) {
+      const { valido, jti } = validarTokenSesion(cookieToken, TOKEN_SIGNING_SECRET);
+      if (valido && jti) {
+        sesionesRevocadas.add(jti);
+      }
+    }
+    clearCookieSesion(peticion, respuesta, esProduccion);
     return respuesta.status(200).send({ mensaje: 'Sesión cerrada' });
   });
 
   servidor.get('/admin/sesion', { config: limiteAdmin }, async (peticion, respuesta) => {
     const cookieToken = (peticion as any).cookies?.[SESSION_COOKIE];
-    if (cookieToken && validarTokenSesion(cookieToken, TOKEN_SIGNING_SECRET)) {
-      return respuesta.status(200).send({ autenticado: true });
+    if (cookieToken) {
+      const { valido } = validarTokenSesion(cookieToken, TOKEN_SIGNING_SECRET);
+      if (valido) return respuesta.status(200).send({ autenticado: true });
     }
     return respuesta.status(401).send({ error: 'No autenticado' });
   });

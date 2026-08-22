@@ -145,6 +145,30 @@ const novedadesPromocionesSeleccionadas = new Set<string>();
 
 // --- INICIALIZACIÓN ---
 
+// --- HELPER FETCH ADMIN ---
+async function fetchAdmin(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const isMutable = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || 'GET');
+  const headers = new Headers(options.headers || {});
+  if (isMutable) {
+    headers.set('x-admin-request', 'true');
+  }
+  
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: 'include'
+  });
+
+  if (res.status === 401) {
+    logoutBtn.click();
+    loginError.classList.remove('hidden');
+    loginError.textContent = 'Sesión expirada';
+    throw new Error('Sesión expirada');
+  }
+
+  return res;
+}
+
 // Restaurar sesión al cargar la página
 (async () => {
   try {
@@ -195,9 +219,7 @@ async function cargarSolicitudes() {
   try {
     solicitudesBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Cargando...</td></tr>';
     const offset = (solicitudesCurrentPage - 1) * solicitudesLimit;
-    const res = await fetch(`${API_URL}/admin/solicitudes?limit=${solicitudesLimit}&offset=${offset}`, {
-      credentials: 'include'
-    });
+    const res = await fetchAdmin(`/admin/solicitudes?limit=${solicitudesLimit}&offset=${offset}`);
     if (!res.ok) throw new Error('Error al obtener solicitudes');
 
     const data = await res.json();
@@ -261,10 +283,7 @@ if (nextProductosBtn) nextProductosBtn.addEventListener('click', () => { product
   if (!(await cyberConfirm('¿Seguro que quieres notificar al cliente que el libro ya está subido?'))) return;
 
   try {
-    const res = await fetch(`${API_URL}/admin/solicitudes/${id}/notificar`, {
-      method: 'POST',
-      credentials: 'include'
-    });
+    const res = await fetchAdmin(`/admin/solicitudes/${id}/notificar`, { method: 'POST' });
     if (!res.ok) {
       const errorData = await res.json();
       throw new Error(errorData.error || 'Error al notificar');
@@ -436,12 +455,9 @@ nuevoProductoForm.addEventListener('submit', async (e) => {
   };
 
   try {
-    const res = await fetch(`${API_URL}/admin/productos`, {
+    const res = await fetchAdmin(`/admin/productos`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -514,12 +530,9 @@ async function cargarOrdenes() {
       ordenesParams.set('campo', campo === 'email' ? 'email' : 'total');
       ordenesParams.set('direccion', direccion);
     }
-    const res = await fetch(`${API_URL}/admin/ordenes?${ordenesParams.toString()}`, {
-      credentials: 'include'
-    });
+    const res = await fetchAdmin(`/admin/ordenes?${ordenesParams.toString()}`);
 
     if (!res.ok) {
-      if (res.status === 401) throw new Error('Sesión expirada');
       throw new Error('Error al cargar órdenes');
     }
 
@@ -531,11 +544,7 @@ async function cargarOrdenes() {
     dibujarOrdenes(ordenes);
   } catch (err: any) {
     if (fetchId !== currentTabFetchId) return;
-    if (err.message === 'Sesión expirada') {
-      logoutBtn.click();
-      loginError.classList.remove('hidden');
-      loginError.textContent = 'Acceso Denegado';
-    } else {
+    if (err.message !== 'Sesión expirada') {
       ordenesBody.innerHTML = `<tr><td colspan="6" style="color:red">${escapeHtml(String(err.message || 'Error desconocido'))}</td></tr>`;
     }
   }
@@ -560,9 +569,7 @@ async function cargarProductos() {
     if (busqueda) params.set('busqueda', busqueda);
     const query = `?${params.toString()}`;
 
-    const res = await fetch(`${API_URL}/admin/productos${query}`, {
-      credentials: 'include'
-    });
+    const res = await fetchAdmin(`/admin/productos${query}`);
 
     if (!res.ok) throw new Error('Error al cargar productos');
 
@@ -585,8 +592,8 @@ async function cargarProductos() {
 async function cargarPromociones() {
   try {
     const [promocionesRes, productosRes] = await Promise.all([
-      fetch(`${API_URL}/admin/promociones`, { credentials: 'include' }),
-      fetch(`${API_URL}/admin/productos?limit=100&campo=titulo&direccion=asc`, { credentials: 'include' }),
+      fetchAdmin(`/admin/promociones`),
+      fetchAdmin(`/admin/productos?limit=100&campo=titulo&direccion=asc`),
     ]);
     if (!promocionesRes.ok || !productosRes.ok) throw new Error('Error al cargar promociones');
     const promociones = await promocionesRes.json();
@@ -603,7 +610,7 @@ async function cargarPromociones() {
     const MAX_PAGINAS = 50;
     const totalPaginas = Math.min(Math.ceil(totalProductos / 100), MAX_PAGINAS);
     for (let pagina = 2; pagina <= totalPaginas; pagina++) {
-      const respuestaPagina = await fetch(`${API_URL}/admin/productos?limit=100&page=${pagina}&campo=titulo&direccion=asc`, { credentials: 'include' });
+      const respuestaPagina = await fetchAdmin(`/admin/productos?limit=100&page=${pagina}&campo=titulo&direccion=asc`);
       if (!respuestaPagina.ok) throw new Error('Error al cargar todos los productos');
       const datosPagina = await respuestaPagina.json();
       promoProductosDisponibles.push(...obtenerProductosPromo(datosPagina));
@@ -619,9 +626,7 @@ async function cargarNovedades() {
   novedadesProductosList.innerHTML = '<p class="promotion-empty">Cargando libros...</p>';
   novedadesPromocionesList.innerHTML = '<p class="promotion-empty">Cargando promociones...</p>';
   try {
-    const res = await fetch(`${API_URL}/admin/novedades`, {
-      credentials: 'include',
-    });
+    const res = await fetchAdmin(`/admin/novedades`);
     if (!res.ok) throw new Error('Error al cargar las novedades');
 
     const data = await res.json();
@@ -730,10 +735,9 @@ async function enviarNovedad(
   submitBtn.innerText = 'PREPARANDO_ENVÍO...';
 
   try {
-    const res = await fetch(`${API_URL}/admin/novedades`, {
+    const res = await fetchAdmin(`/admin/novedades`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         tipo,
         mensaje: mensajeInput.value.trim(),
@@ -848,10 +852,9 @@ promocionForm.addEventListener('submit', async (event) => {
     return;
   }
   try {
-    const res = await fetch(`${API_URL}/admin/promociones`, {
+    const res = await fetchAdmin(`/admin/promociones`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         nombre: promoNombreInput.value.trim(),
         tipo: promoTipoSelect.value,
@@ -877,14 +880,15 @@ promocionesList.addEventListener('click', async (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-promo-action]');
   if (!button) return;
   const id = button.dataset.id;
-  const promociones = await fetch(`${API_URL}/admin/promociones`, { credentials: 'include' }).then(res => res.json());
+  const res = await fetchAdmin(`/admin/promociones`);
+  const promociones = await res.json();
   const promo = promociones.find((item: any) => item.id === id);
   if (!promo) return;
   if (button.dataset.promoAction === 'delete') {
     if (!(await cyberConfirm(`¿Eliminar la promoción "${promo.nombre}"?`))) return;
-    await fetch(`${API_URL}/admin/promociones/${id}`, { method: 'DELETE', credentials: 'include' });
+    await fetchAdmin(`/admin/promociones/${id}`, { method: 'DELETE' });
   } else {
-    await fetch(`${API_URL}/admin/promociones/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ activa: !promo.activa, productoIds: promo.productoIds }) });
+    await fetchAdmin(`/admin/promociones/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activa: !promo.activa, productoIds: promo.productoIds }) });
   }
   cargarPromociones();
 });
@@ -1139,12 +1143,9 @@ async function manejarEdicionProducto(e: Event) {
   submitBtn.disabled = true;
 
   try {
-    const res = await fetch(`${API_URL}/admin/productos/${id}`, {
+    const res = await fetchAdmin(`/admin/productos/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(productoEditado)
     });
 
@@ -1356,12 +1357,9 @@ async function aprobarOrden(ordenId: string, botonRef?: HTMLButtonElement | null
   }
 
   try {
-    const res = await fetch(`${API_URL}/admin/ordenes/aprobar`, {
+    const res = await fetchAdmin(`/admin/ordenes/aprobar`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ordenId })
     });
 
@@ -1385,9 +1383,8 @@ async function eliminarOrden(ordenId: string, botonRef?: HTMLButtonElement | nul
   }
 
   try {
-    const res = await fetch(`${API_URL}/admin/ordenes/${ordenId}`, {
+    const res = await fetchAdmin(`/admin/ordenes/${ordenId}`, {
       method: 'DELETE',
-      credentials: 'include',
     });
 
     if (!res.ok) throw new Error('Falló eliminación');
@@ -1407,10 +1404,9 @@ async function eliminarOrdenes(ordenIds: string[]) {
   eliminarOrdenesBtn.disabled = true;
   eliminarOrdenesBtn.innerText = 'ELIMINANDO...';
   try {
-    const res = await fetch(`${API_URL}/admin/ordenes/eliminar-multiples`, {
+    const res = await fetchAdmin(`/admin/ordenes/eliminar-multiples`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ ids: ordenIds })
     });
     if (!res.ok) throw new Error('Falló eliminación múltiple');
@@ -1430,9 +1426,8 @@ async function eliminarProducto(productoId: string, botonRef?: HTMLButtonElement
   }
 
   try {
-    const res = await fetch(`${API_URL}/admin/productos/${productoId}`, {
+    const res = await fetchAdmin(`/admin/productos/${productoId}`, {
       method: 'DELETE',
-      credentials: 'include',
     });
 
     if (!res.ok) throw new Error('Falló eliminación');
