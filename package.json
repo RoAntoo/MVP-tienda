@@ -7,7 +7,7 @@
   },
   "scripts": {
     "heroku-postbuild": "cd backend && npm install --include=dev && npm run build && npx prisma generate",
-    "release": "cd backend && npx prisma migrate deploy",
+    "release": "node resolve-migrations.mjs && cd backend && npx prisma migrate deploy",
     "start": "cd backend && npm start"
   },
   "dependencies": {
