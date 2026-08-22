@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { prisma } from '../base-datos/prisma-cliente.js';
@@ -96,8 +97,11 @@ export const iniciarServidor = async () => {
   if (process.env.NODE_ENV === 'production' && allowedOrigins.some((url) => new URL(url).protocol !== 'https:')) {
     throw new Error('FRONTEND_URL debe usar HTTPS en producción.');
   }
+  await servidor.register(cookie);
+
   await servidor.register(cors, {
     origin: allowedOrigins,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   });

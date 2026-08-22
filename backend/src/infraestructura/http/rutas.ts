@@ -31,8 +31,66 @@ import { NovedadProcessor } from '../trabajos/novedad-processor.js';
 import { validarTokenAprobacion } from '../seguridad/tokens.js';
 import escapeHtml from 'escape-html';
 
+// --- Helpers de sesión ---
+const SESSION_MAX_AGE_S = 8 * 60 * 60; // 8 horas
+const SESSION_COOKIE = 'admin_session';
+
+function generarTokenSesion(secret: string): string {
+  const expiry = Date.now() + SESSION_MAX_AGE_S * 1000;
+  const payload = `admin:${expiry}`;
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}:${hmac}`;
+}
+
+function validarTokenSesion(token: string, secret: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const partes = token.split(':');
+  if (partes.length !== 3) return false;
+
+  const [prefijo, expiryStr, hmac] = partes;
+  if (prefijo !== 'admin') return false;
+  if (!/^\d+$/.test(expiryStr) || !/^[a-f0-9]{64}$/i.test(hmac)) return false;
+
+  const expiry = Number(expiryStr);
+  if (!Number.isSafeInteger(expiry) || Date.now() >= expiry) return false;
+
+  const expectedHmac = crypto.createHmac('sha256', secret).update(`${prefijo}:${expiryStr}`).digest();
+  const receivedHmac = Buffer.from(hmac, 'hex');
+
+  return receivedHmac.length === expectedHmac.length
+    && crypto.timingSafeEqual(receivedHmac, expectedHmac);
+}
+
+function setCookieSesion(respuesta: any, token: string, esProduccion: boolean) {
+  respuesta.setCookie(SESSION_COOKIE, token, {
+    path: '/admin',
+    httpOnly: true,
+    secure: esProduccion,
+    sameSite: 'strict',
+    maxAge: SESSION_MAX_AGE_S,
+  });
+}
+
+function clearCookieSesion(respuesta: any, esProduccion: boolean) {
+  respuesta.clearCookie(SESSION_COOKIE, {
+    path: '/admin',
+    httpOnly: true,
+    secure: esProduccion,
+    sameSite: 'strict',
+  });
+}
+
 // Helpers
-function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string): boolean {
+function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string, sessionSecret?: string): boolean {
+  // 1. Intentar autenticación por cookie de sesión
+  if (sessionSecret) {
+    const cookieToken = peticion.cookies?.[SESSION_COOKIE];
+    if (cookieToken && validarTokenSesion(cookieToken, sessionSecret)) {
+      return true;
+    }
+  }
+
+  // 2. Fallback: autenticación por header x-api-key
   const rawKey = peticion.headers['x-api-key'];
   const apiKey = typeof rawKey === 'string' ? rawKey : '';
 
@@ -42,7 +100,7 @@ function verificarApiKeyAdmin(peticion: any, respuesta: any, adminApiKey: string
   const esValida = recibida.length === esperada.length && crypto.timingSafeEqual(recibida, esperada);
 
   if (!esValida) {
-    respuesta.status(401).send({ error: 'No autorizado. API_KEY inválida' });
+    respuesta.status(401).send({ error: 'No autorizado' });
     return false;
   }
 
@@ -69,6 +127,7 @@ const limiteCompras = { rateLimit: { max: 10, timeWindow: '1 minute' } };
 const limiteSolicitudesPublico = { rateLimit: { max: 5, timeWindow: '1 minute' } };
 const limiteAdmin = { rateLimit: { max: 30, timeWindow: '1 minute' } };
 const limiteEnlacesMagicos = { rateLimit: { max: 10, timeWindow: '1 minute' } };
+const limiteLogin = { rateLimit: { max: 5, timeWindow: '1 minute' } };
 
 const EsquemaUrlHttp = z.string()
   .max(2048, 'La URL es demasiado larga')
@@ -343,10 +402,48 @@ export async function rutas(servidor: FastifyInstance) {
     }
   });
 
+  // --- Endpoints de Sesión Admin ---
+  const esProduccion = process.env.NODE_ENV === 'production';
+
+  servidor.post('/admin/login', { config: limiteLogin }, async (peticion, respuesta) => {
+    try {
+      const body = peticion.body as { apiKey?: string };
+      const rawKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+
+      const recibida = Buffer.from(rawKey, 'utf8');
+      const esperada = Buffer.from(ADMIN_API_KEY, 'utf8');
+      const esValida = recibida.length === esperada.length && crypto.timingSafeEqual(recibida, esperada);
+
+      if (!esValida) {
+        return respuesta.status(401).send({ error: 'API key inválida' });
+      }
+
+      const token = generarTokenSesion(TOKEN_SIGNING_SECRET);
+      setCookieSesion(respuesta, token, esProduccion);
+      return respuesta.status(200).send({ autenticado: true });
+    } catch (error: any) {
+      servidor.log.error(error);
+      return respuesta.status(500).send({ error: 'Error interno del servidor' });
+    }
+  });
+
+  servidor.post('/admin/logout', async (_peticion, respuesta) => {
+    clearCookieSesion(respuesta, esProduccion);
+    return respuesta.status(200).send({ mensaje: 'Sesión cerrada' });
+  });
+
+  servidor.get('/admin/sesion', { config: limiteAdmin }, async (peticion, respuesta) => {
+    const cookieToken = (peticion as any).cookies?.[SESSION_COOKIE];
+    if (cookieToken && validarTokenSesion(cookieToken, TOKEN_SIGNING_SECRET)) {
+      return respuesta.status(200).send({ autenticado: true });
+    }
+    return respuesta.status(401).send({ error: 'No autenticado' });
+  });
+
   // Endpoint 2: Aprobar Orden Manual (Admin)
   servidor.post('/admin/ordenes/aprobar', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
 
       const cuerpo = EsquemaAprobarOrden.parse(peticion.body);
       const resultadoAprobacion = await aprobarOrdenUseCase.ejecutar({ ordenId: cuerpo.ordenId });
@@ -554,7 +651,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 3: Obtener Todas las Órdenes (Admin)
   servidor.get('/admin/ordenes', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const query = EsquemaConsultarOrdenesQuery.parse(peticion.query);
       const offset = (query.page - 1) * query.limit;
       const resultado = await repositorioOrdenes.obtenerTodas({
@@ -576,7 +673,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 3.5: Eliminar Orden (Admin)
   servidor.delete('/admin/ordenes/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const EsquemaParams = z.object({
         id: z.string().uuid('ID de orden inválido')
       });
@@ -658,7 +755,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.get('/admin/novedades', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
 
       const [productos, promociones, campanias] = await Promise.all([
         obtenerProductosUseCase.ejecutar({ campo: 'createdAt', direccion: 'desc', limit: 20 }),
@@ -683,7 +780,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.post('/admin/novedades', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const datos = EsquemaCrearNovedad.parse(peticion.body);
       const novedad = await crearNovedadUseCase.ejecutar(datos);
       return respuesta.status(201).send(novedad);
@@ -718,7 +815,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.post('/admin/ordenes/eliminar-multiples', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const { ids } = EsquemaEliminarOrdenes.parse(peticion.body);
       const eliminadas = await eliminarOrdenUseCase.ejecutarVarias(ids);
       return respuesta.status(200).send({ eliminadas });
@@ -734,7 +831,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Promociones del catálogo (Admin)
   servidor.get('/admin/promociones', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       return respuesta.status(200).send(await gestionarPromocionesUseCase.listar());
     } catch (error: any) {
       servidor.log.error(error);
@@ -744,7 +841,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.post('/admin/promociones', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const datos = EsquemaCrearPromocion.parse(peticion.body);
       return respuesta.status(201).send(await gestionarPromocionesUseCase.crear(datos));
     } catch (error: any) {
@@ -757,7 +854,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.put('/admin/promociones/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const { id } = z.object({ id: z.string().uuid() }).parse(peticion.params);
       const datos = EsquemaActualizarPromocion.parse(peticion.body);
       return respuesta.status(200).send(await gestionarPromocionesUseCase.actualizar(id, datos));
@@ -771,7 +868,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   servidor.delete('/admin/promociones/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const { id } = z.object({ id: z.string().uuid() }).parse(peticion.params);
       await gestionarPromocionesUseCase.eliminar(id);
       return respuesta.status(204).send();
@@ -785,7 +882,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 4: Obtener Todos los Productos (Admin)
   servidor.get('/admin/productos', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const query = EsquemaConsultarProductosQuery.parse(peticion.query);
       const limit = query.limit;
       const offset = (query.limit && query.page) ? (query.page - 1) * query.limit : undefined;
@@ -812,7 +909,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 5: Crear Producto (Admin)
   servidor.post('/admin/productos', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const cuerpo = EsquemaCrearProducto.parse(peticion.body);
       const nuevoProducto = await crearProductoUseCase.ejecutar(cuerpo);
       return respuesta.status(201).send(nuevoProducto);
@@ -828,7 +925,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 6: Eliminar Producto (Admin)
   servidor.delete('/admin/productos/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const EsquemaParams = z.object({
         id: z.string().uuid('ID de producto inválido')
       });
@@ -854,7 +951,7 @@ export async function rutas(servidor: FastifyInstance) {
   // Endpoint 7: Actualizar Producto (Admin)
   servidor.put('/admin/productos/:id', { config: limiteAdmin }, async (peticion, respuesta) => {
     try {
-      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+      if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
       const EsquemaParams = z.object({
         id: z.string().uuid('ID de producto inválido')
       });
@@ -877,7 +974,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   // Endpoint 7: Obtener Todas las Solicitudes (Admin)
   servidor.get('/admin/solicitudes', { config: limiteAdmin }, async (peticion, respuesta) => {
-    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
     try {
       const EsquemaPaginacion = z.object({
         limit: z.coerce.number().int().positive().max(100).default(10),
@@ -899,7 +996,7 @@ export async function rutas(servidor: FastifyInstance) {
 
   // Endpoint 8: Notificar Subida de Libro (Admin)
   servidor.post('/admin/solicitudes/:id/notificar', { config: limiteAdmin }, async (peticion, respuesta) => {
-    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY)) return;
+    if (!verificarApiKeyAdmin(peticion, respuesta, ADMIN_API_KEY, TOKEN_SIGNING_SECRET)) return;
     try {
       const { id } = z.object({ id: z.string().uuid('ID de solicitud inválido') }).parse(peticion.params);
       const resultado = await notificarSubidaUseCase.ejecutar(id);
