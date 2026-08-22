@@ -17,10 +17,12 @@ export const iniciarServidor = async () => {
       : process.env.TRUST_PROXY.includes(',')
       ? process.env.TRUST_PROXY.split(',').map((ip) => ip.trim())
       : process.env.TRUST_PROXY
-    : true;
+    // No confiar en X-Forwarded-For salvo que el proxy se configure explícitamente.
+    : false;
 
   const servidor = fastify({
     trustProxy: trustProxyConfig,
+    bodyLimit: 128 * 1024,
     logger: {
       // Nunca loguear cabeceras de autenticación
       redact: {
@@ -37,6 +39,13 @@ export const iniciarServidor = async () => {
         }),
       },
     },
+  });
+
+  servidor.addHook('onSend', async (peticion, respuesta, payload) => {
+    if (peticion.url.split('?')[0].startsWith('/admin')) {
+      respuesta.header('Cache-Control', 'no-store');
+    }
+    return payload;
   });
 
   // Headers de seguridad. La CSP permite inline porque las páginas de
@@ -70,8 +79,25 @@ export const iniciarServidor = async () => {
 
   // Configurar CORS: solo el frontend conocido (sin fallback abierto '*')
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const allowedOrigins = frontendUrl.split(',').map((url) => url.trim()).filter(Boolean);
+  if (allowedOrigins.length === 0 || allowedOrigins.includes('*')) {
+    throw new Error("FRONTEND_URL debe contener al menos un origen explícito y no puede ser '*'.");
+  }
+  if (allowedOrigins.some((url) => {
+    try {
+      const protocolo = new URL(url).protocol;
+      return protocolo !== 'http:' && protocolo !== 'https:';
+    } catch {
+      return true;
+    }
+  })) {
+    throw new Error('FRONTEND_URL contiene un origen inválido.');
+  }
+  if (process.env.NODE_ENV === 'production' && allowedOrigins.some((url) => new URL(url).protocol !== 'https:')) {
+    throw new Error('FRONTEND_URL debe usar HTTPS en producción.');
+  }
   await servidor.register(cors, {
-    origin: frontendUrl.split(',').map((url) => url.trim()),
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   });

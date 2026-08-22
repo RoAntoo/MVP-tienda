@@ -16,10 +16,10 @@ const customAlertMessage = document.getElementById('customAlertMessage')!;
 const customAlertOkBtn = document.getElementById('customAlertOkBtn') as HTMLButtonElement;
 const customAlertCancelBtn = document.getElementById('customAlertCancelBtn') as HTMLButtonElement;
 
-function cyberAlert(message: string, title: string = '&gt; ADVERTENCIA_SISTEMA'): Promise<void> {
+function cyberAlert(message: string, title: string = '> ADVERTENCIA_SISTEMA'): Promise<void> {
   return new Promise((resolve) => {
-    customAlertTitle.innerHTML = title;
-    customAlertMessage.innerHTML = message;
+    customAlertTitle.textContent = title;
+    customAlertMessage.textContent = message;
     customAlertCancelBtn.classList.add('hidden');
     customAlertModal.classList.remove('hidden');
 
@@ -32,10 +32,10 @@ function cyberAlert(message: string, title: string = '&gt; ADVERTENCIA_SISTEMA')
   });
 }
 
-function cyberConfirm(message: string, title: string = '&gt; CONFIRMAR_ACCIÓN'): Promise<boolean> {
+function cyberConfirm(message: string, title: string = '> CONFIRMAR_ACCIÓN'): Promise<boolean> {
   return new Promise((resolve) => {
-    customAlertTitle.innerHTML = title;
-    customAlertMessage.innerHTML = message;
+    customAlertTitle.textContent = title;
+    customAlertMessage.textContent = message;
     customAlertCancelBtn.classList.remove('hidden');
     customAlertModal.classList.remove('hidden');
 
@@ -137,6 +137,15 @@ const cancelarEditBtn = document.getElementById('cancelarEditBtn') as HTMLButton
 // Estado
 let apiKey = '';
 const adminSessionStorageKey = 'adminApiKey';
+const adminSessionStorage = {
+  remove: (): void => {
+    try {
+      localStorage.removeItem(adminSessionStorageKey);
+    } catch {
+      // No impedir el cierre de sesión si Web Storage falla.
+    }
+  },
+};
 let categoriasDisponibles: string[] = [];
 let promoProductosDisponibles: any[] = [];
 const promoProductosSeleccionados = new Set<string>();
@@ -146,10 +155,7 @@ const novedadesProductosSeleccionados = new Set<string>();
 const novedadesPromocionesSeleccionadas = new Set<string>();
 
 // --- INICIALIZACIÓN ---
-const apiKeyGuardada = localStorage.getItem(adminSessionStorageKey);
-if (apiKeyGuardada) {
-  void validarYEntrar(apiKeyGuardada);
-}
+adminSessionStorage.remove();
 
 loginBtn.addEventListener('click', async () => {
   const key = apiKeyInput.value.trim();
@@ -237,7 +243,7 @@ async function cargarSolicitudes() {
     nextSolicitudesBtn.disabled = (offset + solicitudesLimit) >= total;
 
   } catch (error: any) {
-    solicitudesBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">Error: ${error.message}</td></tr>`;
+    solicitudesBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">Error: ${escapeHtml(String(error.message || 'Error desconocido'))}</td></tr>`;
   }
 }
 
@@ -269,7 +275,7 @@ if (nextProductosBtn) nextProductosBtn.addEventListener('click', () => { product
 
 logoutBtn.addEventListener('click', () => {
   apiKey = '';
-  localStorage.removeItem(adminSessionStorageKey);
+  adminSessionStorage.remove();
   dashboardSection.classList.add('hidden');
   loginSection.classList.remove('hidden');
   apiKeyInput.value = '';
@@ -424,14 +430,13 @@ async function validarYEntrar(key: string): Promise<boolean> {
 
     if (!res.ok) {
       if (res.status === 401) {
-        localStorage.removeItem(adminSessionStorageKey);
+        adminSessionStorage.remove();
       }
       throw new Error('Inválida');
     }
 
     // Autenticación exitosa
     apiKey = key;
-    localStorage.setItem(adminSessionStorageKey, key);
 
     loginSection.classList.add('hidden');
     loginError.classList.add('hidden');
@@ -487,7 +492,7 @@ async function cargarOrdenes() {
       loginError.classList.remove('hidden');
       loginError.textContent = 'Acceso Denegado';
     } else {
-      ordenesBody.innerHTML = `<tr><td colspan="6" style="color:red">${err.message}</td></tr>`;
+      ordenesBody.innerHTML = `<tr><td colspan="6" style="color:red">${escapeHtml(String(err.message || 'Error desconocido'))}</td></tr>`;
     }
   }
 }
@@ -529,7 +534,7 @@ async function cargarProductos() {
     dibujarProductos(productos);
   } catch (err: any) {
     if (fetchId !== currentTabFetchId) return;
-    productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${err.message}</td></tr>`;
+    productosBody.innerHTML = `<tr><td colspan="5" style="color:red">${escapeHtml(String(err.message || 'Error desconocido'))}</td></tr>`;
   }
 }
 
@@ -721,7 +726,7 @@ function renderizarPromoProductos() {
   promoProductosList.innerHTML = productos.length > 0
     ? productos.map(producto => `
       <label class="promotion-product-option">
-        <input type="checkbox" data-promo-product-id="${producto.id}" ${promoProductosSeleccionados.has(producto.id) ? 'checked' : ''}>
+        <input type="checkbox" data-promo-product-id="${escapeHtml(String(producto.id))}" ${promoProductosSeleccionados.has(producto.id) ? 'checked' : ''}>
         <span><strong>${escapeHtml(producto.titulo)}</strong><small>${escapeHtml(producto.categoria || 'General')} · ${producto.cantidad || 1} archivo${(producto.cantidad || 1) === 1 ? '' : 's'}</small></span>
       </label>
     `).join('')
@@ -751,8 +756,8 @@ function renderizarPromociones(promociones: any[]) {
     const vencimiento = promo.fechaFin ? `Vence ${new Date(promo.fechaFin).toLocaleDateString('es-AR')}` : 'Sin vencimiento';
     return `<article class="promotion-card ${promo.activa ? '' : 'is-inactive'}">
       <div><span class="admin-kicker">${promo.activa ? 'ACTIVA' : 'PAUSADA'}</span><h3>${escapeHtml(promo.nombre)}</h3><p>${valor} · ${promo.productoIds.length} producto${promo.productoIds.length === 1 ? '' : 's'} · ${vencimiento}</p></div>
-      <div class="promotion-card-actions"><button class="cyber-btn cyber-btn-sm" data-promo-action="toggle" data-id="${promo.id}">${promo.activa ? 'PAUSAR' : 'ACTIVAR'}</button><button class="cyber-btn cyber-btn-sm cyber-btn-pink" data-promo-action="delete" data-id="${promo.id}">ELIMINAR</button></div>
-    </article>`;
+      <div class="promotion-card-actions"><button class="cyber-btn cyber-btn-sm" data-promo-action="toggle" data-id="${escapeHtml(String(promo.id))}">${promo.activa ? 'PAUSAR' : 'ACTIVAR'}</button><button class="cyber-btn cyber-btn-sm cyber-btn-pink" data-promo-action="delete" data-id="${escapeHtml(String(promo.id))}">ELIMINAR</button></div>
+     </article>`;
   }).join('');
 }
 
@@ -1116,16 +1121,16 @@ function dibujarOrdenes(ordenes: any[]) {
 
   ordenesBody.innerHTML = ordenesOrdenadas.map(orden => `
     <tr>
-      <td><input class="orden-checkbox" type="checkbox" data-id="${orden.id}" aria-label="Seleccionar orden ${orden.id.substring(0, 8)}"></td>
-      <td>${orden.id.substring(0, 8)}</td>
+      <td><input class="orden-checkbox" type="checkbox" data-id="${escapeHtml(String(orden.id))}" aria-label="Seleccionar orden ${escapeHtml(String(orden.id).substring(0, 8))}"></td>
+      <td>${escapeHtml(String(orden.id).substring(0, 8))}</td>
       <td>${escapeHtml(orden.emailCliente)}</td>
       <td>$${Number(orden.total).toLocaleString('es-AR')}</td>
-      <td><span class="status-badge status-${orden.estado}">${orden.estado}</span></td>
+      <td><span class="status-badge status-${escapeHtml(String(orden.estado))}">${escapeHtml(String(orden.estado))}</span></td>
       <td>
         ${orden.estado === 'PENDIENTE'
-      ? `<button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-aprobar" data-id="${orden.id}">APROBAR</button>`
+      ? `<button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-aprobar" data-id="${escapeHtml(String(orden.id))}">APROBAR</button>`
       : `<span style="color:#666; display:block; margin-bottom: 0.5rem;">PROCESADO</span>`}
-        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-orden" data-id="${orden.id}">ELIMINAR</button>
+        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-orden" data-id="${escapeHtml(String(orden.id))}">ELIMINAR</button>
       </td>
     </tr>
   `).join('');
@@ -1251,7 +1256,7 @@ function dibujarProductos(productos: any[]) {
       <td style="font-size:0.8rem">${escapeHtml(prod.driveUrl || 'N/A')}</td>
       <td>
         <button style="margin-bottom: 0.5rem;" class="cyber-btn cyber-btn-sm btn-editar-prod" data-prod="${escapeHtml(JSON.stringify(prod))}">EDITAR</button>
-        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-prod" data-id="${prod.id}">ELIMINAR</button>
+        <button class="cyber-btn cyber-btn-sm cyber-btn-pink btn-eliminar-prod" data-id="${escapeHtml(String(prod.id))}">ELIMINAR</button>
       </td>
     </tr>
   `).join('');

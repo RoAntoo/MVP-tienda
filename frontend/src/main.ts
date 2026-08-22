@@ -26,6 +26,22 @@ let mostrarSoloPromociones = false;
 let cartItems: Product[] = [];
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+function promoYaVisto(): boolean {
+  try {
+    return sessionStorage.getItem('promoVisto') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function marcarPromoComoVista(): void {
+  try {
+    sessionStorage.setItem('promoVisto', 'true');
+  } catch {
+    // La tienda puede continuar aunque el navegador bloquee Web Storage.
+  }
+}
+
 // Elementos del DOM
 const cartBtn = document.getElementById('cartBtn');
 const closeCartBtn = document.getElementById('closeCartBtn');
@@ -815,13 +831,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const cerrarPromo = () => {
       promoModal.classList.add('hidden');
-      sessionStorage.setItem('promoVisto', 'true');
+      marcarPromoComoVista();
       if (focusBeforePromo && typeof focusBeforePromo.focus === 'function') {
         focusBeforePromo.focus();
       }
     };
 
-    if (!sessionStorage.getItem('promoVisto')) {
+    if (!promoYaVisto()) {
       focusBeforePromo = document.activeElement as HTMLElement;
       promoModal.classList.remove('hidden');
       setupFocusTrap(promoModal);
