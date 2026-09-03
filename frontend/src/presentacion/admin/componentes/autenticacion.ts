@@ -4,6 +4,7 @@ import {
   cerrarSesion,
 } from '../../../aplicacion/admin/gestionar-sesion.ts';
 import { cyberConfirm } from './modales.ts';
+import { marcarSalidaLocalAdmin } from '../../../infraestructura/storage/session-storage.ts';
 
 function limpiarSesionLocal(): void {
   const loginSection = document.getElementById('loginSection');
@@ -99,6 +100,7 @@ export function inicializarAutenticacion(
           '> ERROR_CIERRE_SESIÓN'
         );
         if (forzar) {
+          marcarSalidaLocalAdmin();
           limpiarSesionLocal();
           onLogout();
         }
