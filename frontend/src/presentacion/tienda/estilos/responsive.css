@@ -1,0 +1,129 @@
+/* --- DETAIL VIEW RESPONSIVE --- */
+@media (max-width: 900px) {
+  .detail-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 1.5rem;
+  }
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (min-width: 769px) {
+  .hide-on-desktop {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+  
+  .cart-sidebar {
+    width: 100%;
+    border-left: none;
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .navbar {
+    padding: 1rem 0.5rem;
+  }
+
+  .nav-menu {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(9, 9, 11, 0.95);
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-glass);
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+  
+  .nav-menu.active {
+    display: flex;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .navbar .cyber-btn {
+    padding: 0.5rem;
+  }
+
+  .trust-container {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 0.5rem;
+    gap: 2rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .trust-container::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .trust-item {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+}
+
+/* --- NEWSLETTER RESPONSIVE --- */
+@media (max-width: 700px) {
+  .newsletter-section {
+    grid-template-columns: 1fr;
+    padding: 1.4rem;
+  }
+
+  .newsletter-input-row {
+    flex-direction: column;
+  }
+
+  .newsletter-input-row .cyber-btn {
+    width: 100%;
+  }
+}
+
+/* --- PROMOTION BANNER & BADGE RESPONSIVE --- */
+@media (max-width: 600px) {
+  .promotion-banner { align-items: flex-start; flex-wrap: wrap; gap: 0.7rem; padding: 0.85rem; }
+  .promotion-banner-signal { width: 2.7rem; height: 2.7rem; font-size: 0.62rem; }
+  .promotion-banner-copy strong { font-size: 0.92rem; white-space: normal; }
+  .promotion-banner-copy p { font-size: 0.74rem; }
+  .promotion-banner-action { flex: 0 0 100%; width: 100%; margin-left: 0; text-align: center; }
+  .promotion-badge { top: 0.55rem; left: 0.55rem; max-width: calc(100% - 1.1rem); font-size: 0.62rem; }
+}
+
+/* --- TOAST RESPONSIVENESS (MOBILE) --- */
+@media (max-width: 480px) {
+  .toast-container {
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    align-items: center;
+  }
+  
+  .toast {
+    max-width: 100%;
+    width: 100%;
+    font-size: 0.9rem;
+    justify-content: center;
+    transform: translateY(120%);
+  }
+
+  .toast.show {
+    transform: translateY(0);
+  }
+}
