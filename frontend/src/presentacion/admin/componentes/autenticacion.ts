@@ -72,13 +72,16 @@ export function inicializarAutenticacion(
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      await cerrarSesion();
-      if (dashboardSection && loginSection) {
-        dashboardSection.classList.add('hidden');
-        loginSection.classList.remove('hidden');
+      try {
+        await cerrarSesion();
+      } finally {
+        if (dashboardSection && loginSection) {
+          dashboardSection.classList.add('hidden');
+          loginSection.classList.remove('hidden');
+        }
+        if (apiKeyInput) apiKeyInput.value = '';
+        onLogout();
       }
-      if (apiKeyInput) apiKeyInput.value = '';
-      onLogout();
     });
   }
 }

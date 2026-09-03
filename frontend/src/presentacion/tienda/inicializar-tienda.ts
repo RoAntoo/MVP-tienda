@@ -62,7 +62,7 @@ export async function recargarCatalogo(): Promise<void> {
       currentFetchController.signal
     );
 
-    if (!state.promocionesCargadas && resultado.nombresPromocionesActivas.length > 0) {
+    if (!state.promocionesCargadas) {
       tiendaStore.setPromocionesActivas(resultado.nombresPromocionesActivas);
     }
 

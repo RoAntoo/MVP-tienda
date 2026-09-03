@@ -44,11 +44,23 @@ export async function cargarCatalogo(
       return acc;
     }
 
+    let precioEfectivo = precioValidado;
+    let originalPrice: number | undefined = undefined;
+
+    if (p.precioPromocional !== undefined && p.precioPromocional !== null) {
+      const promoNum = Number(p.precioPromocional);
+      if (Number.isFinite(promoNum)) {
+        precioEfectivo = promoNum;
+        const originalNum = Number(p.precioOriginal);
+        originalPrice = Number.isFinite(originalNum) ? originalNum : precioValidado;
+      }
+    }
+
     acc.push({
       id: p.id,
       title: p.titulo,
-      price: Number(p.precioPromocional ?? precioValidado),
-      originalPrice: p.precioPromocional ? Number(p.precioOriginal ?? precioValidado) : undefined,
+      price: precioEfectivo,
+      originalPrice,
       promotion: p.promocion
         ? {
             nombre: p.promocion.nombre,

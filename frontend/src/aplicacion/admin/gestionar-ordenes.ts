@@ -30,7 +30,7 @@ export async function borrarOrden(ordenId: string): Promise<void> {
 export async function borrarMultiplesOrdenes(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   const res = await eliminarOrdenesMultiplesAdmin(ids);
-  return res.count || ids.length;
+  return res.count ?? ids.length;
 }
 
 export function ordenarOrdenes(

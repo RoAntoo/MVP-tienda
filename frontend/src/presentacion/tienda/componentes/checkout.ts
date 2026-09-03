@@ -1,6 +1,6 @@
 import { tiendaStore } from '../store.ts';
 import { iniciarProcesoCompra } from '../../../aplicacion/checkout/iniciar-compra.ts';
-import { renderCart, toggleCart } from './carrito.ts';
+import { renderCart, toggleCart, isCartOpen } from './carrito.ts';
 import { showToast } from './toast.ts';
 
 export function inicializarCheckout(): void {
@@ -26,13 +26,21 @@ export function inicializarCheckout(): void {
       submitBtn.disabled = true;
     }
 
-    try {
-      await iniciarProcesoCompra(email, carrito);
+    const productosAComprar = [...carrito];
 
-      // Vaciar carrito tras respuesta exitosa
-      tiendaStore.vaciarCarrito();
+    try {
+      await iniciarProcesoCompra(email, productosAComprar);
+
+      // Eliminar únicamente los productos incluidos en la compra confirmada
+      const compradosIds = new Set(productosAComprar.map((p) => p.id));
+      const carritoActual = tiendaStore.getState().carrito;
+      const carritoRestante = carritoActual.filter((p) => !compradosIds.has(p.id));
+      tiendaStore.setCarrito(carritoRestante);
       renderCart();
-      toggleCart();
+
+      if (isCartOpen()) {
+        toggleCart();
+      }
 
       showToast('SOLICITUD_COMPLETADA_: Revisa tu correo con las instrucciones.', 'success');
       checkoutForm.reset();

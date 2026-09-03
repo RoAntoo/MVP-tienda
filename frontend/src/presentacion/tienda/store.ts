@@ -75,6 +75,7 @@ class TiendaStore {
 
   public setBusqueda(busqueda: string): void {
     this.state.busqueda = busqueda;
+    this.state.paginaActual = 1;
     this.notify();
   }
 

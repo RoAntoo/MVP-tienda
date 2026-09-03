@@ -19,15 +19,19 @@ export function configurarCallbacksCatalogo(callbacks: {
 }
 
 export function showAddedFeedback(button: HTMLButtonElement): void {
-  const originalText = button.innerText;
+  if (button.dataset.feedbackActive === 'true') return;
+
+  button.dataset.feedbackActive = 'true';
+  const originalHtml = button.innerHTML;
   button.innerText = '[ ADDED ]';
   button.style.background = 'var(--accent-pink)';
   button.style.color = 'var(--bg-color)';
 
   setTimeout(() => {
-    button.innerText = originalText;
+    button.innerHTML = originalHtml;
     button.style.background = 'transparent';
     button.style.color = 'var(--accent-pink)';
+    delete button.dataset.feedbackActive;
   }, 1000);
 }
 

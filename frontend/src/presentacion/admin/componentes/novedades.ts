@@ -25,6 +25,24 @@ export async function cargarNovedades(): Promise<void> {
     adminStore.novedadesProductosDisponibles = data.productos || [];
     adminStore.novedadesPromocionesDisponibles = data.promociones || [];
 
+    const idsProductosDisponibles = new Set(
+      adminStore.novedadesProductosDisponibles.map((p) => String(p.id))
+    );
+    for (const id of adminStore.novedadesProductosSeleccionados) {
+      if (!idsProductosDisponibles.has(id)) {
+        adminStore.novedadesProductosSeleccionados.delete(id);
+      }
+    }
+
+    const idsPromocionesDisponibles = new Set(
+      adminStore.novedadesPromocionesDisponibles.map((p) => String(p.id))
+    );
+    for (const id of adminStore.novedadesPromocionesSeleccionadas) {
+      if (!idsPromocionesDisponibles.has(id)) {
+        adminStore.novedadesPromocionesSeleccionadas.delete(id);
+      }
+    }
+
     renderizarNovedadesProductos();
     renderizarNovedadesPromociones();
     renderizarHistorialNovedades(data.campanias || []);

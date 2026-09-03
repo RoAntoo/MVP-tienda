@@ -22,6 +22,16 @@ export async function cargarPromociones(): Promise<void> {
     ]);
 
     adminStore.promoProductosDisponibles = productosPromo;
+
+    const idsDisponibles = new Set(
+      adminStore.promoProductosDisponibles.map((p) => String(p.id))
+    );
+    for (const id of adminStore.promoProductosSeleccionados) {
+      if (!idsDisponibles.has(id)) {
+        adminStore.promoProductosSeleccionados.delete(id);
+      }
+    }
+
     renderizarPromoProductos();
     renderizarPromociones(promociones);
   } catch (error: any) {
@@ -196,20 +206,27 @@ export function inicializarPromociones(): void {
       const id = button.dataset.id;
       if (!id) return;
 
-      const promociones = await listarPromocionesAdmin();
-      const promo = promociones.find((item) => item.id === id);
-      if (!promo) return;
+      button.disabled = true;
+      try {
+        const promociones = await listarPromocionesAdmin();
+        const promo = promociones.find((item) => item.id === id);
+        if (!promo) return;
 
-      if (button.dataset.promoAction === 'delete') {
-        if (!(await cyberConfirm(`¿Eliminar la promoción "${promo.nombre}"?`))) return;
-        await borrarPromocion(id);
-      } else {
-        await modificarPromocion(id, {
-          activa: !promo.activa,
-          productoIds: promo.productoIds,
-        });
+        if (button.dataset.promoAction === 'delete') {
+          if (!(await cyberConfirm(`¿Eliminar la promoción "${promo.nombre}"?`))) return;
+          await borrarPromocion(id);
+        } else {
+          await modificarPromocion(id, {
+            activa: !promo.activa,
+            productoIds: promo.productoIds,
+          });
+        }
+        await cargarPromociones();
+      } catch (error: any) {
+        await cyberAlert(`Error al gestionar promoción: ${error.message}`);
+      } finally {
+        button.disabled = false;
       }
-      cargarPromociones();
     });
   }
 }

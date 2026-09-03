@@ -16,7 +16,7 @@ export function escapeHtml(unsafe: string): string {
  */
 export function setupFocusTrap(modalElement: HTMLElement, autoFocus: boolean = true): () => void {
   const focusableElements = modalElement.querySelectorAll<HTMLElement>(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    'button:not([disabled]), [href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
   );
 
   if (focusableElements.length === 0) {

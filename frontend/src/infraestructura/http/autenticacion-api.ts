@@ -27,11 +27,17 @@ export async function loginAdmin(apiKey: string): Promise<boolean> {
 
 export async function logoutAdmin(): Promise<void> {
   try {
-    await fetch(`${API_URL}/admin/logout`, {
+    const res = await fetch(`${API_URL}/admin/logout`, {
       method: 'POST',
       credentials: 'include',
     });
-  } catch {
-    // Ignorar fallo de red en logout
+    if (!res.ok) {
+      throw new ErrorApi('Error al cerrar sesión', res.status);
+    }
+  } catch (error) {
+    if (error instanceof ErrorApi) {
+      throw error;
+    }
+    // Ignorar fallo de red en logout para no bloquear la salida del usuario
   }
 }

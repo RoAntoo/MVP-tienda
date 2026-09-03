@@ -12,16 +12,16 @@ export async function cargarRecursosNovedades(): Promise<NovedadesAdminResponse>
 }
 
 export async function enviarCampaniaNovedad(payload: CrearNovedadPayload): Promise<void> {
-  const tieneRecursos =
-    (payload.productoIds && payload.productoIds.length > 0) ||
-    (payload.promocionIds && payload.promocionIds.length > 0);
-
-  if (!tieneRecursos) {
-    throw new Error(
-      payload.tipo === 'CATALOGO'
-        ? 'Debes seleccionar al menos un libro.'
-        : 'Debes seleccionar al menos una promoción.'
-    );
+  if (payload.tipo === 'CATALOGO') {
+    if (!payload.productoIds || payload.productoIds.length === 0) {
+      throw new Error('Debes seleccionar al menos un libro.');
+    }
+  } else if (payload.tipo === 'PROMOCION') {
+    if (!payload.promocionIds || payload.promocionIds.length === 0) {
+      throw new Error('Debes seleccionar al menos una promoción.');
+    }
+  } else {
+    throw new Error('Tipo de novedad no válido');
   }
 
   await crearNovedadAdmin({

@@ -38,8 +38,8 @@ export function inicializarAdmin(): void {
       cargarOrdenes();
     },
     () => {
-      // Al desloguearse, resetear pestañas si es necesario
-      activarTab('ordenes');
+      // Al desloguearse, resetear pestañas visualmente sin disparar peticiones
+      mostrarTab('ordenes');
     }
   );
 
@@ -70,7 +70,7 @@ export function inicializarAdmin(): void {
   });
 }
 
-function activarTab(tabName: string): void {
+function mostrarTab(tabName: string): void {
   const tabBtns = document.querySelectorAll<HTMLButtonElement>('.tab-btn');
   const ordenesTab = document.getElementById('ordenesTab');
   const productosTab = document.getElementById('productosTab');
@@ -87,6 +87,10 @@ function activarTab(tabName: string): void {
   if (promocionesTab) promocionesTab.classList.toggle('hidden', tabName !== 'promociones');
   if (novedadesTab) novedadesTab.classList.toggle('hidden', tabName !== 'novedades');
   if (solicitudesTab) solicitudesTab.classList.toggle('hidden', tabName !== 'solicitudes');
+}
+
+function activarTab(tabName: string): void {
+  mostrarTab(tabName);
 
   if (tabName === 'ordenes') {
     cargarOrdenes();

@@ -9,6 +9,10 @@ export function formatearMoneda(valor: number): string {
  * Formatea una fecha ISO o timestamp a formato legible en español.
  */
 export function formatearFecha(fecha: string | Date): string {
+  if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    const [year, month, day] = fecha.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('es-AR');
+  }
   const f = typeof fecha === 'string' ? new Date(fecha) : fecha;
   return f.toLocaleDateString('es-AR');
 }
