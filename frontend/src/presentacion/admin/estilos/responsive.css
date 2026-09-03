@@ -1,0 +1,33 @@
+@media (max-width: 640px) {
+  .orders-heading { align-items: flex-start; flex-direction: column; }
+  .orders-sort { width: 100%; }
+  .bulk-actions { width: 100%; justify-content: space-between; }
+  .bulk-actions .cyber-btn { font-size: 0.75rem; padding: 0.5rem; }
+}
+
+@media (max-width: 600px) {
+  body { padding: 1rem; }
+  .admin-header { align-items: flex-start; flex-direction: column; gap: 1.25rem; }
+  .admin-header-actions { justify-content: space-between; width: 100%; }
+  .tabs { width: 100%; overflow-x: auto; }
+  .tab-btn { flex: 1; white-space: nowrap; font-size: 0.9rem; }
+  .catalog-header { align-items: flex-start; flex-direction: column; }
+  .catalog-controls { width: 100%; flex-direction: column; align-items: stretch; }
+  .product-search { min-width: 0; }
+  .catalog-controls select { width: 100%; }
+  .promotion-layout { grid-template-columns: 1fr; }
+  .news-composer-layout { grid-template-columns: 1fr; }
+  .promotion-fields { grid-template-columns: 1fr; }
+  .promotion-picker-header, .promotion-card { align-items: flex-start; flex-direction: column; }
+  .promotion-card-actions { width: 100%; }
+  .promotion-card-actions .cyber-btn { flex: 1; }
+  .admin-pagination { gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+  .admin-pagination .page-numbers { width: 100%; min-width: 0; overflow-x: auto; justify-content: flex-start; padding: 0.15rem 0.1rem 0.35rem; }
+  .admin-pagination .cyber-btn { padding-left: 0.55rem; padding-right: 0.55rem; font-size: 0.7rem; }
+  .page-number { min-width: 1.8rem; }
+  th, td { padding: 0.8rem; }
+  .price-chip {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}

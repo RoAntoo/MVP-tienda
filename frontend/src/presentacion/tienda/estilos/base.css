@@ -1,0 +1,115 @@
+:root {
+  --bg-color: #09090b;
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --accent-pink: #ff2a85;
+  --accent-cyan: #00f0ff;
+  --card-bg: rgba(24, 24, 27, 0.5);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --font-retro: 'Share Tech Mono', monospace;
+  --font-modern: 'Inter', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-modern);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* --- BUTTONS --- */
+.cyber-btn {
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-modern);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.cyber-btn:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.cyber-btn:active {
+  transform: translateY(1px);
+}
+
+.cyber-btn-primary {
+  background: var(--text-main);
+  color: var(--bg-color);
+  border: 1px solid var(--text-main);
+}
+
+.cyber-btn-primary:hover {
+  background: transparent;
+  color: var(--text-main);
+  border-color: var(--border-glass);
+}
+
+.cyber-btn-pink {
+  background: var(--accent-pink);
+  color: white;
+  border: 1px solid var(--accent-pink);
+}
+
+.cyber-btn-pink:hover {
+  background: transparent;
+  color: var(--accent-pink);
+  border-color: var(--accent-pink);
+}
+
+.admin-link {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cyber-btn-text {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-modern);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: color 0.2s;
+}
+
+.cyber-btn-text:hover {
+  color: var(--text-main);
+}
+
+.w-100 {
+  width: 100%;
+}
+
+/* --- ACCESSIBILITY --- */
+@media (prefers-reduced-motion: reduce) {
+  .grid-overlay {
+    animation: none;
+  }
+  .blink {
+    animation: none;
+  }
+}
