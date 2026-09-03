@@ -30,6 +30,7 @@ export function inicializarAdmin(): void {
   // Manejo de expiración de sesión 401
   onSesionExpirada(() => {
     mostrarErrorSesionExpirada();
+    mostrarTab('ordenes');
   });
 
   // Inicializar autenticación

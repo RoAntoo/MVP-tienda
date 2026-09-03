@@ -3,6 +3,19 @@ import {
   iniciarSesion,
   cerrarSesion,
 } from '../../../aplicacion/admin/gestionar-sesion.ts';
+import { cyberConfirm } from './modales.ts';
+
+function limpiarSesionLocal(): void {
+  const loginSection = document.getElementById('loginSection');
+  const dashboardSection = document.getElementById('dashboardSection');
+  const apiKeyInput = document.getElementById('apiKeyInput') as HTMLInputElement | null;
+
+  if (dashboardSection && loginSection) {
+    dashboardSection.classList.add('hidden');
+    loginSection.classList.remove('hidden');
+  }
+  if (apiKeyInput) apiKeyInput.value = '';
+}
 
 export function inicializarAutenticacion(
   onLoginSuccess: () => void,
@@ -13,7 +26,7 @@ export function inicializarAutenticacion(
   const apiKeyInput = document.getElementById('apiKeyInput') as HTMLInputElement | null;
   const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement | null;
   const loginError = document.getElementById('loginError');
-  const logoutBtn = document.getElementById('logoutBtn');
+  const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement | null;
 
   // Restaurar sesión al cargar si existe cookie activa
   (async () => {
@@ -72,24 +85,34 @@ export function inicializarAutenticacion(
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
+      const originalText = logoutBtn.innerText;
+      logoutBtn.innerText = 'CERRANDO...';
+      logoutBtn.disabled = true;
+
       try {
         await cerrarSesion();
-      } finally {
-        if (dashboardSection && loginSection) {
-          dashboardSection.classList.add('hidden');
-          loginSection.classList.remove('hidden');
-        }
-        if (apiKeyInput) apiKeyInput.value = '';
+        limpiarSesionLocal();
         onLogout();
+      } catch (err: any) {
+        const forzar = await cyberConfirm(
+          `No se pudo cerrar la sesión en el servidor (${err.message || 'Error de conexión'}). ¿Deseas forzar la salida local de emergencia?`,
+          '> ERROR_CIERRE_SESIÓN'
+        );
+        if (forzar) {
+          limpiarSesionLocal();
+          onLogout();
+        }
+      } finally {
+        logoutBtn.innerText = originalText;
+        logoutBtn.disabled = false;
       }
     });
   }
 }
 
 export function mostrarErrorSesionExpirada(): void {
-  const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement | null;
+  limpiarSesionLocal();
   const loginError = document.getElementById('loginError');
-  if (logoutBtn) logoutBtn.click();
   if (loginError) {
     loginError.classList.remove('hidden');
     loginError.textContent = 'Sesión expirada';
