@@ -262,11 +262,11 @@
   border-radius: 14px;
   padding: 2.25rem 2rem 2rem;
   box-shadow: 0 0 50px rgba(255, 42, 133, 0.16), 0 25px 60px rgba(0, 0, 0, 0.75);
-  animation: promoModalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: promo-modal-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   margin: auto;
 }
 
-@keyframes promoModalFadeIn {
+@keyframes promo-modal-fade-in {
   from {
     opacity: 0;
     transform: translateY(18px) scale(0.97);
